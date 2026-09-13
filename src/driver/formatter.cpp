@@ -1,6 +1,7 @@
 #include "janus/driver/formatter.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/frontend/named_construction.hpp"
 #include "janus/frontend/parser.hpp"
 
 #include <algorithm>
@@ -267,6 +268,85 @@ std::string flatten_expression(std::string_view expression) {
   return result;
 }
 
+std::string
+canonicalize_named_constructions(std::string_view source,
+                                 const janus::driver::FormatOptions &options) {
+  std::string result{source};
+  const auto tokenize = [](const std::string &text) {
+    janus::frontend::Lexer lexer{text};
+    std::vector<janus::frontend::Token> tokens;
+    do {
+      tokens.push_back(lexer.next());
+    } while (tokens.back().kind != janus::frontend::TokenKind::End);
+    return tokens;
+  };
+  try {
+    const auto initial_tokens = tokenize(result);
+    const auto count =
+        janus::frontend::named_constructions(initial_tokens).size();
+    for (std::size_t ordinal = count; ordinal > 0; --ordinal) {
+      const auto tokens = tokenize(result);
+      const auto constructions = janus::frontend::named_constructions(tokens);
+      const auto &construction = constructions[ordinal - 1];
+      if (construction.close == tokens.size())
+        continue;
+      const auto begin = tokens[construction.open].location.offset;
+      const auto end = tokens[construction.close].location.offset + 1;
+      const auto original = std::string_view{result}.substr(begin, end - begin);
+      if (!safely_flattenable(original)) {
+        if (!construction.fields.empty() &&
+            original.find('\n') != std::string_view::npos &&
+            tokens[construction.close - 1].kind !=
+                janus::frontend::TokenKind::Comma) {
+          const auto &last = tokens[construction.close - 1];
+          result.insert(last.location.offset + last.lexeme.size(), ",");
+        }
+        continue;
+      }
+      std::vector<std::string> fields;
+      for (const auto &[first, last] : construction.fields) {
+        std::string field{tokens[first].lexeme};
+        if (first + 1 < last &&
+            tokens[first + 1].kind == janus::frontend::TokenKind::Colon) {
+          const auto expression_begin = tokens[first + 1].location.offset + 1;
+          field += ": " + std::string{trim(std::string_view{result}.substr(
+                              expression_begin, tokens[last].location.offset -
+                                                    expression_begin))};
+        }
+        fields.push_back(std::move(field));
+      }
+      std::string flat = "{";
+      for (std::size_t index = 0; index < fields.size(); ++index)
+        flat += (index == 0 ? " " : ", ") + fields[index];
+      flat += fields.empty() ? "}" : " }";
+      const auto line_start = result.rfind('\n', begin);
+      const auto prefix =
+          begin - (line_start == std::string::npos ? 0 : line_start + 1);
+      const bool multiline = original.find('\n') != std::string_view::npos ||
+                             prefix + flat.size() > options.max_line_length;
+      if (multiline && !fields.empty()) {
+        flat = "{\n";
+        for (const auto &field : fields)
+          flat += field + ",\n";
+        flat += "}";
+      }
+      const auto &previous = tokens[construction.open - 1];
+      const auto previous_end =
+          previous.location.offset + previous.lexeme.size();
+      const auto gap =
+          std::string_view{result}.substr(previous_end, begin - previous_end);
+      if (std::all_of(gap.begin(), gap.end(), [](unsigned char character) {
+            return std::isspace(character);
+          }))
+        result.replace(previous_end, end - previous_end, " " + flat);
+      else
+        result.replace(begin, end - begin, flat);
+    }
+  } catch (const janus::CompileError &) {
+  }
+  return result;
+}
+
 std::string canonicalize_expression_layout(std::string_view source,
                                            const janus::driver::FormatOptions &options) {
   std::vector<ExpressionLineRange> ranges = expression_line_ranges(source);
@@ -361,8 +441,8 @@ FormatOptions load_format_options(const std::filesystem::path &path) {
 std::string format_source(std::string_view source,
                           const FormatOptions &options) {
   const std::string arrow_normalized = canonicalize_function_arrows(source);
-  const std::string layout_normalized =
-      canonicalize_expression_layout(arrow_normalized, options);
+  const std::string layout_normalized = canonicalize_named_constructions(
+      canonicalize_expression_layout(arrow_normalized, options), options);
   const std::vector<ExpressionLineRange> expression_ranges =
       expression_line_ranges(layout_normalized);
   std::istringstream input{layout_normalized};

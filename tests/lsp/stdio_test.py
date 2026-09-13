@@ -54,6 +54,52 @@ class StdioTest(unittest.TestCase):
             self.assertEqual(process.stderr, b"")
         return responses(process.stdout)
 
+    def test_named_struct_aliases_and_homonyms(self):
+        with tempfile.TemporaryDirectory(prefix="janus-named-lsp-") as directory:
+            root = Path(directory)
+            (root / "a.janus").write_text("module a\nstruct Point[T](val x : T) {}\n")
+            (root / "b.janus").write_text("module b\nstruct Point(val x : bool) {}\n")
+            source = ("import a.{Point as P}\nimport b as b\n"
+                      "def main() : int {\n    val x = 1\n"
+                      "    val first = new P[int] { x }\n"
+                      "    val second = new b.Point { x: true }\n"
+                      "    return first.x\n}\n")
+            uri = (root / "main.janus").as_uri()
+
+            def message(method, params, identifier=None):
+                value = {"jsonrpc": "2.0", "method": method, "params": params}
+                if identifier is not None:
+                    value["id"] = identifier
+                return frame(json.dumps(value).encode())
+
+            def at(spelling):
+                offset = source.index(spelling)
+                return {"textDocument": {"uri": uri}, "position": {
+                    "line": source[:offset].count("\n"),
+                    "character": offset - source.rfind("\n", 0, offset) - 1}}
+
+            rename = at("x }")
+            rename["newName"] = "horizontal"
+            data = message("initialize", {"rootUri": root.as_uri()}, 1)
+            data += message("textDocument/didOpen", {"textDocument": {
+                "uri": uri, "version": 1, "languageId": "janus", "text": source}})
+            data += message("textDocument/definition", at("x }"), 2)
+            data += message("textDocument/definition", at("x: true"), 3)
+            data += message("textDocument/rename", rename, 4)
+            data += frame(request(5))
+            data += message("exit", {})
+            process = subprocess.run([BINARY], input=data, capture_output=True,
+                                     cwd=directory, timeout=30)
+            self.assertEqual(process.returncode, 0, process.stderr.decode())
+            replies = {r["id"]: r for r in responses(process.stdout) if "id" in r}
+            self.assertIn((root / "a.janus").as_uri(), json.dumps(replies[2]))
+            self.assertIn((root / "b.janus").as_uri(), json.dumps(replies[3]))
+            self.assertNotIn("error", replies[4])
+            changes = replies[4]["result"]["documentChanges"]
+            self.assertEqual({change["textDocument"]["uri"] for change in changes},
+                             {uri, (root / "a.janus").as_uri()})
+            self.assertIn("horizontal: x", json.dumps(changes))
+
     def test_empty_stream(self):
         self.assertEqual(self.run_server(b""), [])
 

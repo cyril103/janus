@@ -1770,13 +1770,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, constant::ConstructorShape>
       constant_constructor_shapes;
 
+  std::optional<std::string> constant_context_module = program.module_name;
+  struct ConstantModuleScope {
+    std::optional<std::string> &current;
+    std::optional<std::string> previous;
+    ConstantModuleScope(std::optional<std::string> &current_module,
+                        const std::optional<std::string> &module)
+        : current{current_module},
+          previous{std::exchange(current_module, module)} {}
+    ~ConstantModuleScope() { current = std::move(previous); }
+  };
+
   const auto constant_constructor_resolver =
       [&](std::string_view name, const std::optional<std::string> &enum_case,
           const std::vector<ast::TypeReference> &type_references,
           SourceLocation location)
       -> std::optional<constant::ConstructorShape> {
-    const std::string shape_key =
-        std::string{name} + (enum_case ? "." + *enum_case : "");
+    const std::string shape_key = global_key(constant_context_module, name) +
+                                  (enum_case ? "." + *enum_case : "");
     if (type_references.empty())
       if (const auto cached = constant_constructor_shapes.find(shape_key);
           cached != constant_constructor_shapes.end())
@@ -1836,19 +1847,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       constant_constructor_shapes.insert_or_assign(shape_key, shape);
       return shape;
     }
-    const auto declaration = classes.find(std::string{name});
+    const auto declaration =
+        find_in_context(classes, constant_context_module, name);
     if (declaration == classes.end() || !declaration->second->is_value_type ||
         !declaration->second->type_parameters.empty())
       return std::nullopt;
+    const std::string identity =
+        global_key(declaration->second->module_name, declaration->second->name);
     const Type *nominal = nullptr;
-    if (const auto existing = constant_nominal_types.find(std::string{name});
+    if (const auto existing = constant_nominal_types.find(identity);
         existing != constant_nominal_types.end()) {
       nominal = existing->second;
     } else {
-      auto owned = std::make_shared<Type>(Type::struct_type(name));
+      auto owned = std::make_shared<Type>(Type::struct_type(identity));
       nominal = owned.get();
       result.constant_value_types.push_back(std::move(owned));
-      constant_nominal_types.emplace(name, nominal);
+      constant_nominal_types.emplace(identity, nominal);
     }
     constant::ConstructorShape shape{nominal, std::nullopt, {}};
     for (std::size_t index = 0;
@@ -1859,6 +1873,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{location,
                            "constant struct field type is not admissible"};
       shape.fields.emplace_back(index, field);
+      const auto &field_declaration =
+          declaration->second->constructor_fields[index];
+      shape.field_names.push_back(field_declaration.name);
+      if (field_declaration.is_private ||
+          (field_declaration.is_internal &&
+           declaration->second->module_name != constant_context_module))
+        shape.inaccessible_fields.push_back(field_declaration.name);
     }
     constant_constructor_shapes.insert_or_assign(shape_key, shape);
     return shape;
@@ -2155,7 +2176,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           for (const ast::ValueDeclaration &field :
                declaration->second->constructor_fields) {
             if (field.declared_type)
-              infer_argument(*field.declared_type, index);
+              infer_argument(*field.declared_type,
+                             construction->argument_index(field.name, index));
             ++index;
           }
           if (inferred.size() == declaration->second->type_parameters.size())
@@ -2812,6 +2834,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (found == nullptr)
       return std::nullopt;
     const ast::FunctionDeclaration &function = *found;
+    ConstantModuleScope module_scope{constant_context_module,
+                                     function.module_name};
     if (arguments.size() != function.parameters.size())
       throw CompileError{location, "const def '" + function.name +
                                        "' received an invalid argument count"};
@@ -2879,6 +2903,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     constant_states[key] = ConstantState::Visiting;
     const ResolvedGlobal &resolved = globals.at(key);
     const ast::GlobalDeclaration &global = *resolved.declaration;
+    ConstantModuleScope module_scope{constant_context_module,
+                                     global.module_name};
     const constant::Resolver resolver =
         [&](const std::optional<std::string> &qualified_module,
             std::string_view name,
@@ -2958,6 +2984,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
   for (const ast::Program::StaticAssertion &assertion :
        program.static_assertions) {
+    ConstantModuleScope module_scope{constant_context_module,
+                                     assertion.module_name};
     try {
       const constant::Value condition = constant::evaluate(
           assertion.condition, &Type::bool_type(),
@@ -8224,6 +8252,47 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   class_declaration.constructor_parameters.size();
               const std::size_t field_count =
                   class_declaration.constructor_fields.size();
+              if (node.is_named) {
+                if (!class_declaration.is_value_type)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerNamedClassConstruction,
+                      node.location,
+                      "named construction requires a struct; use new " +
+                          node.class_name +
+                          "(...) to call the class constructor"};
+                std::unordered_set<std::string> initialized;
+                for (const auto &named : node.named_fields) {
+                  const auto field =
+                      std::find_if(class_declaration.constructor_fields.begin(),
+                                   class_declaration.constructor_fields.end(),
+                                   [&](const auto &candidate) {
+                                     return candidate.name == named.name;
+                                   });
+                  if (field == class_declaration.constructor_fields.end())
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerUnknownStructField,
+                        named.location,
+                        "unknown struct field '" + named.name + "'"};
+                  if (!initialized.insert(named.name).second)
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerDuplicateStructField,
+                        named.location,
+                        "duplicate struct field '" + named.name + "'"};
+                  if ((field->is_private && owner != &class_declaration) ||
+                      (field->is_internal &&
+                       class_declaration.module_name != context_module))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInaccessibleStructField,
+                        named.location,
+                        "struct field '" + named.name + "' is inaccessible"};
+                }
+                for (const auto &field : class_declaration.constructor_fields)
+                  if (!initialized.contains(field.name))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerMissingStructField,
+                        node.location,
+                        "missing struct field '" + field.name + "'"};
+              }
               if (node.arguments.size() != parameter_count + field_count)
                 throw CompileError{
                     node.location,
@@ -8301,7 +8370,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       index < parameter_count
                           ? class_declaration.constructor_parameters[index].type
                           : *class_declaration
-                                 .constructor_fields[index - parameter_count]
+                                 .constructor_fields
+                                     [node.is_named
+                                          ? node.field_index(
+                                                index, class_declaration
+                                                           .constructor_fields)
+                                          : index - parameter_count]
                                  .declared_type;
                   const SemanticType pattern =
                       resolve_type(reference, class_parameters, &class_arities);
@@ -8430,7 +8504,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     parameter.name, Symbol{parameter_type, false, true});
               }
               for (std::size_t index = 0; index < field_count; ++index) {
-                const auto &field = class_declaration.constructor_fields[index];
+                const auto &field =
+                    class_declaration.constructor_fields[node.field_index(
+                        index, class_declaration.constructor_fields)];
                 const SemanticType field_type = resolve_type(
                     *field.declared_type, class_parameters, &class_arities);
                 const SemanticType concrete_field_type =
@@ -11350,7 +11426,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   contains_mutable_borrow =
                       contains_mutable_borrow || field.is_mutable;
                   const ast::Expression &argument =
-                      *construction->arguments[parameter_count + index];
+                      *construction->arguments[construction->argument_index(
+                          field.name, parameter_count + index)];
                   if (const auto source = borrowed_return_source(argument)) {
                     borrow_sources[declaration->name].insert(*source);
                   } else if (const auto *source = lexical_root_identifier(
@@ -11825,7 +11902,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   contains_mutable_borrow =
                       contains_mutable_borrow || field.is_mutable;
                   const ast::Expression &argument =
-                      *construction->arguments[parameter_count + index];
+                      *construction->arguments[construction->argument_index(
+                          field.name, parameter_count + index)];
                   if (const auto source = borrowed_return_source(argument)) {
                     borrow_sources[assignment->name].insert(*source);
                   } else if (const auto *source = lexical_root_identifier(
@@ -12364,7 +12442,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (!field.is_borrowed)
                     continue;
                   const ast::Expression &argument =
-                      *construction->arguments[parameter_count + index];
+                      *construction->arguments[construction->argument_index(
+                          field.name, parameter_count + index)];
                   if (std::holds_alternative<ast::IdentifierExpression>(
                           argument.value))
                     throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,

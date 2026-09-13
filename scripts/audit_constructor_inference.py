@@ -27,6 +27,7 @@ USIZE_LITERAL = re.compile(r"\busize\(\s*[0-9][0-9_]*\s*\)")
 # Exact source occurrences intentionally kept explicit. New occurrences are
 # classified as simplifiable and make --check fail until reviewed.
 CONSTRUCTOR_EXCEPTIONS = {
+    ("docs/language-guide.md", "new Pair[int, bool] {", 1368, 3): "pédagogique explicite (construction nommée)",
     ("README.md", "new Factory[int](", 112, 2): "pédagogique explicite",
     ("docs/archive/migration-0.5-to-0.6.md", "new Array[Resource](", 31, 35): "historique",
     ("docs/language-guide.md", "new Factory[int](", 1296, 16): "pédagogique explicite",
@@ -216,7 +217,7 @@ def constructors(
         after = skip_trivia(text, cursor)
         if after < len(text) and text[after] == "]":
             raise ValueError("unexpected closing bracket after generic constructor")
-        if after >= len(text) or text[after] != "(":
+        if after >= len(text) or text[after] not in "({":
             search_from = after
             continue
         spelling = re.sub(r"\s+", " ", text[match.start() : after + 1])
@@ -370,6 +371,8 @@ def render(root: Path) -> str:
 
 
 def self_test() -> None:
+    if len(list(constructors("new Pair[int, bool] { second: true, first: 1 }"))) != 1:
+        raise AssertionError("named generic constructor was not inventoried")
     sample = (
         "new Box /* before */ [Pair[int, /* ] ignored */ Array[string]]] "
         "/* after */ (42)"

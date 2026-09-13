@@ -147,3 +147,8 @@ reproduire.
 | `JANA0042` | invalid map literal: complete target type, strategy or duplicate key |
 | `JANA0043` | invalid using resource type |
 | `JANA0044` | using resource already moved or deleted |
+| `JANA0045` | unknown struct field |
+| `JANA0046` | duplicate struct field |
+| `JANA0047` | missing struct field |
+| `JANA0048` | inaccessible struct field |
+| `JANA0049` | named construction of a class |

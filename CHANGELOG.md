@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Conception du langage
 
+- Construction nommée des structs `new Point { x: expression, y }` (#278),
+  avec génériques, diagnostics dédiés, ordre d’évaluation source, nettoyage
+  partiel sur panic et prise en charge par le formatter et le LSP.
+
 - RFC d’évaluation de `total def` (#317), prototype conservateur isolé et
   mesures sur un échantillon stdlib ; intégration différée, sans changement
   de `pure def`, du langage ou de l’ABI.

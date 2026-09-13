@@ -2192,6 +2192,32 @@ ast::Expression Parser::parse_primary() {
       } while (true);
       static_cast<void>(expect(TokenKind::RightBracket));
     }
+    if (current_.kind == TokenKind::LeftBrace) {
+      advance();
+      ast::NewExpression construction{
+          class_name, std::move(type_arguments), {}, new_token.location};
+      construction.is_named = true;
+      while (current_.kind != TokenKind::RightBrace) {
+        const Token field = expect(TokenKind::Identifier);
+        const bool shorthand = current_.kind != TokenKind::Colon;
+        construction.named_fields.push_back(
+            {std::string{field.identifier()}, field.location, shorthand});
+        if (shorthand) {
+          construction.arguments.push_back(
+              std::make_unique<ast::Expression>(ast::IdentifierExpression{
+                  std::string{field.identifier()}, field.location}));
+        } else {
+          advance();
+          construction.arguments.push_back(
+              std::make_unique<ast::Expression>(parse_expression()));
+        }
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+      }
+      static_cast<void>(expect(TokenKind::RightBrace));
+      return construction;
+    }
     static_cast<void>(expect(TokenKind::LeftParen));
     std::vector<std::unique_ptr<ast::Expression>> arguments;
     if (current_.kind != TokenKind::RightParen) {

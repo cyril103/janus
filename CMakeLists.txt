@@ -1406,6 +1406,14 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_map_literal_doctests.cmake"
     )
     add_test(
+        NAME docs.named_struct_doctests
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUS=$<TARGET_FILE:janus>"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBUILD_DIR=${PROJECT_BINARY_DIR}"
+            -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_named_struct_doctests.cmake"
+    )
+    add_test(
         NAME docs.using_val_doctests
         COMMAND ${CMAKE_COMMAND}
             "-DJANUS=$<TARGET_FILE:janus>"
@@ -2479,6 +2487,17 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
     add_test(
+        NAME runtime.named_structs
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_structs.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/named_structs_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_structs.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
         NAME runtime.map_literals
         COMMAND ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
@@ -2488,6 +2507,30 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literals_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literals.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.named_struct_prefix_cleanup
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_struct_prefix_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/named_struct_prefix_cleanup_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_struct_prefix_cleanup.expected.txt"
+            "-DEXPECTED_ERROR=integer division by zero"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.named_struct_panic_cleanup
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_struct_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/named_struct_panic_cleanup_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/named_struct_panic_cleanup.expected.txt"
+            "-DEXPECTED_ERROR=integer division by zero"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
     add_test(
         NAME runtime.map_literal_panic_cleanup

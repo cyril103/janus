@@ -1338,6 +1338,54 @@ opérations d'insertion et d'extraction transfèrent alors les valeurs avec
 restants. Le [contrat de propriété des
 conteneurs](design/container-ownership.md) détaille cette séparation.
 
+### Construction nommée des structs
+
+`new Point { x: horizontal, y: vertical }` associe les expressions aux noms
+des champs constructeur. Le raccourci `x` signifie exactement `x: x` : le
+nom de droite est résolu dans la portée lexicale courante.
+
+```janus
+// doctest: doctest name=named-struct
+struct Point(val x : int, val y : int) {}
+struct Pair[A, B](val first : A, val second : B) {}
+
+def main() : int {
+    val x = 10
+    val y = 20
+    val point = new Point { y, x, }
+    val pair = new Pair { second: true, first: point.x }
+    if point.x != 10 || point.y != 20 || pair.first != 10 {
+        return 1
+    }
+    return 0
+}
+```
+
+Chaque champ constructeur doit apparaître exactement une fois. L'ordre est
+libre et la virgule finale est acceptée. Les expressions sont évaluées une
+seule fois dans l'ordre écrit ; les valeurs sont ensuite placées selon l'ordre
+de déclaration des champs. Les paramètres génériques peuvent être explicites
+(`new Pair[int, bool] { second: true, first: 10 }`) ou inférés. Les imports
+qualifiés et les alias conservent l'identité du type déclaré.
+
+Les règles de copie, de `move` et d'emprunt restent celles du constructeur
+positionnel. Si une expression panique, les champs propriétaires déjà
+construits sont détruits dans l'ordre inverse de leur initialisation effective.
+Un agrégat imbriqué entièrement construit suit ses règles habituelles de
+destruction récursive.
+
+Un champ inconnu (`JANA0045`), dupliqué (`JANA0046`), manquant (`JANA0047`) ou
+inaccessible (`JANA0048`) est rejeté. Cette syntaxe ne donne pas accès aux
+champs privés ou internes. Les classes doivent appeler leur constructeur avec
+`new Class(...)` ; la forme nommée produit `JANA0049`.
+
+Le formatter normalise les formes courtes et ajoute une virgule finale aux
+formes multiligne, en conservant les commentaires. Le LSP propose les champs restants et
+permet le survol, la navigation et le renommage. Sur un raccourci `x`, ces
+opérations ciblent le champ : son renommage en `horizontal` produit
+`horizontal: x`. Renommer la variable locale depuis sa déclaration produit
+`x: nouveauNom`, en préservant le champ.
+
 ### Dérivations explicites
 
 Le lot 0.6.3, publié avec Janus 0.7.4, réserve la clause `derives` pour demander

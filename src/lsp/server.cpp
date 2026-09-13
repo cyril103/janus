@@ -2,12 +2,13 @@
 #include "janus/build_identity.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
-#include "janus/driver/dependency.hpp"
 #include "janus/driver/api_index.hpp"
+#include "janus/driver/dependency.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/frontend/lexer.hpp"
 #include "janus/frontend/module_loader.hpp"
+#include "janus/frontend/named_construction.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 #include "janus/semantic/compilation_session.hpp"
@@ -474,6 +475,65 @@ std::vector<DocumentSymbol> symbols(
         is_private, symbol_top_level ? module_name : std::nullopt,
         symbol_kind});
   }
+  // Constructor fields belong to their nominal type, even though their
+  // declarations precede the body's opening brace.
+  for (std::size_t index = 0; index + 2 < document_tokens.size(); ++index) {
+    if (document_tokens[index].kind != TokenKind::Struct &&
+        document_tokens[index].kind != TokenKind::Class)
+      continue;
+    const std::string owner{document_tokens[index + 1].identifier()};
+    std::size_t open = index + 2;
+    while (open < document_tokens.size() &&
+           document_tokens[open].kind != TokenKind::LeftParen &&
+           document_tokens[open].kind != TokenKind::LeftBrace)
+      ++open;
+    if (open == document_tokens.size() ||
+        document_tokens[open].kind != TokenKind::LeftParen)
+      continue;
+    std::size_t close = open + 1;
+    int depth = 1;
+    for (; close < document_tokens.size(); ++close) {
+      if (document_tokens[close].kind == TokenKind::LeftParen)
+        ++depth;
+      if (document_tokens[close].kind == TokenKind::RightParen && --depth == 0)
+        break;
+    }
+    std::size_t end = source.size();
+    std::size_t body_start = source.size();
+    for (const Scope &scope : scopes)
+      if (close < document_tokens.size() &&
+          scope.start > document_tokens[close].location.offset &&
+          scope.start < body_start) {
+        body_start = scope.start;
+        end = scope.end;
+      }
+    for (std::size_t field = open + 1; field + 1 < close; ++field) {
+      if (document_tokens[field].kind != TokenKind::Val &&
+          document_tokens[field].kind != TokenKind::Var)
+        continue;
+      for (auto &symbol : result) {
+        if (symbol.location.offset !=
+            document_tokens[field + 1].location.offset)
+          continue;
+        symbol.owner_type = owner;
+        symbol.id = std::string{uri} + "#" + owner + "." + symbol.name;
+        symbol.is_global = false;
+        symbol.is_top_level = false;
+        for (std::size_t modifier = field; modifier > open + 1;) {
+          const auto kind = document_tokens[--modifier].kind;
+          if (kind == TokenKind::Private)
+            symbol.is_private = true;
+          else if (kind == TokenKind::Internal)
+            symbol.is_internal = true;
+          else if (kind != TokenKind::Borrow)
+            break;
+        }
+        symbol.scope_start = document_tokens[open].location.offset;
+        symbol.scope_end = end;
+        symbol.scope_depth = 1;
+      }
+    }
+  }
   return result;
 }
 
@@ -481,6 +541,9 @@ struct LocatedIdentifier {
   std::string name;
   janus::SourceLocation location;
   std::optional<std::string> qualifier;
+  std::optional<std::size_t> construction_type{};
+  bool shorthand{false};
+  bool lexical_only{false};
 };
 
 LocatedIdentifier
@@ -501,8 +564,17 @@ located_identifier(const std::vector<janus::frontend::Token> &document_tokens,
       qualifier_index -= 2;
     }
   }
-  return LocatedIdentifier{std::string{token.identifier()}, token.location,
+  LocatedIdentifier result{std::string{token.identifier()}, token.location,
                            std::move(qualifier)};
+  for (const auto &construction :
+       janus::frontend::named_constructions(document_tokens))
+    for (const auto &[first, last] : construction.fields)
+      if (first == index) {
+        result.construction_type = construction.type;
+        result.shorthand = first + 1 == last;
+        return result;
+      }
+  return result;
 }
 
 std::size_t utf8_sequence_length(unsigned char lead) {
@@ -3146,6 +3218,64 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
     bind_symbol = [&](const IndexedDocument &origin,
                       const LocatedIdentifier &requested)
         -> std::optional<std::pair<std::string, DocumentSymbol>> {
+      const auto bind_field =
+          [&](const std::pair<std::string, DocumentSymbol> &type)
+          -> std::optional<std::pair<std::string, DocumentSymbol>> {
+        for (const auto &candidate : semantic_index.documents) {
+          if (candidate.uri != type.first)
+            continue;
+          for (const auto &field : candidate.index->symbols)
+            if (field.owner_type == type.second.name &&
+                field.name == requested.name &&
+                (!field.is_private ||
+                 (candidate.uri == origin.uri &&
+                  requested.location.offset >= field.scope_start &&
+                  requested.location.offset <= field.scope_end)) &&
+                (!field.is_internal || same_semantic_module(candidate, origin)))
+              return std::pair<std::string, DocumentSymbol>{candidate.uri,
+                                                            field};
+        }
+        return std::nullopt;
+      };
+      if (requested.construction_type && !requested.lexical_only) {
+        const auto origin_tokens = tokens(origin.index->source);
+        std::size_t type_end = *requested.construction_type;
+        while (type_end + 2 < origin_tokens.size() &&
+               origin_tokens[type_end + 1].kind == frontend::TokenKind::Dot)
+          type_end += 2;
+        const auto type =
+            bind_symbol(origin, located_identifier(origin_tokens, type_end));
+        return type ? bind_field(*type) : std::nullopt;
+      }
+      if (requested.qualifier) {
+        const auto origin_tokens = tokens(origin.index->source);
+        for (std::size_t index = 2; index < origin_tokens.size(); ++index) {
+          if (origin_tokens[index].location.offset !=
+                  requested.location.offset ||
+              origin_tokens[index - 1].kind != frontend::TokenKind::Dot)
+            continue;
+          const auto receiver =
+              bind_symbol(origin, located_identifier(origin_tokens, index - 2));
+          if (!receiver)
+            break;
+          const auto separator = receiver->second.detail.rfind(" : ");
+          if (separator == std::string::npos)
+            break;
+          auto name = receiver->second.detail.substr(separator + 3);
+          name = name.substr(0, name.find('['));
+          LocatedIdentifier type_identifier{name, receiver->second.location,
+                                            std::nullopt};
+          if (const auto dot = name.rfind('.'); dot != std::string::npos) {
+            type_identifier.name = name.substr(dot + 1);
+            type_identifier.qualifier = name.substr(0, dot);
+          }
+          const auto type = bind_symbol(origin, type_identifier);
+          if (type)
+            if (const auto field = bind_field(*type))
+              return field;
+          break;
+        }
+      }
       const DocumentSymbol *best = nullptr;
       if (!requested.qualifier)
         for (const DocumentSymbol &symbol : origin.index->symbols) {
@@ -3656,7 +3786,12 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
             continue;
           LocatedIdentifier occurrence_identifier =
               located_identifier(document_tokens, token_index);
-          const auto bound = bind_symbol(indexed, occurrence_identifier);
+          auto bound = bind_symbol(indexed, occurrence_identifier);
+          if ((!bound || bound->second.id != target->second.id) &&
+              occurrence_identifier.shorthand) {
+            occurrence_identifier.lexical_only = true;
+            bound = bind_symbol(indexed, occurrence_identifier);
+          }
           if (!bound.has_value() || bound->second.id != target->second.id)
             continue;
           occurrences.push_back(RenameOccurrence{
@@ -3665,6 +3800,28 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
       }
 
       const auto rename_is_safe = [&](const RenameOccurrence &occurrence) {
+        if (target->second.owner_type) {
+          if (!occurrence.identifier.qualifier &&
+              !occurrence.identifier.construction_type &&
+              occurrence.token.location.offset !=
+                  target->second.location.offset)
+            for (const auto &candidate : occurrence.document->index->symbols)
+              if (!candidate.owner_type &&
+                  candidate.name == canonical_new_name &&
+                  candidate.location.offset <=
+                      occurrence.token.location.offset &&
+                  candidate.scope_start <= occurrence.token.location.offset &&
+                  candidate.scope_end >= occurrence.token.location.offset)
+                return false;
+          for (const auto &document : semantic_index.documents)
+            if (document.uri == target->first)
+              for (const auto &candidate : document.index->symbols)
+                if (candidate.owner_type == target->second.owner_type &&
+                    candidate.name == canonical_new_name &&
+                    candidate.id != target->second.id)
+                  return false;
+          return true;
+        }
         const DocumentSymbol *best_local = nullptr;
         for (const DocumentSymbol &candidate :
              occurrence.document->index->symbols) {
@@ -3734,7 +3891,13 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
             {"range",
              range(occurrence.document->index->source,
                    occurrence.token.location, occurrence.token.lexeme.size())},
-            {"newText", new_name},
+            {"newText",
+             occurrence.identifier.shorthand
+                 ? (occurrence.identifier.lexical_only
+                        ? std::string{occurrence.token.lexeme} + ": " + new_name
+                        : new_name + ": " +
+                              std::string{occurrence.token.lexeme})
+                 : new_name},
         });
       llvm::json::Array document_changes;
       std::vector<std::string> edited_uris;
@@ -3904,6 +4067,65 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
         }
         items.emplace_back(std::move(item));
       };
+
+      if (const auto cursor = offset_from_position(
+              document->second, static_cast<std::uint32_t>(*line),
+              static_cast<std::uint32_t>(*character))) {
+        const auto completion_tokens = tokens(document->second);
+        const auto constructions =
+            frontend::named_constructions(completion_tokens);
+        for (auto it = constructions.rbegin(); it != constructions.rend();
+             ++it) {
+          const auto &construction = *it;
+          if (*cursor <= completion_tokens[construction.open].location.offset ||
+              (construction.close < completion_tokens.size() &&
+               *cursor > completion_tokens[construction.close].location.offset))
+            continue;
+          bool field_position = true;
+          std::unordered_set<std::string> supplied;
+          for (const auto &[first, last] : construction.fields) {
+            if (completion_tokens[first].location.offset <= *cursor &&
+                last < completion_tokens.size() &&
+                *cursor <= completion_tokens[last].location.offset) {
+              if (first + 1 < last &&
+                  completion_tokens[first + 1].kind ==
+                      frontend::TokenKind::Colon &&
+                  *cursor > completion_tokens[first + 1].location.offset)
+                field_position = false;
+            } else
+              supplied.insert(
+                  std::string{completion_tokens[first].identifier()});
+          }
+          if (!field_position)
+            break;
+          std::size_t type_end = construction.type;
+          while (type_end + 2 < completion_tokens.size() &&
+                 completion_tokens[type_end + 1].kind ==
+                     frontend::TokenKind::Dot)
+            type_end += 2;
+          const auto type =
+              bind_symbol(semantic_index.documents.front(),
+                          located_identifier(completion_tokens, type_end));
+          if (type && type->second.kind == IndexedSymbolKind::Struct)
+            for (const auto &candidate : semantic_index.documents) {
+              if (candidate.uri != type->first)
+                continue;
+              for (const auto &field : candidate.index->symbols)
+                if (field.owner_type == type->second.name &&
+                    !supplied.contains(field.name) &&
+                    (!field.is_private ||
+                     (candidate.uri == *uri && *cursor >= field.scope_start &&
+                      *cursor <= field.scope_end)) &&
+                    (!field.is_internal ||
+                     same_semantic_module(candidate,
+                                          semantic_index.documents.front())))
+                  add_item(field.name, field.detail, 5);
+            }
+          return {response(request_id(*request),
+                           llvm::json::Object{{"isIncomplete", false},
+                                              {"items", std::move(items)}})};
+        }
+      }
 
       const janus::driver::ApiIndex completion_index =
           combined_api_index(*uri);

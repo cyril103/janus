@@ -5,8 +5,29 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 int main() {
+  for (const auto &[source, expected] :
+       std::vector<std::pair<std::string, std::string>>{
+           {"def f() : Point {\nreturn new Point{x:1,y,}\n}\n",
+            "def f() : Point {\n    return new Point { x: 1, y }\n}\n"},
+           {"def f() : Point {\nreturn new Point {\nx:1,\ny\n}\n}\n",
+            "def f() : Point {\n    return new Point {\n        x: 1,\n        "
+            "y,\n    }\n}\n"},
+           {"def f() : Point {\nreturn new Point {\n// retain this comment\nx: "
+            "1,\ny\n}\n}\n",
+            "def f() : Point {\n    return new Point {\n        // retain this "
+            "comment\n        x: 1,\n        y,\n    }\n}\n"}}) {
+    if (janus::driver::format_source(source) != expected ||
+        janus::driver::format_source(expected) != expected) {
+      std::cerr
+          << "named construction formatting must be canonical and idempotent\n"
+          << janus::driver::format_source(source);
+      return 1;
+    }
+  }
+
   const std::string using_source =
       "def f() : Unit {\nusing val r = new Resource()\n}\n";
   const std::string using_expected =

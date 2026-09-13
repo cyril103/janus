@@ -59,6 +59,11 @@ enum class DiagnosticCode {
   AnalyzerUnannotatedExternReturn,
   AnalyzerInvalidArrayLiteral,
   AnalyzerInvalidMapLiteral,
+  AnalyzerUnknownStructField,
+  AnalyzerDuplicateStructField,
+  AnalyzerMissingStructField,
+  AnalyzerInaccessibleStructField,
+  AnalyzerNamedClassConstruction,
   AnalyzerBorrowConflict,
   AnalyzerBorrowInvalidation,
   AnalyzerBorrowEscape,
@@ -195,6 +200,16 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0043";
   case DiagnosticCode::AnalyzerDisarmedUsingValue:
     return "JANA0044";
+  case DiagnosticCode::AnalyzerUnknownStructField:
+    return "JANA0045";
+  case DiagnosticCode::AnalyzerDuplicateStructField:
+    return "JANA0046";
+  case DiagnosticCode::AnalyzerMissingStructField:
+    return "JANA0047";
+  case DiagnosticCode::AnalyzerInaccessibleStructField:
+    return "JANA0048";
+  case DiagnosticCode::AnalyzerNamedClassConstruction:
+    return "JANA0049";
   case DiagnosticCode::AnalyzerFunctionResolution:
     return "JANA0041";
   case DiagnosticCode::ModuleNotFound:

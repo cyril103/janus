@@ -50,6 +50,11 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerUnannotatedExternReturn,
     DiagnosticCode::AnalyzerInvalidArrayLiteral,
     DiagnosticCode::AnalyzerInvalidMapLiteral,
+    DiagnosticCode::AnalyzerUnknownStructField,
+    DiagnosticCode::AnalyzerDuplicateStructField,
+    DiagnosticCode::AnalyzerMissingStructField,
+    DiagnosticCode::AnalyzerInaccessibleStructField,
+    DiagnosticCode::AnalyzerNamedClassConstruction,
     DiagnosticCode::AnalyzerBorrowConflict,
     DiagnosticCode::AnalyzerBorrowInvalidation,
     DiagnosticCode::AnalyzerBorrowEscape,
@@ -100,6 +105,26 @@ explain_diagnostic(DiagnosticCode code) noexcept {
         "and invalidates the binding.",
         "Use the new owner after a move; do not access or delete the old "
         "binding."};
+  case DiagnosticCode::AnalyzerUnknownStructField:
+    return {code, "unknown struct field",
+            "The label does not name a constructor field of this struct.",
+            "Use a field declared by the resolved struct type."};
+  case DiagnosticCode::AnalyzerDuplicateStructField:
+    return {code, "duplicate struct field",
+            "A named construction initializes the same field more than once.",
+            "Remove the duplicate initializer."};
+  case DiagnosticCode::AnalyzerMissingStructField:
+    return {code, "missing struct field",
+            "A named construction must initialize every constructor field.",
+            "Add each missing field exactly once."};
+  case DiagnosticCode::AnalyzerInaccessibleStructField:
+    return {code, "inaccessible struct field",
+            "Named construction follows private and internal field visibility.",
+            "Construct the value through an accessible API."};
+  case DiagnosticCode::AnalyzerNamedClassConstruction:
+    return {code, "named construction of a class",
+            "Named field construction is restricted to structs.",
+            "Use new Class(...) to execute the class constructor."};
   case DiagnosticCode::AnalyzerInvalidMapLiteral:
     return {code, "invalid map literal",
             "Map literals require a complete canonical HashMap[K, V, H] target "

@@ -198,6 +198,35 @@ struct NewExpression {
   std::vector<TypeReference> type_arguments;
   std::vector<std::unique_ptr<Expression>> arguments;
   SourceLocation location;
+  struct NamedField {
+    std::string name;
+    SourceLocation location;
+    bool shorthand{false};
+  };
+  // Both vectors follow source order; storage order belongs to the declaration.
+  bool is_named{false};
+  std::vector<NamedField> named_fields{};
+
+  [[nodiscard]] std::size_t argument_index(std::string_view field,
+                                           std::size_t positional) const {
+    if (!is_named)
+      return positional;
+    for (std::size_t index = 0; index < named_fields.size(); ++index)
+      if (named_fields[index].name == field)
+        return index;
+    return arguments.size();
+  }
+
+  template <typename Fields>
+  [[nodiscard]] std::size_t field_index(std::size_t argument,
+                                        const Fields &fields) const {
+    if (!is_named)
+      return argument;
+    for (std::size_t index = 0; index < fields.size(); ++index)
+      if (fields[index].name == named_fields[argument].name)
+        return index;
+    return fields.size();
+  }
 };
 
 struct MemberAccessExpression {

@@ -1,0 +1,4 @@
+struct Point(val x : int) {}
+struct Secret(private val x : int) {}
+class Object() {}
+def main() : int { val p = new Point { z: 1 } return 0 }

@@ -33,6 +33,8 @@ struct ConstructorShape {
   const Type *type;
   std::optional<std::int32_t> tag;
   std::vector<std::pair<std::size_t, const Type *>> fields;
+  std::vector<std::string> field_names{};
+  std::vector<std::string> inaccessible_fields{};
 };
 
 struct InitializationPlan {

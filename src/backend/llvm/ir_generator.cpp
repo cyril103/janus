@@ -749,6 +749,8 @@ private:
               &resolve(specialization.declaration->constructor_fields[index]
                            .declared_type,
                        specialization.substitutions));
+        for (const auto &field : specialization.declaration->constructor_fields)
+          shape.field_names.push_back(field.name);
         return shape;
       }
       if (!enums_.contains(std::string{name}))
@@ -5384,21 +5386,27 @@ private:
                 llvm_class_types_.at(std::string{object_type.name()});
             if (class_declaration.is_value_type) {
               ::llvm::Value *value = ::llvm::UndefValue::get(class_type);
-              for (std::size_t index = 0;
-                   index < class_declaration.constructor_fields.size();
+              auto &pending = *active_cleanup_scopes_.back().owned_values;
+              const auto pending_depth = pending.size();
+              for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
+                const auto storage_index = node.field_index(
+                    index, class_declaration.constructor_fields);
                 const auto &field_declaration =
-                    class_declaration.constructor_fields[index];
+                    class_declaration.constructor_fields[storage_index];
                 const janus::Type &field_type =
                     resolve(field_declaration.declared_type,
                             specialization.substitutions);
-                value = builder.CreateInsertValue(
-                    value,
+                auto *field_value =
                     emit_expression(*node.arguments[index], field_type,
-                                    substitutions, locals, builder),
-                    static_cast<unsigned>(index),
+                                    substitutions, locals, builder);
+                value = builder.CreateInsertValue(
+                    value, field_value, static_cast<unsigned>(storage_index),
                     field_declaration.name + ".value");
+                if (owns_value(field_type) && !field_declaration.is_borrowed)
+                  pending.push_back({field_value, &field_type});
               }
+              pending.resize(pending_depth);
               return value;
             }
             ::llvm::FunctionCallee malloc_function =

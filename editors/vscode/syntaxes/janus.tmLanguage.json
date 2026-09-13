@@ -8,12 +8,45 @@
       "match": "//.*$"
     },
     {
+      "name": "meta.construction.named.janus",
+      "begin": "\\b(new)\\s+([\\p{L}_][\\p{L}\\p{N}_.]*)(?:\\s*\\[[^{}\\n]*\\])?\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.janus"
+        },
+        "2": {
+          "name": "entity.name.type.janus"
+        },
+        "3": {
+          "name": "punctuation.definition.struct.janus"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.struct.janus"
+        }
+      },
+      "patterns": [
+        {
+          "name": "variable.other.member.janus",
+          "match": "(?<=[{,])\\s*([\\p{L}_][\\p{L}\\p{N}_]*)(?=\\s*[:,}])"
+        },
+        {
+          "include": "#expression-braces"
+        },
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    {
       "name": "keyword.control.janus",
       "match": "\\b(if|else|match|for|in|while|break|continue|return|using|defer|delete|move|consume|staticAssert)\\b"
     },
     {
       "name": "storage.type.janus",
-      "match": "\\b(class|trait|enum|const|pure|tailrec|def|val|var|private|internal|extern|module|import|extends|new|destructor|borrow)\\b"
+      "match": "\\b(class|struct|trait|enum|const|pure|tailrec|def|val|var|private|internal|extern|module|import|extends|new|destructor|borrow)\\b"
     },
     {
       "name": "storage.type.function.janus",
@@ -93,5 +126,19 @@
       "name": "variable.other.identifier.janus",
       "match": "(?<![\\p{L}\\p{M}\\p{N}_])(?:_|\\p{L})[\\p{L}\\p{M}\\p{N}\\p{Pc}]*(?![\\p{L}\\p{M}\\p{N}_])"
     }
-  ]
+  ],
+  "repository": {
+    "expression-braces": {
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "#expression-braces"
+        },
+        {
+          "include": "$self"
+        }
+      ]
+    }
+  }
 }

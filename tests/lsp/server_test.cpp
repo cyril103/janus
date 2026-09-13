@@ -2,8 +2,9 @@
 
 #include "../support/require.hpp"
 
-#include <charconv>
+#include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include <llvm/Support/JSON.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
 
@@ -269,7 +271,108 @@ private:
 
 } // namespace
 
+void test_named_struct_tools() {
+  janus::lsp::Server server;
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","id":0,"method":"initialize","params":{}})"));
+  std::string source = "struct Point(val x : int, val y : int) {}\n"
+                       "def main() : int {\n"
+                       "    val x = 1\n"
+                       "    val y = 2\n"
+                       "    val p : Point = new Point { y: 2, x }\n"
+                       "    return p.x\n"
+                       "}\n";
+  const auto send = [&](llvm::json::Object message) {
+    std::string text;
+    llvm::raw_string_ostream stream{text};
+    stream << llvm::json::Value(std::move(message));
+    stream.flush();
+    return server.handle(text);
+  };
+  static_cast<void>(send(llvm::json::Object{
+      {"jsonrpc", "2.0"},
+      {"method", "textDocument/didOpen"},
+      {"params", llvm::json::Object{
+                     {"textDocument",
+                      llvm::json::Object{{"uri", "file:///named-struct.janus"},
+                                         {"version", 1},
+                                         {"text", source}}}}}}));
+  const auto request = [&](std::string method, std::size_t offset,
+                           std::string name = "horizontal") {
+    const auto line = static_cast<std::int64_t>(
+        std::count(source.begin(), source.begin() + offset, '\n'));
+    const auto start = source.rfind('\n', offset);
+    const auto column = static_cast<std::int64_t>(
+        offset - (start == std::string::npos ? 0 : start + 1));
+    const auto replies = send(llvm::json::Object{
+        {"jsonrpc", "2.0"},
+        {"id", 1},
+        {"method", method},
+        {"params",
+         llvm::json::Object{
+             {"textDocument",
+              llvm::json::Object{{"uri", "file:///named-struct.janus"}}},
+             {"position",
+              llvm::json::Object{{"line", line}, {"character", column}}},
+             {"newName", name}}}});
+    JANUS_REQUIRE(replies.size() == 1);
+    return replies.front();
+  };
+  const auto shorthand = source.find("x }");
+  const auto hover = request("textDocument/hover", shorthand);
+  JANUS_REQUIRE(hover.find("val x : int") != std::string::npos);
+  const auto definition = request("textDocument/definition", shorthand);
+  JANUS_REQUIRE(definition.find("\"line\":0") != std::string::npos);
+  const auto explicit_definition =
+      request("textDocument/definition", source.find("y: 2"));
+  JANUS_REQUIRE(explicit_definition.find("\"line\":0") != std::string::npos);
+  const auto renamed = request("textDocument/rename", shorthand);
+  JANUS_REQUIRE(renamed.find("\"error\"") == std::string::npos);
+  JANUS_REQUIRE(renamed.find("horizontal: x") != std::string::npos);
+  JANUS_REQUIRE(renamed.find("\"line\":2") == std::string::npos);
+  JANUS_REQUIRE(renamed.find("\"line\":5") != std::string::npos);
+  const auto variable =
+      request("textDocument/rename", source.find("x = 1"), "localX");
+  JANUS_REQUIRE(variable.find("x: localX") != std::string::npos);
+  JANUS_REQUIRE(variable.find("\"line\":0") == std::string::npos);
+  const auto completion = request("textDocument/completion", shorthand);
+  JANUS_REQUIRE(completion.find("\"label\":\"x\"") != std::string::npos);
+  JANUS_REQUIRE(completion.find("\"label\":\"y\"") == std::string::npos);
+  // Completion must continue working before the closing brace is typed.
+  const auto incomplete = source.substr(0, shorthand);
+  static_cast<void>(send(llvm::json::Object{
+      {"jsonrpc", "2.0"},
+      {"method", "textDocument/didOpen"},
+      {"params", llvm::json::Object{
+                     {"textDocument",
+                      llvm::json::Object{{"uri", "file:///named-struct.janus"},
+                                         {"version", 2},
+                                         {"text", incomplete}}}}}}));
+  const auto pending = request("textDocument/completion", shorthand);
+  JANUS_REQUIRE(pending.find("\"label\":\"x\"") != std::string::npos);
+  JANUS_REQUIRE(pending.find("\"label\":\"y\"") == std::string::npos);
+  source = "struct Secret(private val x : int) {\n"
+           "    borrow def copy() : Secret { return new Secret { } }\n"
+           "}\n"
+           "def main() : int { val value = new Secret { } return 0 }\n";
+  static_cast<void>(send(llvm::json::Object{
+      {"jsonrpc", "2.0"},
+      {"method", "textDocument/didOpen"},
+      {"params", llvm::json::Object{
+                     {"textDocument",
+                      llvm::json::Object{{"uri", "file:///named-struct.janus"},
+                                         {"version", 3},
+                                         {"text", source}}}}}}));
+  const auto inside =
+      request("textDocument/completion", source.find("{ }") + 2);
+  const auto outside =
+      request("textDocument/completion", source.rfind("{ }") + 2);
+  JANUS_REQUIRE(inside.find("\"label\":\"x\"") != std::string::npos);
+  JANUS_REQUIRE(outside.find("\"label\":\"x\"") == std::string::npos);
+}
+
 int main(int argc, char **argv) {
+  test_named_struct_tools();
   if (argc == 2 && std::string_view{argv[1]} == "--verify-require-failure")
     JANUS_REQUIRE(false);
 

@@ -27,6 +27,7 @@ namespace {
 __extension__ using WideSigned = __int128;
 __extension__ using WideUnsigned = unsigned __int128;
 
+using janus::DiagnosticCode;
 using janus::Type;
 using janus::TypeKind;
 using janus::constant::Value;
@@ -993,13 +994,13 @@ Value evaluate_impl(const janus::ast::Expression &expression,
           return Value{&Type::string_type(), node.value};
         else if constexpr (std::is_same_v<Node, janus::ast::MapLiteralExpression>) {
           throw janus::CompileError{
-              janus::DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
+              DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
               "map literals are not supported in global constants; HashMap "
               "requires runtime-owned storage"};
         } else if constexpr (std::is_same_v<Node,
                                           janus::ast::ArrayLiteralExpression>) {
           throw janus::CompileError{
-              janus::DiagnosticCode::AnalyzerInvalidArrayLiteral, node.location,
+              DiagnosticCode::AnalyzerInvalidArrayLiteral, node.location,
               "array literals are not supported in global constants; "
               "Array[T] requires runtime-owned storage"};
         } else if constexpr (std::is_same_v<Node,
@@ -1041,19 +1042,55 @@ Value evaluate_impl(const janus::ast::Expression &expression,
               resolve_constructor(node.class_name, std::nullopt,
                                   node.type_arguments, node.location);
           if (!shape.has_value() ||
-              shape->fields.size() != node.arguments.size())
+              (!node.is_named && shape->fields.size() != node.arguments.size()))
             throw janus::CompileError{
                 node.location,
                 "global initializer is not a constant struct constructor"};
           auto aggregate =
               std::make_shared<janus::constant::AggregateValue>();
           aggregate->tag = shape->tag;
-          for (std::size_t index = 0; index < node.arguments.size(); ++index)
+          std::unordered_set<std::size_t> initialized;
+          for (std::size_t index = 0; index < node.arguments.size(); ++index) {
+            std::size_t storage_index = index;
+            if (node.is_named) {
+              const auto &named = node.named_fields[index];
+              if (std::find(shape->inaccessible_fields.begin(),
+                            shape->inaccessible_fields.end(),
+                            named.name) != shape->inaccessible_fields.end())
+                throw janus::CompileError{
+                    DiagnosticCode::AnalyzerInaccessibleStructField,
+                    named.location,
+                    "struct field '" + named.name + "' is inaccessible"};
+              const auto found =
+                  std::find(shape->field_names.begin(),
+                            shape->field_names.end(), named.name);
+              if (found == shape->field_names.end())
+                throw janus::CompileError{
+                    DiagnosticCode::AnalyzerUnknownStructField,
+                    named.location,
+                    "unknown struct field '" + named.name + "'"};
+              storage_index =
+                  static_cast<std::size_t>(found - shape->field_names.begin());
+              if (!initialized.insert(storage_index).second)
+                throw janus::CompileError{
+                    DiagnosticCode::AnalyzerDuplicateStructField,
+                    named.location,
+                    "duplicate struct field '" + named.name + "'"};
+            }
             aggregate->fields.emplace_back(
-                shape->fields[index].first,
+                shape->fields[storage_index].first,
                 evaluate_impl(*node.arguments[index],
-                              shape->fields[index].second, resolve,
+                              shape->fields[storage_index].second, resolve,
                               resolve_constructor, call_function));
+          }
+          if (node.is_named && initialized.size() != shape->fields.size())
+            throw janus::CompileError{
+                DiagnosticCode::AnalyzerMissingStructField,
+                node.location, "missing struct field in named construction"};
+          std::sort(aggregate->fields.begin(), aggregate->fields.end(),
+                    [](const auto &left, const auto &right) {
+                      return left.first < right.first;
+                    });
           return Value{shape->type, std::move(aggregate)};
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::MethodCallExpression>) {

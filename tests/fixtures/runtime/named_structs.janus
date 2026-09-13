@@ -1,0 +1,27 @@
+var calls : int = 0
+struct Point(val x : int, val y : int) {}
+struct Pair[A, B](val first : A, val second : B) {}
+class Resource(val id : int) { destructor { println(id) } }
+struct Owned(val first : Resource, val second : Resource) {}
+
+def next(value : int) : int {
+    calls = calls + 1
+    println(value)
+    return value
+}
+def main() : int {
+    val x = 10
+    val y = 20
+    val point = new Point { y: next(y), x: next(x), }
+    println(point.x)
+    println(point.y)
+    println(calls)
+    val shorthand = new Point { y, x }
+    println(shorthand.x + shorthand.y)
+    val pair = new Pair { second: true, first: 42 }
+    println(pair.first)
+    val resource = new Resource(1)
+    val owned = new Owned { second: move resource, first: new Resource(2) }
+    delete owned
+    return 0
+}

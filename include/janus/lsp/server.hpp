@@ -40,6 +40,8 @@ struct IndexedSymbol {
   bool is_private{};
   std::optional<std::string> module_name;
   IndexedSymbolKind kind{IndexedSymbolKind::Variable};
+  std::optional<std::string> owner_type{};
+  bool is_internal{false};
 };
 
 struct DocumentIndex {

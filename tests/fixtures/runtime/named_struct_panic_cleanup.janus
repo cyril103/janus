@@ -1,0 +1,16 @@
+class Resource(val id : int) { destructor { println(id) } }
+struct Owned(val first : Resource, val second : Resource, val third : Resource) {}
+struct Nested(val owned : Owned, val last : Resource) {}
+def main() : int {
+    using val resource = new Resource(1)
+    val owned = new Nested {
+        owned: new Owned {
+            third: move resource,
+            first: new Resource(2),
+            second: new Resource(3),
+        },
+        last: new Resource(1 / 0),
+    }
+    defer delete owned
+    return 0
+}

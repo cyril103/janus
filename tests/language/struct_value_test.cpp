@@ -102,6 +102,102 @@ def main() : int {
       "struct Invalid(value : int, val x : int) {}",
       "struct constructors only support val/var fields");
 
+  constexpr std::string_view named_source = R"(
+struct Pair[A, B](val first : A, val second : B) {}
+struct Empty() {}
+struct Accent(val café : int) {}
+struct Point(val x : int, val y : int) {}
+const origin : Point = new Point { y: 2, x: 1 }
+def main() : int {
+    val x = 10
+    val y = 20
+    val point = new Point { y, x, }
+    val pair = new Pair { second: true, first: point.x }
+    val explicit = new Pair[int, bool] { second: false, first: 3 }
+    val empty = new Empty {}
+    val café = 7
+    val accented = new Accent { café }
+    val nested = new Point { y: match x { 10 => y, _ => 0 }, x: if true { 1 } else { 2 } }
+    return pair.first + explicit.first
+}
+)";
+  try {
+    janus::frontend::Parser named_parser{named_source};
+    const auto named_program = named_parser.parse_program();
+    const auto &main = named_program.functions.front();
+    const auto &binding = std::get<janus::ast::ValueDeclaration>(main.body[2]);
+    const auto &construction =
+        std::get<janus::ast::NewExpression>(binding.initializer->value);
+    expect(construction.is_named && construction.named_fields.size() == 2,
+           "named syntax survives in the AST");
+    expect(construction.named_fields[0].name == "y" &&
+               construction.named_fields[0].shorthand,
+           "shorthand preserves source order");
+    expect(construction.named_fields[0].location.offset ==
+               named_source.find("y, x"),
+           "field source location points at the label");
+    const auto analysis = analyzer.analyze(named_program);
+    const auto &origin =
+        std::get<std::shared_ptr<janus::constant::AggregateValue>>(
+            analysis.global_constant_values.at("origin").data);
+    expect(origin->fields.size() == 2 &&
+               std::get<std::uint64_t>(origin->fields[0].second.data) == 1 &&
+               std::get<std::uint64_t>(origin->fields[1].second.data) == 2,
+           "constant named fields follow declaration storage order");
+    static_cast<void>(generator.generate(named_program, "named_structs"));
+  } catch (const std::exception &error) {
+    std::cerr << error.what() << '\n';
+    expect(false, "named structs support generics and constants");
+  }
+
+  const auto named_error = [&](std::string_view expression,
+                               janus::DiagnosticCode code) {
+    try {
+      const std::string invalid =
+          "struct Point(val x : int, val y : int) {} "
+          "struct Secret(private val x : int) {} class Object() {} "
+          "def main() : int { val p = " +
+          std::string{expression} + " return 0 }";
+      janus::frontend::Parser invalid_parser{invalid};
+      const auto invalid_program = invalid_parser.parse_program();
+      static_cast<void>(analyzer.analyze(invalid_program));
+      expect(false, "invalid named construction is rejected");
+    } catch (const janus::CompileError &error) {
+      expect(error.diagnostic().code == code, error.what());
+    }
+  };
+  named_error("new Point { x: 1, z: 2 }",
+              janus::DiagnosticCode::AnalyzerUnknownStructField);
+  named_error("new Point { x: 1, x: 2 }",
+              janus::DiagnosticCode::AnalyzerDuplicateStructField);
+  named_error("new Point { x: 1 }",
+              janus::DiagnosticCode::AnalyzerMissingStructField);
+  named_error("new Secret { x: 1 }",
+              janus::DiagnosticCode::AnalyzerInaccessibleStructField);
+  named_error("new Object {}",
+              janus::DiagnosticCode::AnalyzerNamedClassConstruction);
+  expect_compile_error("struct Point(val x : int) {} def main() : int { val p "
+                       "= new Point { x } return 0 }",
+                       "unknown value 'x'");
+  expect_compile_error("struct Point(val x : int) {} def main() : int { val p "
+                       "= new Point { x: true } return 0 }",
+                       "where type 'int' is required");
+
+  expect_compile_error("struct Secret(private val x : int) {} const value : "
+                       "Secret = new Secret { x: 1 } "
+                       "def main() : int { return 0 }",
+                       "is inaccessible");
+  expect_compile_error(
+      "class Resource() {} struct Owned(val a : Resource, val b : int) {} "
+      "def main() : int { val r = new Resource() val p = new Owned { b: 1, a: "
+      "r } return 0 }",
+      "requires an explicit move");
+  expect_compile_error(
+      "class Resource() {} struct Owned(val a : Resource, val b : Resource) {} "
+      "def main() : int { val r = new Resource() val p = new Owned { b: move "
+      "r, a: move r } return 0 }",
+      "used before initialization");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

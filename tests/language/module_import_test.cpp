@@ -104,6 +104,24 @@ int main() {
                "  value = 2\n"
                "  return selected() + value\n"
                "}\n");
+  write_source(import_root / "sample" / "other.janus",
+               "module sample.other\nstruct Box(val other : bool) {}\n");
+  write_source(import_root / "named.janus",
+               "import sample.api.{Box as Renamed}\n"
+               "import sample.api as api\n"
+               "import sample.other as other\n"
+               "def main() : int {\n"
+               " val a = new Renamed { value: 10 }\n"
+               " val b = new api.Box[int] { value: 20 }\n"
+               " val c = new other.Box { other: true }\n"
+               " return a.value + b.value\n}\n");
+  {
+    janus::frontend::ModuleLoader loader;
+    const auto program = loader.load(import_root / "named.janus");
+    llvm::LLVMContext context;
+    janus::backend::llvm::IrGenerator generator{context};
+    static_cast<void>(generator.generate(program, "named_imports"));
+  }
   janus::frontend::ModuleLoader import_loader;
   const janus::ast::Program aliased_import_program =
       import_loader.load(import_root / "qualified.janus");

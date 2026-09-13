@@ -35,3 +35,8 @@ map-literal-local-constant-duplicate.janus	JANA0042	duplicate constant key in ma
 map-literal-string-duplicate.janus	JANA0042	duplicate constant key in map literal
 map-literal-incompatible-value.janus	JANA0999	where type 'int' is required
 map-literal-double-move.janus	JANA0999	variable 'value' is used before initialization
+named-struct-unknown.janus	JANA0045	unknown struct field
+named-struct-duplicate.janus	JANA0046	duplicate struct field
+named-struct-missing.janus	JANA0047	missing struct field
+named-struct-private.janus	JANA0048	is inaccessible
+named-struct-class.janus	JANA0049	use new Object(...)
