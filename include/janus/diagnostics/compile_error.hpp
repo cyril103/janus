@@ -33,6 +33,7 @@ enum class DiagnosticCode {
   ParserFloatingLiteralUnderflow,
   ParserFloatingLiteralOverflow,
   ParserInvalidUnicodeEscape,
+  ParserSyntaxDepthExceeded,
   ModuleLegacy,
   AnalyzerLegacy,
   AnalyzerUnknownValue,
@@ -110,6 +111,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JPAR0003";
   case DiagnosticCode::ParserInvalidUnicodeEscape:
     return "JPAR0004";
+  case DiagnosticCode::ParserSyntaxDepthExceeded:
+    return "JPAR0005";
   case DiagnosticCode::ModuleLegacy:
     return "JMOD0999";
   case DiagnosticCode::AnalyzerLegacy:

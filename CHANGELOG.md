@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Compilation
+
+- les syntaxes trop profondément imbriquées et les longues chaînes
+  d’expressions sont refusées avec le diagnostic stable `JPAR0005`, au lieu
+  de faire tomber le compilateur ou le LSP (#360). Le budget partagé de
+  128 niveaux couvre expressions, types, blocs et motifs ; le LSP continue
+  à répondre et actualise les diagnostics après correction du document.
+
 ## [0.25.0] - 2026-09-13
 
 ### Compilation

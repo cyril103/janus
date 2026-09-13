@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
       DiagnosticCode::ParserFloatingLiteralUnderflow,
       DiagnosticCode::ParserFloatingLiteralOverflow,
       DiagnosticCode::ParserInvalidUnicodeEscape,
+      DiagnosticCode::ParserSyntaxDepthExceeded,
       DiagnosticCode::ParserLegacy,
       DiagnosticCode::AnalyzerUnknownValue,
       DiagnosticCode::AnalyzerLegacy,

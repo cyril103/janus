@@ -867,6 +867,15 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME parser.floating_literals COMMAND floating_literal_test)
+    add_executable(syntax_depth_test tests/frontend/syntax_depth_test.cpp)
+    target_link_libraries(syntax_depth_test PRIVATE janus_frontend)
+    target_compile_options(syntax_depth_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME parser.syntax_depth COMMAND syntax_depth_test)
+    add_test(NAME parser.syntax_depth_cli
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/frontend/syntax_depth_cli_test.py"
+                "$<TARGET_FILE:janus>")
+    set_tests_properties(parser.syntax_depth parser.syntax_depth_cli PROPERTIES TIMEOUT 60)
     add_executable(unicode_escape_test
         tests/frontend/unicode_escape_test.cpp
     )

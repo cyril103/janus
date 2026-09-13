@@ -54,6 +54,38 @@ class StdioTest(unittest.TestCase):
             self.assertEqual(process.stderr, b"")
         return responses(process.stdout)
 
+    def test_syntax_depth_diagnostic_and_recovery(self):
+        uri = "file:///tmp/janus-depth-regression.janus"
+
+        def message(method, params, identifier=None):
+            value = {"jsonrpc": "2.0", "method": method, "params": params}
+            if identifier is not None:
+                value["id"] = identifier
+            return frame(json.dumps(value).encode())
+
+        source = "def main() : int { return " + "(" * 5000 + "0" + ")" * 5000 + " }"
+        data = frame(request(1, "initialize"))
+        data += message("textDocument/didOpen", {"textDocument": {
+            "uri": uri, "languageId": "janus", "version": 1, "text": source}})
+        data += message("textDocument/documentSymbol", {"textDocument": {"uri": uri}}, 2)
+        data += message("textDocument/didChange", {
+            "textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [{"text": "def main() : int { return 0 }"}]})
+        data += message("textDocument/documentSymbol", {"textDocument": {"uri": uri}}, 3)
+        data += frame(request(4))
+        data += message("exit", {})
+        result = self.run_server(data)
+        diagnostics = [r["params"]["diagnostics"] for r in result
+                       if r.get("method") == "textDocument/publishDiagnostics"]
+        self.assertGreaterEqual(len(diagnostics), 2)
+        self.assertEqual(diagnostics[0][0]["code"], "JPAR0005")
+        self.assertIn("maximum syntax depth exceeded", diagnostics[0][0]["message"])
+        self.assertEqual(diagnostics[-1], [])
+        replies = {r["id"]: r for r in result if "id" in r}
+        self.assertIn("result", replies[2])
+        self.assertEqual(replies[3]["result"][0]["name"], "main")
+        self.assertIsNone(replies[4]["result"])
+
     def test_named_struct_aliases_and_homonyms(self):
         with tempfile.TemporaryDirectory(prefix="janus-named-lsp-") as directory:
             root = Path(directory).resolve()

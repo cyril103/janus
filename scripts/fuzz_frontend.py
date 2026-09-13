@@ -26,6 +26,23 @@ def lexer_input(randomizer: random.Random) -> bytes:
 
 
 def parser_input(randomizer: random.Random) -> bytes:
+    if randomizer.randrange(4) == 0:
+        depth = randomizer.choice((32, 126, 127, 128, 256, 5000))
+        form = randomizer.randrange(4)
+        if form == 0:
+            return ("def main(x : " + "Box[" * depth + "int" + "]" * depth +
+                    ") : int { return 0 }").encode()
+        if form == 1:
+            return ("def main() : int { " + "while true { " * depth +
+                    "return 0" + " }" * depth + " }").encode()
+        opening, closing, leaf = randomizer.choice((
+            ("(", ")", "0"), ("!", "", "true"),
+            ("f(", ")", "0"), ("[", "]", "0"),
+            ("", " + 0", "0"), ("", ".field", "x"),
+            ("", " |> f", "0"),
+        ))
+        return ("def main() : int { return " + opening * depth + leaf +
+                closing * depth + " }").encode()
     count = randomizer.randint(0, 160)
     return " ".join(randomizer.choice(PARSER_TOKENS) for _ in range(count)).encode()
 

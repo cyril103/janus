@@ -321,6 +321,47 @@ FloatingLiteralError parse_floating_literal(std::string_view spelling,
 
 } // namespace
 
+// A guard keeps the maximum child height, not the number of siblings. Loop
+// growth reserves levels until that precedence/postfix chain is complete, so
+// mixed recursive and iterative forms cannot hand an unbounded AST downstream.
+class Parser::DepthGuard final {
+public:
+  explicit DepthGuard(Parser &parser, bool recursive = true,
+                      bool inherit_height = false)
+      : parser_{parser}, parent_{parser.depth_guard_},
+        height_{inherit_height && parent_ ? parent_->height_ : 0} {
+    if (recursive)
+      grow();
+    parser_.depth_guard_ = this;
+  }
+
+  DepthGuard(const DepthGuard &) = delete;
+  DepthGuard &operator=(const DepthGuard &) = delete;
+
+  ~DepthGuard() {
+    parser_.syntax_depth_ -= levels_;
+    parser_.depth_guard_ = parent_;
+    if (parent_)
+      parent_->height_ = std::max(parent_->height_, height_ + levels_);
+  }
+
+  void grow() {
+    if (parser_.syntax_depth_ + height_ >= max_syntax_depth)
+      throw CompileError{DiagnosticCode::ParserSyntaxDepthExceeded,
+                         parser_.current_.location,
+                         "maximum syntax depth exceeded (limit: " +
+                             std::to_string(max_syntax_depth) + ")"};
+    ++levels_;
+    ++parser_.syntax_depth_;
+  }
+
+private:
+  Parser &parser_;
+  DepthGuard *parent_;
+  std::size_t height_{};
+  std::size_t levels_{};
+};
+
 Parser::Parser(std::string_view source)
     : lexer_{source}, current_{lexer_.next()}, source_{source} {}
 
@@ -472,6 +513,10 @@ ast::Program Parser::parse_program() {
       }
       documentation.clear();
     } catch (const CompileError &error) {
+      // A resource limit aborts this document; recovery would add cascaded
+      // errors from the unfinished nested construct.
+      if (error.diagnostic().code == DiagnosticCode::ParserSyntaxDepthExceeded)
+        throw;
       documentation.clear();
       diagnostics.insert(diagnostics.end(), error.diagnostics().begin(),
                          error.diagnostics().end());
@@ -1250,6 +1295,7 @@ ast::DestructorDeclaration Parser::parse_destructor_declaration() {
 }
 
 std::vector<ast::Statement> Parser::parse_block() {
+  DepthGuard depth{*this};
   static_cast<void>(expect(TokenKind::LeftBrace));
   std::vector<ast::Statement> body;
   while (current_.kind != TokenKind::RightBrace) {
@@ -1669,6 +1715,7 @@ ast::ExpressionStatement Parser::parse_expression_statement() {
 }
 
 std::shared_ptr<ast::IfStatement> Parser::parse_if_statement() {
+  DepthGuard depth{*this};
   const Token if_token = expect(TokenKind::If);
   ast::Expression condition = parse_expression();
   std::vector<ast::Statement> then_body = parse_block();
@@ -1705,6 +1752,7 @@ std::shared_ptr<ast::ForStatement> Parser::parse_for_statement() {
 ast::Expression Parser::parse_expression() { return parse_pipeline(); }
 
 ast::Expression Parser::parse_pipeline() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_logical_or();
   const auto is_qualified_callee = [](const ast::Expression &candidate,
                                       const auto &self) -> bool {
@@ -1716,6 +1764,7 @@ ast::Expression Parser::parse_pipeline() {
     return false;
   };
   while (current_.kind == TokenKind::PipeGreater) {
+    depth.grow();
     const Token operation = expect(TokenKind::PipeGreater);
     ast::Expression target = parse_logical_or();
     auto argument =
@@ -1766,8 +1815,10 @@ ast::Expression Parser::parse_pipeline() {
 }
 
 ast::Expression Parser::parse_logical_or() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_logical_and();
   while (current_.kind == TokenKind::PipePipe) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1780,8 +1831,10 @@ ast::Expression Parser::parse_logical_or() {
 }
 
 ast::Expression Parser::parse_logical_and() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_bitwise_or();
   while (current_.kind == TokenKind::AmpAmp) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1794,8 +1847,10 @@ ast::Expression Parser::parse_logical_and() {
 }
 
 ast::Expression Parser::parse_bitwise_or() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_bitwise_xor();
   while (current_.kind == TokenKind::Pipe) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1808,8 +1863,10 @@ ast::Expression Parser::parse_bitwise_or() {
 }
 
 ast::Expression Parser::parse_bitwise_xor() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_bitwise_and();
   while (current_.kind == TokenKind::Caret) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1822,8 +1879,10 @@ ast::Expression Parser::parse_bitwise_xor() {
 }
 
 ast::Expression Parser::parse_bitwise_and() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_equality();
   while (current_.kind == TokenKind::Ampersand) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1836,9 +1895,11 @@ ast::Expression Parser::parse_bitwise_and() {
 }
 
 ast::Expression Parser::parse_equality() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_comparison();
   while (current_.kind == TokenKind::EqualEqual ||
          current_.kind == TokenKind::BangEqual) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1852,11 +1913,13 @@ ast::Expression Parser::parse_equality() {
 }
 
 ast::Expression Parser::parse_comparison() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_shift();
   while (current_.kind == TokenKind::Less ||
          current_.kind == TokenKind::LessEqual ||
          current_.kind == TokenKind::Greater ||
          current_.kind == TokenKind::GreaterEqual) {
+    depth.grow();
     const Token operation = current_;
     advance();
     ast::BinaryOperator binary_operation = ast::BinaryOperator::Less;
@@ -1876,9 +1939,11 @@ ast::Expression Parser::parse_comparison() {
 }
 
 ast::Expression Parser::parse_shift() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_additive();
   while (current_.kind == TokenKind::ShiftLeft ||
          current_.kind == TokenKind::ShiftRight) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1893,9 +1958,11 @@ ast::Expression Parser::parse_shift() {
 }
 
 ast::Expression Parser::parse_additive() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_multiplicative();
   while (current_.kind == TokenKind::Plus ||
          current_.kind == TokenKind::Minus) {
+    depth.grow();
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
@@ -1909,10 +1976,12 @@ ast::Expression Parser::parse_additive() {
 }
 
 ast::Expression Parser::parse_multiplicative() {
+  DepthGuard depth{*this, false};
   ast::Expression expression = parse_unary();
   while (current_.kind == TokenKind::Star ||
          current_.kind == TokenKind::Slash ||
          current_.kind == TokenKind::Percent) {
+    depth.grow();
     const Token operation = current_;
     advance();
     ast::BinaryOperator binary_operation = ast::BinaryOperator::Multiply;
@@ -1930,6 +1999,7 @@ ast::Expression Parser::parse_multiplicative() {
 }
 
 ast::Expression Parser::parse_unary() {
+  DepthGuard depth{*this};
   if (current_.kind == TokenKind::Move) {
     const Token move_token = expect(TokenKind::Move);
     return ast::MoveExpression{std::make_unique<ast::Expression>(parse_unary()),
@@ -2350,6 +2420,7 @@ ast::Expression Parser::parse_primary() {
 }
 
 ast::MatchPattern Parser::parse_match_pattern() {
+  DepthGuard depth{*this};
   const Token token = current_;
   const bool literal_start = current_.kind == TokenKind::IntegerLiteral ||
                              current_.kind == TokenKind::FloatLiteral ||
@@ -2426,6 +2497,7 @@ ast::MatchPattern Parser::parse_match_pattern() {
     }
   }
   if (current_.kind == TokenKind::As) {
+    depth.grow();
     advance();
     const Token alias = expect(TokenKind::Identifier);
     ast::MatchPattern aliased;
@@ -2439,6 +2511,7 @@ ast::MatchPattern Parser::parse_match_pattern() {
 }
 
 ast::TypeReference Parser::parse_type() {
+  DepthGuard depth{*this};
   const bool is_pure_function = current_.kind == TokenKind::Pure;
   if (is_pure_function)
     advance();
@@ -2531,9 +2604,11 @@ ast::TypeReference Parser::parse_type() {
 }
 
 ast::Expression Parser::parse_postfix(ast::Expression expression) {
+  DepthGuard depth{*this, false, true};
   while (current_.kind == TokenKind::Dot ||
          current_.kind == TokenKind::LeftBracket ||
          current_.kind == TokenKind::Question) {
+    depth.grow();
     if (current_.kind == TokenKind::LeftBracket) {
       const Token bracket = expect(TokenKind::LeftBracket);
       ast::Expression index = parse_expression();

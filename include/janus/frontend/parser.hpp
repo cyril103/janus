@@ -3,17 +3,24 @@
 #include "janus/ast/ast.hpp"
 #include "janus/frontend/lexer.hpp"
 
+#include <cstddef>
 #include <string_view>
 
 namespace janus::frontend {
 
 class Parser final {
 public:
+  // Shared by recursive grammar forms and iterative AST chains. Precedence
+  // dispatch itself does not consume a level. Keep headroom for Debug/ASan.
+  static constexpr std::size_t max_syntax_depth = 128;
+
   explicit Parser(std::string_view source);
 
   [[nodiscard]] ast::Program parse_program();
 
 private:
+  class DepthGuard;
+
   [[nodiscard]] ast::TraitDeclaration parse_trait_declaration();
   [[nodiscard]] ast::FunctionDeclaration parse_trait_method();
   [[nodiscard]] ast::EnumDeclaration parse_enum_declaration();
@@ -66,6 +73,8 @@ private:
   void synchronize_top_level();
   void advance();
 
+  DepthGuard *depth_guard_{};
+  std::size_t syntax_depth_{};
   Lexer lexer_;
   Token current_;
   std::string_view source_;

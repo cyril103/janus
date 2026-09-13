@@ -40,3 +40,4 @@ named-struct-duplicate.janus	JANA0046	duplicate struct field
 named-struct-missing.janus	JANA0047	missing struct field
 named-struct-private.janus	JANA0048	is inaccessible
 named-struct-class.janus	JANA0049	use new Object(...)
+syntax-depth.janus	JPAR0005	maximum syntax depth exceeded

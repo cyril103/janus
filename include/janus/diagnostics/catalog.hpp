@@ -24,6 +24,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::ParserFloatingLiteralUnderflow,
     DiagnosticCode::ParserFloatingLiteralOverflow,
     DiagnosticCode::ParserInvalidUnicodeEscape,
+    DiagnosticCode::ParserSyntaxDepthExceeded,
     DiagnosticCode::ModuleLegacy,
     DiagnosticCode::AnalyzerLegacy,
     DiagnosticCode::AnalyzerUnknownValue,
@@ -161,6 +162,10 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "floating-point literal overflow",
             "The literal rounds to infinity in its declared floating-point type.",
             "Use a representable magnitude or a wider floating-point type."};
+  case DiagnosticCode::ParserSyntaxDepthExceeded:
+    return {code, "syntax depth limit exceeded",
+            "Nested syntax or an expression chain exceeds the parser's safe depth budget.",
+            "Split the expression, type or control flow into smaller parts."};
   case DiagnosticCode::ParserInvalidUnicodeEscape:
     return {code, "invalid Unicode scalar escape",
             "A Unicode escape must use \\u{HEX} with one to six hexadecimal "

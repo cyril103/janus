@@ -10,6 +10,17 @@
 Janus est fortement typé : chaque variable, paramètre et retour possède un
 type connu à la compilation. Les conversions entre types sont explicites.
 
+## Profondeur syntaxique
+
+Le compilateur et le LSP appliquent un budget partagé de 128 niveaux pour
+les expressions, types, blocs et motifs imbriqués, ainsi que les chaînes
+d’opérateurs et d’accès aux membres. Le comptage est conservateur : les
+formes combinées partagent ce budget, et les parenthèses consomment des
+niveaux même lorsqu’elles ne produisent pas de nœud dans l’arbre syntaxique.
+Les éléments indépendants d’une liste ou d’un bloc ne s’additionnent pas.
+Un dépassement produit `JPAR0005` ; découpez alors la construction en parties
+plus petites. Le LSP reste disponible après ce diagnostic.
+
 ## Identifiants Unicode
 
 Les noms de valeurs, fonctions, types, modules et membres sont des identifiants
