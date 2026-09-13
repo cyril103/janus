@@ -132,11 +132,41 @@ void add_dependency(const std::filesystem::path &manifest_path,
   std::string contents{std::istreambuf_iterator<char>{input},
                        std::istreambuf_iterator<char>{}};
   input.close();
-  if (!contents.ends_with('\n'))
-    contents += '\n';
-  if (contents.find("[dependencies]") == std::string::npos)
-    contents += "\n[dependencies]\n";
-  contents += dependency_line(dependency) + '\n';
+  const std::size_t first_newline = contents.find('\n');
+  const std::string newline =
+      first_newline != std::string::npos && first_newline > 0 &&
+              contents[first_newline - 1] == '\r'
+          ? "\r\n"
+          : "\n";
+  bool in_dependencies = false;
+  std::size_t insertion = contents.size();
+  for (std::size_t start = 0; start < contents.size();) {
+    const std::size_t end = contents.find('\n', start);
+    std::string line = trim(contents.substr(start, end - start));
+    // The manifest has already been validated. Section headers cannot contain
+    // quoted strings, so their first '#' always starts a comment.
+    if (line.starts_with('[')) {
+      line = trim(line.substr(0, line.find('#')));
+      if (line.ends_with(']')) {
+        if (in_dependencies) {
+          insertion = start;
+          break;
+        }
+        in_dependencies =
+            trim(line.substr(1, line.size() - 2)) == "dependencies";
+      }
+    }
+    if (end == std::string::npos)
+      break;
+    start = end + 1;
+  }
+  std::string addition;
+  if (insertion > 0 && contents[insertion - 1] != '\n')
+    addition += newline;
+  if (!in_dependencies)
+    addition += newline + "[dependencies]" + newline;
+  addition += dependency_line(dependency) + newline;
+  contents.insert(insertion, addition);
   const std::filesystem::path temporary = manifest_path.string() + ".new";
   {
     std::ofstream output{temporary};

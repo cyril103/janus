@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise optional dependency versions through the CLI without a network."""
+"""Exercise dependency versions and manifest layouts through the CLI offline."""
 
 import argparse
 import os
@@ -31,6 +31,47 @@ def main():
                 assert error in output, output
 
         run("new", "dep")
+        run("new", "layouts")
+        app = root / "layouts"
+        manifest = app / "janus.toml"
+        package = ('[package]\nname = "app"\nversion = "1.0.0"\n'
+                   'entry = "src/main.janus" # keep entry\n')
+        existing = '# keep dependency\nexisting = "^2.0.0"\n\n'
+        addition = 'dep = "1.0.0"\n'
+        layouts = [
+            (package + '\n[dependencies]\n' + existing, "", False),
+            ('[dependencies]\n\n', package, False),
+            ('[dependencies]\n' + existing, package, False),
+            ('[dependencies]\n' + existing, package.rstrip('\n'), False),
+            ('[dependencies]\n', '[dependencies]\n' + existing + package,
+             False),
+            (' \t[ dependencies\t ] \t# dependencies\n' + existing,
+             ' \t[ package ] # package\n' + package.split('\n', 1)[1], False),
+            (package + '\n[dependencies] # trailing comment', "", False),
+            ('# [dependencies]\n' + package, "", True),
+            (package, "", True),
+            (package.rstrip('\n'), "", True),
+            (package.replace('src/main.janus', 'src/[dependencies].janus'),
+             "", True),
+        ]
+        for newline in ('\n', '\r\n'):
+            for prefix, suffix, missing_section in layouts:
+                original = (prefix + suffix).replace('\n', newline).encode()
+                manifest.write_bytes(original)
+                run("add", "dep@1.0.0", cwd=app)
+                expected_prefix = prefix
+                if not expected_prefix.endswith('\n'):
+                    expected_prefix += '\n'
+                if missing_section:
+                    expected_prefix += '\n[dependencies]\n'
+                expected = (expected_prefix + addition + suffix).replace(
+                    '\n', newline).encode()
+                assert manifest.read_bytes() == expected, manifest.read_bytes()
+                # A second add reloads the saved manifest before rejecting it.
+                run("add", "dep@1.0.0", cwd=app,
+                    error="dependency 'dep' already exists")
+                assert manifest.read_bytes() == expected
+
         revision = "0123456789abcdefABCDEF0123456789abcdefAB"
         url = "https://example.invalid/dep.git"
         sources = [

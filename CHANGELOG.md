@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Paquets
 
+- `janus add` insère désormais la dépendance dans sa section quel que soit
+  l’ordre du manifeste (#365). Les en-têtes espacés ou commentés sont reconnus,
+  les commentaires et champs existants sont préservés et une section absente
+  est créée même si un commentaire contient `[dependencies]`.
 - `janus add --path` et `janus add --git --rev` acceptent désormais une
   dépendance sans contrainte de version (#364). Le commit Git fourni est
   conservé sans télécharger le dépôt ; les contraintes explicites restent
