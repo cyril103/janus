@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Outils en ligne de commande
 
+- remontée des erreurs de lancement POSIX robuste aux interruptions et aux
+  transferts partiels ; compilation GCC/Clang contrôlée avec `-Werror` (#309).
+- correction d'une vue sur une chaîne temporaire dans la validation des noms
+  de fichiers d'archives par `janusup` (#309).
+
 - `janusup` réserve exclusivement ses répertoires temporaires, avec des
   permissions privées sur POSIX et un nettoyage automatique à la sortie,
   y compris après une erreur de validation ou d'extraction (#306).

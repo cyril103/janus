@@ -2351,20 +2351,21 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                      symbol.location.offset >= bounds.start &&
                      symbol.location.offset < bounds.end;
             });
+        llvm::json::Object symbol_range;
+        if (expression_bound == expression_bounds.end()) {
+          symbol_range = range(*document_source, symbol.location,
+                               symbol.source_length);
+        } else {
+          symbol_range["start"] =
+              position_at_offset(*document_source, expression_bound->start);
+          symbol_range["end"] =
+              position_at_offset(*document_source, expression_bound->end);
+        }
         result.emplace_back(llvm::json::Object{
             {"name", symbol.name},
             {"detail", symbol.detail},
             {"kind", kind},
-            {"range", expression_bound == expression_bounds.end()
-                          ? range(*document_source, symbol.location,
-                                  symbol.source_length)
-                          : llvm::json::Object{
-                                {"start", position_at_offset(
-                                              *document_source,
-                                              expression_bound->start)},
-                                {"end", position_at_offset(
-                                            *document_source,
-                                            expression_bound->end)}}},
+            {"range", std::move(symbol_range)},
             {"selectionRange", range(*document_source, symbol.location,
                                      symbol.source_length)},
         });
@@ -2475,17 +2476,17 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
           if (*offset < candidate->second)
             expression_range = *candidate;
         }
-        llvm::json::Object parent = expression_range.has_value()
-                                        ? llvm::json::Object{
-                                              {"range",
-                                               llvm::json::Object{
-                                                   {"start", position_at_offset(
-                                                                 *document_source,
-                                                                 expression_range->first)},
-                                                   {"end", position_at_offset(
-                                                               *document_source,
-                                                               expression_range->second)}}}}
-                                        : std::move(line_parent);
+        llvm::json::Object parent;
+        if (expression_range.has_value()) {
+          llvm::json::Object expression_parent_range;
+          expression_parent_range["start"] =
+              position_at_offset(*document_source, expression_range->first);
+          expression_parent_range["end"] =
+              position_at_offset(*document_source, expression_range->second);
+          parent["range"] = std::move(expression_parent_range);
+        } else {
+          parent = std::move(line_parent);
+        }
         const frontend::Token *selected = nullptr;
         const auto following_token = std::upper_bound(
             document_tokens.begin(), document_tokens.end(), *offset,

@@ -65,6 +65,11 @@ def main(output: Path):
             (f"{ROOT}/bin/janus", "file", "janus")]
     cases = {
         "valid": (True, base),
+        # Exercise both inline and heap-backed filename stems under ASan.
+        "valid_filename_stems": (True, base + [
+            (f"{ROOT}/bin/conifer.txt", "file", "x"),
+            (f"{ROOT}/bin/long-non-reserved-filename.txt", "file", "x"),
+        ]),
         "absolute": (False, base + [("/tmp/janus-escape", "file", "x")]),
         "traversal": (False, base + [(f"{ROOT}/../escape", "file", "x")]),
         "drive": (False, base + [("C:/janus-escape", "file", "x")]),

@@ -5507,13 +5507,6 @@ private:
                 ::llvm::BasicBlock::Create(context_, "match.unhandled");
             std::vector<std::pair<::llvm::Value *, ::llvm::BasicBlock *>>
                 incoming;
-            ::llvm::Value *tag = nullptr;
-            const EnumSpecialization *specialization = nullptr;
-            if (match_type.kind() == janus::TypeKind::Enum) {
-              specialization =
-                  &enum_specializations_.at(std::string{match_type.name()});
-              tag = builder.CreateExtractValue(scrutinee, 0, "match.tag");
-            }
             struct PatternBinding {
               ::llvm::Value *value;
               const janus::Type *type;

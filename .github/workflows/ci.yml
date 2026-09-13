@@ -19,6 +19,43 @@ permissions:
   contents: read
 
 jobs:
+  warning-clean:
+    name: Warning-clean (${{ matrix.cxx }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: gcc-13
+            cxx: g++-13
+          - cc: clang-18
+            cxx: clang++-18
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gcc-13 g++-13 clang-18 lld-18 llvm-18-dev ninja-build
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+
+      - name: Configure with warnings as errors
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: >
+          cmake -S . -B build-warnings -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DJANUS_WARNINGS_AS_ERRORS=ON
+          -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+
+      - name: Build all targets
+        run: cmake --build build-warnings --parallel 2
+
+      - name: Test launch status, archive validation and LSP
+        run: ctest --test-dir build-warnings --output-on-failure -R '^(driver.launch_status|cli.execution_contract|toolchain.archive_validation|lsp\.)'
+
   test-source-policy:
     name: Test source policy
     runs-on: ubuntu-24.04

@@ -21,6 +21,7 @@
 #include "janus/semantic/analyzer.hpp"
 #include "janus/semantic/compilation_session.hpp"
 #include "commands.hpp"
+#include "launch_status.hpp"
 
 #include <algorithm>
 #include <array>
@@ -865,16 +866,30 @@ int run_program(const std::filesystem::path &executable,
     close(error_pipe[0]);
     execv(executable_string.c_str(), child_arguments.data());
     const int error = errno;
-    static_cast<void>(write(error_pipe[1], &error, sizeof(error)));
+    if (!janus::driver::write_launch_error(error_pipe[1], error, ::write)) {
+      // The pipe can no longer report errno; preserve a failing exit status.
+      _exit(127);
+    }
     _exit(127);
   }
   close(error_pipe[1]);
   int execution_error{};
-  ssize_t error_size{};
-  do {
-    error_size = read(error_pipe[0], &execution_error, sizeof(execution_error));
-  } while (error_size < 0 && errno == EINTR);
-  const int pipe_error = error_size < 0 ? errno : 0;
+  std::size_t error_size{};
+  int pipe_error{};
+  while (error_size < sizeof(execution_error)) {
+    const ssize_t count = read(
+        error_pipe[0], reinterpret_cast<char *>(&execution_error) + error_size,
+        sizeof(execution_error) - error_size);
+    if (count < 0) {
+      if (errno == EINTR)
+        continue;
+      pipe_error = errno;
+      break;
+    }
+    if (count == 0)
+      break;
+    error_size += static_cast<std::size_t>(count);
+  }
   close(error_pipe[0]);
   int status{};
   while (waitpid(child, &status, 0) < 0) {
@@ -886,7 +901,7 @@ int run_program(const std::filesystem::path &executable,
   if (pipe_error != 0)
     throw std::system_error{pipe_error, std::generic_category(),
                             "cannot read program launch status"};
-  if (error_size == static_cast<ssize_t>(sizeof(execution_error)))
+  if (error_size == sizeof(execution_error))
     throw std::system_error{execution_error, std::generic_category(),
                             "cannot run program"};
   if (error_size != 0)

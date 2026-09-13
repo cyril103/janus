@@ -22,6 +22,11 @@ static_assert(std::numeric_limits<float>::is_iec559 &&
 
 namespace {
 
+// Widen 64-bit arithmetic before checking overflow. GCC and Clang support
+// these types; mark just their declarations as intentional C++ extensions.
+__extension__ using WideSigned = __int128;
+__extension__ using WideUnsigned = unsigned __int128;
+
 using janus::Type;
 using janus::TypeKind;
 using janus::constant::Value;
@@ -426,28 +431,28 @@ std::uint64_t unsigned_integer(const Value &value) {
   return std::get<std::uint64_t>(value.data);
 }
 
-void require_integer_range(__int128 value, const Type &type,
+void require_integer_range(WideSigned value, const Type &type,
                            janus::SourceLocation location) {
   const unsigned width = type.bit_width();
   if (type.is_signed()) {
-    const __int128 minimum = -(__int128{1} << (width - 1));
-    const __int128 maximum = (__int128{1} << (width - 1)) - 1;
+    const WideSigned minimum = -(WideSigned{1} << (width - 1));
+    const WideSigned maximum = (WideSigned{1} << (width - 1)) - 1;
     if (value < minimum || value > maximum)
       throw janus::CompileError{
           location, "constant integer expression overflows type '" +
                         std::string{type.name()} + "'"};
     return;
   }
-  const unsigned __int128 maximum =
+  const WideUnsigned maximum =
       width == 64 ? std::numeric_limits<std::uint64_t>::max()
-                  : (static_cast<unsigned __int128>(1) << width) - 1;
-  if (value < 0 || static_cast<unsigned __int128>(value) > maximum)
+                  : (static_cast<WideUnsigned>(1) << width) - 1;
+  if (value < 0 || static_cast<WideUnsigned>(value) > maximum)
     throw janus::CompileError{
         location, "constant integer expression overflows type '" +
                       std::string{type.name()} + "'"};
 }
 
-Value integer_value(__int128 value, const Type &type,
+Value integer_value(WideSigned value, const Type &type,
                     janus::SourceLocation location) {
   require_integer_range(value, type, location);
   if (type.is_signed() && type.bit_width() < 64) {
@@ -547,10 +552,10 @@ Value cast_value(const Value &source, const Type &destination,
   return Value{&destination, converted};
 }
 
-__int128 integer_number(const Value &value) {
+WideSigned integer_number(const Value &value) {
   std::uint64_t bits = std::get<std::uint64_t>(value.data);
   if (!value.type->is_signed())
-    return static_cast<__int128>(bits);
+    return static_cast<WideSigned>(bits);
   const unsigned width = value.type->bit_width();
   if (width < 64) {
     const std::uint64_t sign = std::uint64_t{1} << (width - 1);
@@ -559,7 +564,7 @@ __int128 integer_number(const Value &value) {
     if ((bits & sign) != 0)
       bits |= ~mask;
   }
-  return static_cast<__int128>(static_cast<std::int64_t>(bits));
+  return static_cast<WideSigned>(static_cast<std::int64_t>(bits));
 }
 
 Value policy_cast_value(const Value &source, const Type &destination,
@@ -578,23 +583,23 @@ Value policy_cast_value(const Value &source, const Type &destination,
   }
   const unsigned width = destination.bit_width();
   if (!source.type->is_floating_point()) {
-    const __int128 number = integer_number(source);
+    const WideSigned number = integer_number(source);
     if (truncating) {
       std::uint64_t bits = static_cast<std::uint64_t>(number);
       if (width < 64)
         bits &= (std::uint64_t{1} << width) - 1;
       return Value{&destination, bits};
     }
-    const __int128 minimum =
-        destination.is_signed() ? -(__int128{1} << (width - 1)) : 0;
-    const unsigned __int128 unsigned_maximum =
+    const WideSigned minimum =
+        destination.is_signed() ? -(WideSigned{1} << (width - 1)) : 0;
+    const WideUnsigned unsigned_maximum =
         width == 64 ? std::numeric_limits<std::uint64_t>::max()
-                    : (static_cast<unsigned __int128>(1) << width) - 1;
-    const __int128 maximum =
+                    : (static_cast<WideUnsigned>(1) << width) - 1;
+    const WideSigned maximum =
         destination.is_signed()
-            ? (__int128{1} << (width - 1)) - 1
-            : static_cast<__int128>(unsigned_maximum);
-    const __int128 clamped = std::max(minimum, std::min(number, maximum));
+            ? (WideSigned{1} << (width - 1)) - 1
+            : static_cast<WideSigned>(unsigned_maximum);
+    const WideSigned clamped = std::max(minimum, std::min(number, maximum));
     return Value{&destination, static_cast<std::uint64_t>(clamped)};
   }
   const double number = std::get<double>(source.data);
@@ -843,9 +848,9 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
                               "constant arithmetic requires numeric operands"};
   const bool signed_type = left.type->is_signed();
   if (!signed_type) {
-    const unsigned __int128 lhs = unsigned_integer(left);
-    const unsigned __int128 rhs = unsigned_integer(right);
-    unsigned __int128 value = 0;
+    const WideUnsigned lhs = unsigned_integer(left);
+    const WideUnsigned rhs = unsigned_integer(right);
+    WideUnsigned value = 0;
     switch (binary.operation) {
     case BinaryOperator::Add:
       value = lhs + rhs;
@@ -882,23 +887,23 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
                                 "unsupported integer constant operator"};
     }
     const unsigned width = left.type->bit_width();
-    const unsigned __int128 maximum =
+    const WideUnsigned maximum =
         width == 64 ? std::numeric_limits<std::uint64_t>::max()
-                    : (static_cast<unsigned __int128>(1) << width) - 1;
+                    : (static_cast<WideUnsigned>(1) << width) - 1;
     if (value > maximum)
       throw janus::CompileError{
           binary.location, "constant integer expression overflows type '" +
                                std::string{left.type->name()} + "'"};
     return Value{left.type, static_cast<std::uint64_t>(value)};
   }
-  const __int128 lhs = signed_type
-                           ? static_cast<__int128>(signed_integer(left))
-                           : static_cast<__int128>(unsigned_integer(left));
-  const __int128 rhs = signed_type
-                           ? static_cast<__int128>(signed_integer(right))
-                           : static_cast<__int128>(unsigned_integer(right));
+  const WideSigned lhs = signed_type
+                             ? static_cast<WideSigned>(signed_integer(left))
+                             : static_cast<WideSigned>(unsigned_integer(left));
+  const WideSigned rhs = signed_type
+                             ? static_cast<WideSigned>(signed_integer(right))
+                             : static_cast<WideSigned>(unsigned_integer(right));
 
-  __int128 value = 0;
+  WideSigned value = 0;
   switch (binary.operation) {
   case BinaryOperator::Add:
     value = lhs + rhs;
@@ -957,8 +962,8 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                                      expected_type->is_integer()
                                  ? *expected_type
                                  : Type::int_type();
-          const __int128 magnitude =
-              static_cast<__int128>(node.magnitude);
+          const WideSigned magnitude =
+              static_cast<WideSigned>(node.magnitude);
           return integer_value(node.is_negative ? -magnitude : magnitude, type,
                                node.location);
         } else if constexpr (std::is_same_v<
@@ -1244,7 +1249,7 @@ Value evaluate_impl(const janus::ast::Expression &expression,
             throw janus::CompileError{
                 node.location,
                 "unary '-' requires a signed numeric constant"};
-          return integer_value(-static_cast<__int128>(signed_integer(operand)),
+          return integer_value(-static_cast<WideSigned>(signed_integer(operand)),
                                *operand.type, node.location);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::BinaryExpression>) {

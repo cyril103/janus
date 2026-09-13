@@ -19,6 +19,11 @@
 
 namespace {
 
+// Widen integer bounds without overflow; only these declarations use the
+// intentional GCC/Clang 128-bit extension.
+__extension__ using WideSigned = __int128;
+__extension__ using WideUnsigned = unsigned __int128;
+
 constexpr std::size_t enum_arity_marker =
     std::numeric_limits<std::size_t>::max() / 2;
 constexpr std::size_t ambiguous_arity_marker =
@@ -469,11 +474,11 @@ bool block_guarantees_return(const std::vector<janus::ast::Statement> &block) {
   return std::any_of(block.begin(), block.end(), statement_guarantees_return);
 }
 
-std::optional<__int128>
+std::optional<WideSigned>
 integer_literal_value(const janus::ast::Expression &expression) {
   if (const auto *literal = std::get_if<janus::ast::IntegerLiteralExpression>(
           &expression.value)) {
-    const __int128 magnitude = static_cast<__int128>(literal->magnitude);
+    const WideSigned magnitude = static_cast<WideSigned>(literal->magnitude);
     return literal->is_negative ? -magnitude : magnitude;
   }
   return std::nullopt;
@@ -486,15 +491,15 @@ bool integer_literal_fits(const janus::ast::Expression &expression,
     return false;
   if (type.is_signed()) {
     const std::uint32_t magnitude_bits = type.bit_width() - 1;
-    const __int128 minimum = -(__int128{1} << magnitude_bits);
-    const __int128 maximum = (__int128{1} << magnitude_bits) - 1;
+    const WideSigned minimum = -(WideSigned{1} << magnitude_bits);
+    const WideSigned maximum = (WideSigned{1} << magnitude_bits) - 1;
     return *value >= minimum && *value <= maximum;
   }
-  const unsigned __int128 maximum =
+  const WideUnsigned maximum =
       type.bit_width() == 64
           ? std::numeric_limits<std::uint64_t>::max()
-          : (static_cast<unsigned __int128>(1) << type.bit_width()) - 1;
-  return *value >= 0 && static_cast<unsigned __int128>(*value) <= maximum;
+          : (static_cast<WideUnsigned>(1) << type.bit_width()) - 1;
+  return *value >= 0 && static_cast<WideUnsigned>(*value) <= maximum;
 }
 
 bool accepts_contextual_integer_literal(const janus::Type &type) {

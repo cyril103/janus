@@ -97,6 +97,14 @@ python3 scripts/check-github-actions-pins.py .
 python3 scripts/check-github-actions-pins.py --self-test
 ```
 
+### Compilation sans avertissement
+
+La matrice CI `warning-clean` compile toutes les cibles en Release avec GCC 13
+et Clang 18, LLVM 18 et `-DJANUS_WARNINGS_AS_ERRORS=ON`. Cette option CMake
+ajoute `-Werror` aux avertissements habituels et peut être activée localement.
+Le mode Release couvre aussi les diagnostics dépendant de l'optimisation,
+notamment ceux portant sur la durée de vie des objets JSON du LSP.
+
 ### Cohérence de la documentation publique
 
 `docs.public_surface` exécute

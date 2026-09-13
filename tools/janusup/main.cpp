@@ -266,7 +266,7 @@ std::string portable_archive_path(std::string_view name,
                    portable_component.begin(), [](const unsigned char byte) {
                      return static_cast<char>(std::tolower(byte));
                    });
-    const std::string_view stem = portable_component.substr(
+    const std::string_view stem = std::string_view{portable_component}.substr(
         0, portable_component.find('.'));
     const bool reserved_device =
         stem == "con" || stem == "prn" || stem == "aux" || stem == "nul" ||

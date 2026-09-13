@@ -24,6 +24,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(JANUS_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+if(JANUS_WARNINGS_AS_ERRORS)
+    add_compile_options(-Werror)
+endif()
+
 include(GNUInstallDirs)
 include(cmake/resolve_toolchain_executable.cmake)
 include(cmake/JanusQualityGates.cmake)
@@ -172,9 +177,8 @@ llvm_map_components_to_libnames(JANUS_CONSTANT_LLVM_LIBS Support)
 target_include_directories(janus_constant
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
-    SYSTEM PRIVATE
-        ${JANUS_LLVM_INCLUDE_DIR}
 )
+target_include_directories(janus_constant SYSTEM PRIVATE ${JANUS_LLVM_INCLUDE_DIR})
 target_link_libraries(janus_constant
     PUBLIC
         janus_types
@@ -441,6 +445,11 @@ target_compile_definitions(janus-lsp
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(launch_status_test tests/driver/launch_status_test.cpp)
+    target_include_directories(launch_status_test PRIVATE tools/janus)
+    target_compile_options(launch_status_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME driver.launch_status COMMAND launch_status_test)
+
     add_executable(janusup-test tools/janusup/main.cpp)
     configure_janusup_target(janusup-test)
     target_compile_definitions(janusup-test PRIVATE JANUSUP_TEST_HOOKS=1)
