@@ -56,7 +56,7 @@ class StdioTest(unittest.TestCase):
 
     def test_named_struct_aliases_and_homonyms(self):
         with tempfile.TemporaryDirectory(prefix="janus-named-lsp-") as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             (root / "a.janus").write_text("module a\nstruct Point[T](val x : T) {}\n")
             (root / "b.janus").write_text("module b\nstruct Point(val x : bool) {}\n")
             source = ("import a.{Point as P}\nimport b as b\n"

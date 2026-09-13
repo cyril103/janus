@@ -1394,8 +1394,11 @@ int main(int argc, char **argv) {
     janus::lsp::Server factory_server{
         {std::filesystem::path{JANUS_STDLIB_DIR}},
         {std::filesystem::path{JANUS_STDLIB_API_INDEX}}};
-    static_cast<void>(factory_server.handle(
-        R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus","text":"import std.functional\npure def add(a : int, b : int) : int { return a + b }\ndef main() : int {\n    val callback = partialFirst2(add, 10)\n    println(callback(32))\n    delete callback\n    return 0\n}"}}})"));
+    const auto factory_diagnostics = factory_server.handle(
+        R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus","text":"import std.functional\npure def add(a : int, b : int) : int { return a + b }\ndef main() : int {\n    val callback = partialFirst2(add, 10)\n    println(callback(32))\n    delete callback\n    return 0\n}"}}})");
+    for (const auto &diagnostic : factory_diagnostics)
+      if (diagnostic.find("\"severity\":1") != std::string::npos)
+        std::cerr << "functional factory diagnostics: " << diagnostic << '\n';
     const auto hover = factory_server.handle(
         R"({"jsonrpc":"2.0","id":9001,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus"},"position":{"line":4,"character":16}}})");
     JANUS_REQUIRE(hover.size() == 1);
