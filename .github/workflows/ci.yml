@@ -39,6 +39,12 @@ jobs:
       - name: Verify GitHub Actions pin guard
         run: python3 scripts/check-github-actions-pins.py --self-test
 
+      - name: Reject mutable publication images
+        run: python3 scripts/check-docker-pins.py .
+
+      - name: Verify Docker pin guard
+        run: python3 scripts/check-docker-pins.py --self-test
+
       - name: Reject semantically mutable action references
         uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
         with:

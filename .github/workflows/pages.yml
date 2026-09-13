@@ -58,7 +58,11 @@ jobs:
           cache-dependency-path: website/requirements.txt
 
       - name: Install site dependencies
-        run: python -m pip install -r website/requirements.txt
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r website/requirements.txt
+
+      - name: Build website container
+        run: docker build --tag janus-website:test -f website/Dockerfile .
 
       - name: Install Janus build dependencies
         run: |

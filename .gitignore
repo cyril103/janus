@@ -75,6 +75,7 @@ __pycache__/
 .coverage.*
 htmlcov/
 .venv/
+.venv-lock/
 venv/
 
 # JavaScript/package-manager output

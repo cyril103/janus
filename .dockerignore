@@ -5,6 +5,7 @@ build-*
 cmake-build-*
 out
 website/.venv
+website/.venv-lock
 website/site
 website/docs/reference/generated
 editors/vscode/node_modules
