@@ -219,6 +219,18 @@ std::filesystem::path archive_tar() {
   return "tar";
 }
 
+#ifdef _WIN32
+std::wstring wide_shell_quote(const std::filesystem::path &path) {
+  std::wstring quoted{L"\""};
+  for (const wchar_t character : path.native()) {
+    if (character == L'"')
+      quoted += L'\\';
+    quoted += character;
+  }
+  return quoted + L'"';
+}
+#endif
+
 std::vector<std::string> read_archive_listing(
     const std::filesystem::path &archive, const std::filesystem::path &tar,
     const std::filesystem::path &output, bool verbose) {
@@ -226,16 +238,18 @@ std::vector<std::string> read_archive_listing(
   // cmd.exe strips the first and last quote when a command starts with a
   // quoted executable. Prefix the invocation with cd, as the extraction path
   // already does, so an absolute System32 tar.exe remains executable.
-  const std::string command =
-      "cd /d " + shell_quote(output.parent_path()) + " && " +
-      shell_quote(tar) + (verbose ? " -tvf " : " -tf ") +
-      shell_quote(archive) + " > " + shell_quote(output.filename());
+  const std::wstring command =
+      L"cd /d " + wide_shell_quote(output.parent_path()) + L" && " +
+      wide_shell_quote(tar) + (verbose ? L" -tvf " : L" -tf ") +
+      wide_shell_quote(archive) + L" > " + wide_shell_quote(output.filename());
+  const int status = command_status(_wsystem(command.c_str()));
 #else
   const std::string command =
       shell_quote(tar) + (verbose ? " --numeric-owner -tvf " : " -tf ") +
       shell_quote(archive) + " > " + shell_quote(output);
+  const int status = command_status(std::system(command.c_str()));
 #endif
-  if (command_status(std::system(command.c_str())) != 0)
+  if (status != 0)
     throw std::runtime_error{"could not inspect archive"};
   std::ifstream input{output};
   std::vector<std::string> lines;

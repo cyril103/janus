@@ -66,6 +66,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Outils en ligne de commande
 
+- validation des archives par `janusup` compatible avec les chemins temporaires
+  Unicode sous Windows.
+
 - remontée des erreurs de lancement POSIX robuste aux interruptions et aux
   transferts partiels ; compilation GCC/Clang contrôlée avec `-Werror` (#309).
 - correction d'une vue sur une chaîne temporaire dans la validation des noms
