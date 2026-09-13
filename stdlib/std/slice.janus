@@ -32,7 +32,7 @@ private var index : usize
         return value
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -50,7 +50,7 @@ private var index : usize
         return value
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -121,10 +121,8 @@ private val count : usize
         val state : SliceIteratorState[T] =
         new SliceIteratorState[T](this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[SliceIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[SliceIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 }
@@ -215,10 +213,8 @@ private val count : usize
         val state : MutableSliceIteratorState[T] =
         new MutableSliceIteratorState[T](this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[MutableSliceIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[MutableSliceIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 }

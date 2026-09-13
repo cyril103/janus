@@ -51,7 +51,7 @@ def forward[P <: Producer](borrow producer : P) : P.Item {
     return produce[P](producer)
 }
 def pairSum(pair : Pair) : int { return pair.left + pair.right }
-def apply(value : int, callback : (int) => int) : int {
+def apply(value : int, callback : FnMut (int) => int) : int {
     return callback(value)
 }
 def consumePayload(payload : Payload) : int {

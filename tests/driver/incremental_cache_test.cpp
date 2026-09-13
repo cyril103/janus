@@ -523,6 +523,24 @@ void test_rejects_untrusted_cache_keys() {
 } // namespace
 
 int main() {
+  const std::vector<std::string> callback_interfaces{
+      "def use(f : Fn (borrow int) => int) : Unit { delete f }",
+      "def use(f : FnMut (borrow int) => int) : Unit { delete f }",
+      "def use(f : FnOnce (borrow int) => int) : Unit { delete f }",
+      "def use(f : pure Fn (borrow int) => int) : Unit { delete f }",
+      "def use(f : Fn (borrow var int) => int) : Unit { delete f }",
+      "def use(f : Fn (consume int) => int) : Unit { delete f }",
+      "def use(f : Fn (borrow int) => borrow int) : Unit { delete f }",
+      "def use(scoped f : Fn (borrow int) => int) : Unit { delete f }"};
+  for (std::size_t left = 0; left < callback_interfaces.size(); ++left)
+    for (std::size_t right = left + 1; right < callback_interfaces.size();
+         ++right)
+      require(janus::driver::public_interface_fingerprint(
+                  callback_interfaces[left]) !=
+                  janus::driver::public_interface_fingerprint(
+                      callback_interfaces[right]),
+              "callback effects must have distinct public fingerprints");
+
   try {
     test_sha256_digest_vectors();
     test_fingerprint_covers_every_compatibility_input();

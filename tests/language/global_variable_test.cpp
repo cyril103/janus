@@ -91,7 +91,7 @@ def globalAnswer() : int {
     return answer
 }
 
-def reader() : () => int {
+def reader() : FnMut () => int {
     return () => answer
 }
 
@@ -400,7 +400,7 @@ class Resource(val value : int) {
     }
 }
 val resource : Resource = new Resource(42)
-val callback : () => int = () => resource.value
+val callback : FnMut () => int = () => resource.value
 val memory : Ptr[int] = alloc[int](usize(1))
 def main() : int { return callback() }
 )"};

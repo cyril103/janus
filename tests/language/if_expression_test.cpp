@@ -41,7 +41,7 @@ void expect_compile_error(std::string_view source,
 int main() {
   constexpr std::string_view source = R"(
 def main() : int {
-    val absolute : (int) => int =
+    val absolute : FnMut (int) => int =
         (value : int) => if value < 0 { -value } else { value }
     val result : int = if true { absolute(-42) } else { 0 }
     delete absolute

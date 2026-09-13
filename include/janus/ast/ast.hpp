@@ -14,6 +14,21 @@
 
 namespace janus::ast {
 
+enum class CallCapability { Fn, FnMut, FnOnce };
+
+inline constexpr std::string_view
+call_capability_name(CallCapability capability) {
+  switch (capability) {
+  case CallCapability::Fn:
+    return "Fn";
+  case CallCapability::FnMut:
+    return "FnMut";
+  case CallCapability::FnOnce:
+    return "FnOnce";
+  }
+  return "Fn";
+}
+
 enum class ParameterOwnership {
   Unspecified,
   Borrow,
@@ -46,7 +61,54 @@ struct TypeReference {
   std::vector<ParameterOwnership> function_parameter_ownership;
   ReturnOwnership function_return_ownership{ReturnOwnership::Unspecified};
   bool is_pure_function{};
+  CallCapability call_capability{CallCapability::Fn};
 };
+
+inline std::string type_reference_name(const TypeReference &type) {
+  if (type.name == "Function" && !type.type_arguments.empty()) {
+    std::string result = type.is_pure_function ? "pure " : "";
+    result += call_capability_name(type.call_capability);
+    result += " (";
+    for (std::size_t index = 0; index + 1 < type.type_arguments.size();
+         ++index) {
+      if (index)
+        result += ", ";
+      if (index < type.function_parameter_ownership.size()) {
+        switch (type.function_parameter_ownership[index]) {
+        case ParameterOwnership::Borrow:
+          result += "borrow ";
+          break;
+        case ParameterOwnership::BorrowMutable:
+          result += "borrow var ";
+          break;
+        case ParameterOwnership::Consume:
+          result += "consume ";
+          break;
+        case ParameterOwnership::Unspecified:
+          break;
+        }
+      }
+      result += type_reference_name(type.type_arguments[index]);
+    }
+    result += ") => ";
+    if (type.function_return_ownership == ReturnOwnership::Borrow)
+      result += "borrow ";
+    if (type.function_return_ownership == ReturnOwnership::BorrowMutable)
+      result += "borrow var ";
+    return result + type_reference_name(type.type_arguments.back());
+  }
+  std::string result = type.name;
+  if (!type.type_arguments.empty()) {
+    result += '[';
+    for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
+      if (index)
+        result += ", ";
+      result += type_reference_name(type.type_arguments[index]);
+    }
+    result += ']';
+  }
+  return result;
+}
 
 struct IntegerLiteralExpression {
   std::uint64_t magnitude;

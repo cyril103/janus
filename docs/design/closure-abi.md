@@ -3,14 +3,21 @@
 Function values use the following internal LLVM aggregate:
 
 ```text
-{ code: ptr, environment: ptr, owns_environment: i1 }
+{ code: ptr, environment: ptr, owns_environment: i1, drop_environment: ptr }
 ```
 
 `code` points to a function whose first argument is `environment`. The remaining
 arguments follow the declared Janus function signature. `owns_environment`
-controls deterministic cleanup: deleting the function value calls `janus_free`
-only for an owned environment. This is an internal compiler ABI and is not part
+controls deterministic cleanup: deleting the function value first calls its
+capture destructor, when present, then calls `janus_free` only for an owned
+environment. `owningCapture` installs the destructor for its explicit owner.
+Moving or destroying a capture clears its storage before transfer; pointer
+leaves use null as the disarmed representation. Aggregate cleanup recursively
+ignores these cleared leaves. This is an internal compiler ABI and is not part
 of the source-language compatibility contract.
+
+The [call-capabilities RFC](call-capabilities.md) defines the consuming-call
+and owned-capture contract for issue #312.
 
 ## Representations
 
@@ -58,3 +65,16 @@ ctest --test-dir build -R language.borrowed_calls_closures --output-on-failure
 Wall-clock closure and iterator pipeline measurements remain informational: the
 allocator-call count above is the stable regression signal, while LLVM may
 inline or eliminate the stack slot in optimized builds.
+
+## Call capabilities
+
+Every function type explicitly declares `Fn`, `FnMut` or `FnOnce`.
+`Fn` borrows its environment, `FnMut` requires exclusive access and `FnOnce`
+consumes the closure. A consuming call transfers the closure into a temporary
+cleanup scope after evaluating its arguments. Both normal return and panic
+run this cleanup. The old closure slot is cleared, so a previously registered
+`defer delete` cannot destroy it again. The analyzed call contract also applies
+to generic bounds, even when the concrete callback has a stronger capability.
+
+This is closure ABI version 2. Cached objects using ABI version 1 must be
+rebuilt; public API indexes use format version 2.

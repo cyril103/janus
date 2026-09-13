@@ -56,7 +56,7 @@ class Iterator[T]() {}
 
 trait Iterable[T] {
     def iterator() : Iterator[T]
-    def transform[U](value : T, scoped function : (T) => U) : U
+    def transform[U](value : T, scoped function : FnMut (T) => U) : U
     borrow def observe() : borrow T where T <: Copy
     consume def finish() : T
 }
@@ -75,7 +75,7 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
     def iterator() : Iterator[T] {
         return new Iterator[T]()
     }
-    def transform[U](item : T, scoped function : (T) => U) : U {
+    def transform[U](item : T, scoped function : FnMut (T) => U) : U {
         return function(move item)
     }
     borrow def observe() : borrow T where T <: Copy {
@@ -240,15 +240,15 @@ def main() : int {
       "def main() : int { return 0 }",
       "ownership contract incompatible");
   expect_compile_error(
-      "trait Contract { def relay[T](action : () => T) : borrow T } "
+      "trait Contract { def relay[T](action : FnMut () => T) : borrow T } "
       "class Wrong() extends Contract { "
-      "def relay[U](action : () => U) : U { return action() } } "
+      "def relay[U](action : FnMut () => U) : U { return action() } } "
       "def main() : int { return 0 }",
       "return ownership differs");
   expect_compile_error(
-      "trait Contract { def run(scoped action : () => int) : int } "
+      "trait Contract { def run(scoped action : FnMut () => int) : int } "
       "class Wrong() extends Contract { "
-      "def run(action : () => int) : int { return action() } } "
+      "def run(action : FnMut () => int) : int { return action() } } "
       "def main() : int { return 0 }",
       "scoped contract of parameter 1 differs");
   expect_compile_error(
@@ -282,10 +282,10 @@ def main() : int {
       "generic where constraints differ");
   expect_compile_success(
       "trait Contract { "
-      "def apply[T](scoped action : () => T) : T "
+      "def apply[T](scoped action : FnMut () => T) : T "
       "where T <: Copy & Equality } "
       "class Exact() extends Contract { "
-      "def apply[U](scoped action : () => U) : U "
+      "def apply[U](scoped action : FnMut () => U) : U "
       "where U <: Equality & Copy { return action() } } "
       "def call[C <: Contract](contract : C) : int { "
       "return contract.apply[int](() => 42) } "

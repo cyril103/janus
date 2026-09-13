@@ -1,9 +1,9 @@
-def invoke[T](scoped action : () => T) : T {
+def invoke[T](scoped action : FnMut () => T) : T {
     defer delete action
     return action()
 }
 
-def forward[T](scoped action : () => T) : T {
+def forward[T](scoped action : FnMut () => T) : T {
     if false {
         delete action
         panic("unreachable scoped branch")

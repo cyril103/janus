@@ -128,11 +128,11 @@ int main() {
     return 1;
   }
   const std::string lambda_block =
-      "def factory(base : int) : (int) => int {\n"
+      "def factory(base : int) : FnMut (int) => int {\n"
       "return (value : int) => {\nval sum : int = base + value\n"
       "if sum > 0 {\nreturn sum\n}\nreturn 0\n}\n}\n";
   const std::string formatted_lambda_block =
-      "def factory(base : int) : (int) => int {\n"
+      "def factory(base : int) : FnMut (int) => int {\n"
       "    return (value : int) => {\n"
       "        val sum : int = base + value\n"
       "        if sum > 0 {\n"
@@ -149,17 +149,19 @@ int main() {
   }
   const std::string contextual_lambdas =
       "def use() : int {\n"
-      "val unary : (int) => int = value=>value + 1\n"
-      "val binary : (int, int) => int = (left,right)=>left + right\n"
-      "val shared : (borrow int) => int = (borrow value)=>value\n"
-      "val mutable : (borrow var int) => int = (borrow var value)=>value\n"
+      "val unary : FnMut (int) => int = value=>value + 1\n"
+      "val binary : FnMut (int, int) => int = (left,right)=>left + right\n"
+      "val shared : FnMut (borrow int) => int = (borrow value)=>value\n"
+      "val mutable : FnMut (borrow var int) => int = (borrow var "
+      "value)=>value\n"
       "return binary(unary(1), shared(2))\n}\n";
   const std::string formatted_contextual_lambdas =
       "def use() : int {\n"
-      "    val unary : (int) => int = value=>value + 1\n"
-      "    val binary : (int, int) => int = (left,right)=>left + right\n"
-      "    val shared : (borrow int) => int = (borrow value)=>value\n"
-      "    val mutable : (borrow var int) => int = (borrow var value)=>value\n"
+      "    val unary : FnMut (int) => int = value=>value + 1\n"
+      "    val binary : FnMut (int, int) => int = (left,right)=>left + right\n"
+      "    val shared : FnMut (borrow int) => int = (borrow value)=>value\n"
+      "    val mutable : FnMut (borrow var int) => int = (borrow var "
+      "value)=>value\n"
       "    return binary(unary(1), shared(2))\n}\n";
   const std::string contextual_formatted =
       janus::driver::format_source(contextual_lambdas);
@@ -283,10 +285,10 @@ int main() {
     return 1;
   }
   const std::string pure =
-      "pure def apply(action : pure (int) => int, value : int) : int {\n"
+      "pure def apply(action : pure Fn (int) => int, value : int) : int {\n"
       "return action(value)\n}\n";
   const std::string formatted_pure =
-      "pure def apply(action : pure (int) => int, value : int) : int {\n"
+      "pure def apply(action : pure Fn (int) => int, value : int) : int {\n"
       "    return action(value)\n}\n";
   if (janus::driver::format_source(pure) != formatted_pure ||
       janus::driver::format_source(formatted_pure) != formatted_pure) {
@@ -297,11 +299,11 @@ int main() {
       "def square(value : int) : int=>value * value\n"
       "def choose(value : int) : int => match value {\n"
       "0=>0,\n_=>value\n}\n"
-      "def callback() : (int) => int => (value : int)=>value + 1\n";
+      "def callback() : FnMut (int) => int => (value : int)=>value + 1\n";
   const std::string formatted_expression_bodies =
       "def square(value : int) : int => value * value\n"
       "def choose(value : int) : int => match value { 0=>0, _=>value }\n"
-      "def callback() : (int) => int => (value : int)=>value + 1\n";
+      "def callback() : FnMut (int) => int => (value : int)=>value + 1\n";
   const std::string formatted_expression_body =
       janus::driver::format_source(expression_bodies);
   if (formatted_expression_body != formatted_expression_bodies ||
@@ -420,12 +422,12 @@ int main() {
     return 1;
   }
   const std::string semantic_input =
-      "def callback() : (int) => int => (value : int) => value + 1\n"
+      "def callback() : FnMut (int) => int => (value : int) => value + 1\n"
       "def choose(value : int) : int => match value { 0 => 1, _ => value }\n"
       "def text() : string =>\n"
       "    \"=> is text, not a function arrow\" // preserve => comment\n";
   const std::string semantic_expected =
-      "def callback() : (int) => int =>\n"
+      "def callback() : FnMut (int) => int =>\n"
       "    (value : int) => value + 1\n"
       "def choose(value : int) : int =>\n"
       "    match value { 0 => 1, _ => value }\n"

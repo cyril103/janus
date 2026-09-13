@@ -49,11 +49,14 @@ consommation sont ceux de l'appel développé.
 Tous ces helpers sont synchrones et n'allouent aucun état propre. Les callbacks
 `scoped` sont détruites à la fin de l'appel et peuvent capturer des emprunts.
 Cette surface ne prétend pas retourner des closures composées : le contrat
-actuel de `owningCapture` reste réservé aux closures de nettoyage sans argument
-appelées explicitement par leur propriétaire englobant.
+de `owningCapture` transfère explicitement une ressource dans une closure ;
+la ressource est détruite même lorsque la closure n'est jamais appelée.
 
 `curry2` et `uncurry2` ne font pas partie de cette surface minimale. Un
 currying propriétaire sûr doit distinguer une fonction réutilisable d'une
-fonction affine appelée une seule fois (`FnOnce`); Janus ne possède pas encore
-ce contrat, et une implémentation anticipée pourrait dupliquer ou prolonger
-incorrectement un propriétaire.
+fonction affine appelée une seule fois (`FnOnce`). Les capacités d'appel de
+l'issue #312 fournissent ce contrat ; les adaptateurs de currying restent hors
+périmètre. Les callbacks des helpers immédiats portent `FnOnce` et leur
+`defer delete` assure aussi le nettoyage si une étape précédente panique.
+
+The [call-capabilities RFC](call-capabilities.md) defines the contract for issue #312.

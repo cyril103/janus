@@ -42,7 +42,7 @@ def exerciseBorrowedFunctionTypes() : bool {
     val values : Array[MutableCell] = new Array[MutableCell](usize(1))
     defer delete values
     values.push(new MutableCell(4))
-    val increment : (borrow var MutableCell) => Unit =
+    val increment : FnMut (borrow var MutableCell) => Unit =
     (borrow var cell : MutableCell) => { cell.value = cell.value + 3 }
     values.withMutable(usize(0), move increment)
     return values.get(usize(0)).value == 7

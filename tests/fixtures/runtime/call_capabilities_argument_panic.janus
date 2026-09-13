@@ -1,0 +1,8 @@
+class Resource(val id : int) { destructor { println(id) } }
+def fail() : int { panic("callback argument failed") }
+def main() : int {
+    val owner = new Resource(7)
+    val once : FnOnce (int) => int = owningCapture[Resource](owner, value => value + owner.id)
+    defer delete once
+    return once(fail())
+}

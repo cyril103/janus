@@ -91,7 +91,7 @@ private var index : usize
         return result
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -112,7 +112,7 @@ private var index : usize
         return result
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -133,7 +133,7 @@ private var index : usize
         return result
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -155,7 +155,7 @@ private var index : usize
         return Option.None[MapEntry[K, V]]()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -488,7 +488,7 @@ private borrow val hashing : H
     /// @return `true` si la clé était présente et le callback a été appelé.
     def withValue(
     borrow key : K,
-    scoped action : (borrow V) => Unit
+    scoped action : FnMut (borrow V) => Unit
     ) : bool {
         defer delete action
         if length == usize(0) {
@@ -520,7 +520,7 @@ private borrow val hashing : H
     /// @return `true` si l'association a été observée.
     def withEntry(
     borrow key : K,
-    scoped action : (borrow K, borrow V) => Unit
+    scoped action : FnMut (borrow K, borrow V) => Unit
     ) : bool {
         defer delete action
         if length == usize(0) {
@@ -550,7 +550,7 @@ private borrow val hashing : H
     borrow storedKey : K,
     borrow query : K,
     borrow storedValue : V,
-    scoped borrow action : (borrow K, borrow V) => Unit
+    scoped borrow var action : FnMut (borrow K, borrow V) => Unit
     ) : bool {
         if hashing.equals(storedKey, query) {
             action(storedKey, storedValue)
@@ -563,7 +563,7 @@ private borrow val hashing : H
     borrow storedKey : K,
     borrow query : K,
     borrow storedValue : V,
-    scoped borrow action : (borrow V) => Unit
+    scoped borrow var action : FnMut (borrow V) => Unit
     ) : bool {
         if hashing.equals(storedKey, query) {
             action(storedValue)
@@ -744,7 +744,7 @@ private borrow val hashing : H
 
     private borrow def keepAt(
     index : usize,
-    scoped borrow predicate : (borrow K, borrow V) => bool
+    scoped borrow var predicate : FnMut (borrow K, borrow V) => bool
     ) : bool {
         borrow val slot : MapSlot[K, V] = slots.getBorrowed(index)
         return match slot {
@@ -758,7 +758,7 @@ private borrow val hashing : H
     /// @param predicate Callback borné observant chaque clé et valeur une fois.
     /// @return Nombre d'associations conservées.
     def retain(
-    scoped predicate : (borrow K, borrow V) => bool
+    scoped predicate : FnMut (borrow K, borrow V) => bool
     ) : usize {
         defer delete predicate
         this.initializeSlots()
@@ -801,10 +801,8 @@ private borrow val hashing : H
         val state : MapEntryIteratorState[K, V, H] =
         new MapEntryIteratorState[K, V, H](this, usize(0))
         return new Iterator[MapEntry[K, V]](
-        () => state.next(),
-        owningCapture[MapEntryIteratorState[K, V, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[MapEntryIteratorState[K, V, H]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -817,10 +815,8 @@ private borrow val hashing : H
         val state : MapKeyIteratorState[K, V, H] =
         new MapKeyIteratorState[K, V, H](this, usize(0))
         return new Iterator[K](
-        () => state.next(),
-        owningCapture[MapKeyIteratorState[K, V, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[MapKeyIteratorState[K, V, H]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -833,10 +829,8 @@ private borrow val hashing : H
         val state : MapValueIteratorState[K, V, H] =
         new MapValueIteratorState[K, V, H](this, usize(0))
         return new Iterator[V](
-        () => state.next(),
-        owningCapture[MapValueIteratorState[K, V, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[MapValueIteratorState[K, V, H]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -850,10 +844,8 @@ private borrow val hashing : H
         val state : MapEntryIntoIteratorState[K, V, H] =
         new MapEntryIntoIteratorState[K, V, H](move this, usize(0))
         return new Iterator[MapEntry[K, V]](
-        () => state.next(),
-        owningCapture[MapEntryIntoIteratorState[K, V, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[MapEntryIntoIteratorState[K, V, H]](state, () => state.next()),
+            () => unit
         )
     }
 

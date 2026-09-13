@@ -20,7 +20,7 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `docs/archive/migration-0.5-to-0.6.md` | 31:55 | cast littéral | `usize(2)` | pédagogique explicite | historique |
 | `docs/archive/migration-0.5-to-0.6.md` | 39:23 | cast littéral | `usize(0)` | pédagogique explicite | historique |
 | `docs/audits/stdlib-0.7.4.md` | 158:20 | cast littéral | `usize(1)` | test de couverture | donnée d’audit historique |
-| `docs/audits/stdlib-0.7.4.md` | 160:24 | cast littéral | `usize(0)` | test de couverture | donnée d’audit historique |
+| `docs/audits/stdlib-0.7.4.md` | 159:24 | cast littéral | `usize(0)` | test de couverture | donnée d’audit historique |
 | `docs/design/container-ownership.md` | 90:21 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 175:21 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 176:45 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |

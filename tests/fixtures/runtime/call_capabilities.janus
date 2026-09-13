@@ -1,0 +1,40 @@
+class Resource(var value : int) {
+    def bump() : Unit { value = value + 1 }
+    consume def dispose() : Unit { delete this }
+    destructor { println(value) }
+}
+def factory[T](value : T) : FnOnce () => T {
+    return owningCapture[T](value, () => move value)
+}
+def apply[F <: FnOnce () => int](callback : F) : int { return callback() }
+def main() : int {
+    val zeroOwner = new Resource(1)
+    val zero : FnOnce () => int = owningCapture[Resource](zeroOwner, () => zeroOwner.value)
+    delete zero
+    val once = factory[Resource](new Resource(2))
+    defer delete once
+    val result = once()
+    delete result
+    val mutableOwner = new Resource(10)
+    val repeated : FnMut () => Unit = owningCapture[Resource](mutableOwner, () => mutableOwner.bump())
+    repeated()
+    repeated()
+    delete repeated
+    val consumedOwner = new Resource(3)
+    val consumed : FnOnce () => Unit = owningCapture[Resource](consumedOwner, () => consumedOwner.dispose())
+    consumed()
+    val genericOwner = new Resource(5)
+    val generic : Fn () => int = owningCapture[Resource](genericOwner, () => genericOwner.value)
+    println(apply[Fn () => int](move generic))
+    val never = factory[Resource](new Resource(4))
+    defer delete never
+    val pointer = alloc[int](usize(1))
+    val releasePointer : FnOnce () => Unit = owningCapture[Ptr[int]](pointer, () => free(pointer))
+    releasePointer()
+    val mutablePointer = alloc[int](usize(1))
+    val writePointer : FnMut (int) => Unit = owningCapture[Ptr[int]](mutablePointer, (n : int) => mutablePointer.store(usize(0), n))
+    writePointer(1)
+    writePointer(2)
+    delete writePointer
+    return 0
+}

@@ -80,13 +80,13 @@ def compatibleUnitResidual(input : Result[int, Unit]) : Option[double] {
 def constructUnitResidual() : Result[int, Unit] {
     return Result.Error[int, Unit](nothing())
 }
-def propagate[P <: Try](value : P, scoped wrap : (P.Output) => P) : P {
+def propagate[P <: Try](value : P, scoped wrap : FnMut (P.Output) => P) : P {
     defer delete wrap
     val output : P.Output = value?
     return wrap(move output)
 }
 def lambdaBoundary() : int {
-    val transform : (Option[int]) => Option[int] = input => {
+    val transform : FnMut (Option[int]) => Option[int] = input => {
         val value : int = input?
         return Option.Some[int](value + 1)
     }
@@ -98,7 +98,7 @@ def lambdaBoundary() : int {
     }
 }
 def resultLambdaBoundary() : int {
-    val transform : (Result[int, string]) => Result[double, string] = input => {
+    val transform : FnMut (Result[int, string]) => Result[double, string] = input => {
         val value : int = input?
         return Result.Ok[double, string](double(value) + 0.5)
     }
@@ -111,7 +111,7 @@ def resultLambdaBoundary() : int {
     }
 }
 def invokeOption(
-scoped transform : (Option[int]) => Option[int],
+scoped transform : FnMut (Option[int]) => Option[int],
 input : Option[int]
 ) : Option[int] {
     defer delete transform
@@ -133,7 +133,7 @@ def contextualCallbackBoundary() : int {
 class OuterResource() {}
 def lambdaKeepsOuterOwner() : int {
     val resource : OuterResource = new OuterResource()
-    val transform : (Option[int]) => Option[int] = input => {
+    val transform : FnMut (Option[int]) => Option[int] = input => {
         val value : int = input?
         return Option.Some[int](value)
     }
@@ -248,27 +248,29 @@ def main() : int {
       "requires a contextual function return type");
   expect_compile_error(
       std::string{declarations} +
-          "def main() : int { val transform : (Result[int, string]) => "
+          "def main() : int { val transform : FnMut (Result[int, string]) => "
           "Result[int, int] = input => { val item : int = input? "
           "return Result.Ok[int, int](item) } delete transform return 0 }",
-      "cannot propagate residual type 'string' from a lambda returning residual type "
+      "cannot propagate residual type 'string' from a lambda returning "
+      "residual type "
       "'int'");
-  expect_compile_error(std::string{declarations} +
-                           "def main() : int { val transform : (Option[int]) "
-                           "=> int = input => { "
-                           "return input? } delete transform return 0 }",
-                       "requires the enclosing lambda to return a type implementing Try");
   expect_compile_error(
       std::string{declarations} +
-          "def main() : int { val outer : () => Option[int] = () => { "
-          "val inner : (Option[int]) => int = input => input? "
+          "def main() : int { val transform : FnMut (Option[int]) "
+          "=> int = input => { "
+          "return input? } delete transform return 0 }",
+      "requires the enclosing lambda to return a type implementing Try");
+  expect_compile_error(
+      std::string{declarations} +
+          "def main() : int { val outer : FnMut () => Option[int] = () => { "
+          "val inner : FnMut (Option[int]) => int = input => input? "
           "delete inner return Option.None[int]() } delete outer return 0 }",
       "inside a lambda requires a block body");
 
   const std::string leaking_lambda_source = std::string{declarations} + R"(
 class Resource() {}
 def main() : int {
-    val transform : (Option[int]) => Option[int] = input => {
+    val transform : FnMut (Option[int]) => Option[int] = input => {
         val resource : Resource = new Resource()
         val value : int = input?
         delete resource

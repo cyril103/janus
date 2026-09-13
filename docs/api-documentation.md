@@ -67,7 +67,7 @@ janus doc --stdlib --offline -o target/stdlib-reference
 
 La sortie par défaut est `target/doc/index.html`. `api-index.json`, placé dans
 le même dossier, fournit l’index public trié utilisé par la documentation, le
-CLI et le LSP. Son contrat `format_version: 1` expose pour chaque symbole le
+CLI et le LSP. Son contrat `format_version: 2` expose pour chaque symbole le
 nom simple et qualifié, le paquet, le module et l’import requis, la nature, la
 signature, les paramètres et leur type, le type de retour, les paramètres et
 contraintes génériques disponibles, le résumé, la documentation, la

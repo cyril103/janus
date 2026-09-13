@@ -56,58 +56,46 @@ void expect_analyzes(std::string_view source, std::string_view message) {
 } // namespace
 
 int main() {
-  {
-    janus::frontend::Parser warning_parser{R"(
+  expect_compile_error(R"(
 class Resource(val marker : int) {}
-def makeReader() : (int) => int {
+def makeReader() : FnMut (int) => int {
     val resource : Resource = new Resource(41)
     return value => value + resource.marker
 }
 def main() : int { return 0 }
-)"};
-    janus::semantic::Analyzer warning_analyzer;
-    const janus::semantic::AnalysisResult warning_analysis =
-        warning_analyzer.analyze(warning_parser.parse_program());
-    const std::size_t escaping_capture_warnings = std::count_if(
-        warning_analysis.diagnostics.begin(), warning_analysis.diagnostics.end(),
-        [](const janus::Diagnostic &diagnostic) {
-          return diagnostic.code ==
-                 janus::DiagnosticCode::AnalyzerEscapingOwningCapture;
-        });
-    expect(escaping_capture_warnings == 1,
-           "contextual inference emits an existing warning exactly once");
-  }
+)",
+                       "closure captures borrowed value");
 
   expect_analyzes(
       R"(
 enum Choice { First, Second }
 class Box[T](val value : T) {}
 class Calculator() {
-    def combine(callback : (int, int) => int) : int {
+    def combine(callback : FnMut (int, int) => int) : int {
         return callback(20, 22)
     }
-    def apply[T](value : T, callback : (T) => int) : int {
+    def apply[T](value : T, callback : FnMut (T) => int) : int {
         return callback(move value)
     }
-    def mixed[T](callback : (T, T) => int) : int {
+    def mixed[T](callback : FnMut (T, T) => int) : int {
         return 0
     }
 }
-def apply[T, U](value : T, callback : (T) => U) : U {
+def apply[T, U](value : T, callback : FnMut (T) => U) : U {
     return callback(move value)
 }
-def mixed[T](callback : (T, T) => int) : int {
+def mixed[T](callback : FnMut (T, T) => int) : int {
     return 0
 }
-def chooseFactory() : (Choice) => int {
+def chooseFactory() : FnMut (Choice) => int {
     return choice => match choice { First => 1, Second => 2 }
 }
 def main() : int {
-    val increment : (int) => int = value => value + 1
-    val add : (int, int) => int = (left, right) => left + right
-    val constant : () => int = () => 7
+    val increment : Fn (int) => int = value => value + 1
+    val add : FnMut (int, int) => int = (left, right) => left + right
+    val constant : FnMut () => int = () => 7
     val boxed : Box[int] = new Box[int](40)
-    val unbox : (Box[int]) => int = value => value.value
+    val unbox : FnMut (Box[int]) => int = value => value.value
     val fromFunction : int = apply(1, value => value + 1)
     val calculator : Calculator = new Calculator()
     val fromMethod : int = calculator.combine((left, right) => left + right)
@@ -133,8 +121,8 @@ def main() : int {
   expect_analyzes(
       R"(
 def main() : int {
-    val invoke : ((int) => int) => int =
-        (callback : (int) => int) => callback(41)
+    val invoke : Fn (FnMut (int) => int) => int =
+        (callback : FnMut (int) => int) => callback(41)
     val result : int = invoke(value => value + 1)
     delete invoke
     return result - 42
@@ -145,10 +133,10 @@ def main() : int {
   expect_analyzes(
       R"(
 class Counter(var value : int) {}
-def inspect(callback : (borrow Counter) => int, borrow counter : Counter) : int {
+def inspect(callback : FnMut (borrow Counter) => int, borrow counter : Counter) : int {
     return callback(counter)
 }
-def edit(callback : (borrow var Counter) => Unit, borrow var counter : Counter) : Unit {
+def edit(callback : FnMut (borrow var Counter) => Unit, borrow var counter : Counter) : Unit {
     callback(counter)
 }
 def main() : int {
@@ -164,12 +152,12 @@ def main() : int {
   expect_compile_error(
       "def main() : int { val identity = value => value return 0 }",
       "annotat");
+  expect_compile_error("def main() : int { val callback : FnMut (int, int) => "
+                       "int = value => value "
+                       "delete callback return 0 }",
+                       "expects 2 parameter");
   expect_compile_error(
-      "def main() : int { val callback : (int, int) => int = value => value "
-      "delete callback return 0 }",
-      "expects 2 parameter");
-  expect_compile_error(
-      "class Box() {} def main() : int { val callback : (Box) => int = "
+      "class Box() {} def main() : int { val callback : FnMut (Box) => int = "
       "(borrow value) => 1 delete callback return 0 }",
       "ownership");
 
@@ -336,7 +324,7 @@ def main() : int {
   expect_compile_error(
       R"(
 class Resource(val marker : int) {
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 }
 def main() : int {
     val owner : Resource = new Resource(7)
@@ -353,7 +341,7 @@ def main() : int {
   expect_analyzes(
       R"(
 class Resource(val marker : int) {
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 }
 def main() : int {
     val factory = (owner : Resource) => {
@@ -397,17 +385,17 @@ class CallScope() {
     destructor {}
 }
 
-def apply[T](borrow function : (T) => T, value : T) : T {
+def apply[T](borrow function : Fn (T) => T, value : T) : T {
     val scope : CallScope = new CallScope()
     defer delete scope
     return function(move value)
 }
 
-def makeAdder(amount : int) : (int) => int {
+def makeAdder(amount : int) : FnMut (int) => int {
     return (value : int) => value + amount
 }
 
-def makeBlockAdder(amount : int) : (int) => int {
+def makeBlockAdder(amount : int) : FnMut (int) => int {
     return (value : int) => {
         val adjusted : int = value + amount
         if adjusted > 40 {
@@ -417,25 +405,25 @@ def makeBlockAdder(amount : int) : (int) => int {
     }
 }
 
-def makeObserver() : (int) => Unit {
+def makeObserver() : FnMut (int) => Unit {
     return (value : int) => {
         val observed : int = value
         debug(observed)
     }
 }
 
-def makeConditionalObserver(condition : bool) : () => Unit {
+def makeConditionalObserver(condition : bool) : FnMut () => Unit {
     return () => {
         if condition { return }
         debug(1)
     }
 }
 
-def makeShadow(value : CallScope) : (int) => int {
+def makeShadow(value : CallScope) : FnMut (int) => int {
     return (value : int) => value + 1
 }
 
-def makeNested(amount : int) : (int) => int {
+def makeNested(amount : int) : FnMut (int) => int {
     return (value : int) => {
         val inner = (nested : int) => {
             return nested + amount
@@ -446,7 +434,7 @@ def makeNested(amount : int) : (int) => int {
     }
 }
 
-def makeCounter(start : int) : () => int {
+def makeCounter(start : int) : FnMut () => int {
     var next : int = start
     return () => {
         next = next + 1
@@ -454,15 +442,15 @@ def makeCounter(start : int) : () => int {
     }
 }
 
-def makeIdentity[T]() : (T) => T {
+def makeIdentity[T]() : FnMut (T) => T {
     return (value : T) => move value
 }
 
 class Resource(val marker : int) {
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 }
 
-def makeLocalCleanup() : () => () => Unit {
+def makeLocalCleanup() : Fn () => FnOnce () => Unit {
     return () => {
         val local : Resource = new Resource(7)
         return owningCapture[Resource](local, () => local.dispose())
@@ -470,7 +458,7 @@ def makeLocalCleanup() : () => () => Unit {
 }
 
 def main() : int {
-    val increment : (int) => int = (value : int) => value + 1
+    val increment : Fn (int) => int = (value : int) => value + 1
     val first : int = apply[int](increment, 41)
     delete increment
 
@@ -505,7 +493,6 @@ def main() : int {
     val factory = makeLocalCleanup()
     val cleanup = factory()
     cleanup()
-    delete cleanup
     delete factory
     return counted
 }
@@ -536,19 +523,19 @@ def main() : int {
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   expect(analysis.functions.at("main").at("increment").type.name() ==
-             "(int) => int",
+             "Fn (int) => int",
          "function values retain their semantic signature");
   expect(analysis.functions.at("main").at("blockAdder").type.name() ==
-             "(int) => int",
+             "FnMut (int) => int",
          "block lambda return types are inferred from return statements");
   expect(analysis.functions.at("main").at("observer").type.name() ==
-             "(int) => Unit",
+             "FnMut (int) => Unit",
          "a lambda block without return infers Unit");
   expect(analysis.functions.at("main").at("conditionalObserver").type.name() ==
-             "() => Unit",
+             "FnMut () => Unit",
          "a partially returning lambda block infers Unit");
   expect(analysis.functions.at("main").at("nested").type.name() ==
-             "(int) => int",
+             "FnMut (int) => int",
          "nested block lambdas retain inferred signatures and captures");
 
   llvm::LLVMContext context;
@@ -588,18 +575,18 @@ def main() : int {
          "function: " + verifier_error);
   expect(ir.find("call void @janus_free(ptr") != std::string::npos,
          "delete releases closure environments");
-  expect(ir.find("define { ptr, ptr, i1 } @makeIdentity__int()") !=
+  expect(ir.find("define { ptr, ptr, i1, ptr } @makeIdentity__int()") !=
              std::string::npos,
          "generic factories specialize function values");
 
-  expect_compile_error("def main() : int { val f : (int) => int = "
+  expect_compile_error("def main() : int { val f : FnMut (int) => int = "
                        "(value : double) => int(value) delete f return 0 }",
-                       "cannot use expression of type '(double) => int'");
+                       "cannot use expression of type 'Fn (double) => int'");
   expect_compile_error(
-      "def main() : int { val f : (int) => int = "
+      "def main() : int { val f : FnMut (int) => int = "
       "(value : int) => value val result : int = f() delete f return result }",
       "expects 1 argument");
-  expect_compile_error("def main() : int { val f : (int) => int = "
+  expect_compile_error("def main() : int { val f : FnMut (int) => int = "
                        "(value : int) => value delete f return f(1) }",
                        "used before initialization");
   expect_compile_error(

@@ -44,7 +44,7 @@ CAST_EXCEPTIONS: dict[tuple[str, str, int, int], str] = {
     ("docs/archive/migration-0.5-to-0.6.md", "usize(2)", 31, 55): "historique",
     ("docs/archive/migration-0.5-to-0.6.md", "usize(0)", 39, 23): "historique",
     ("docs/audits/stdlib-0.7.4.md", "usize(1)", 158, 20): "donnée d’audit historique",
-    ("docs/audits/stdlib-0.7.4.md", "usize(0)", 160, 24): "donnée d’audit historique",
+    ("docs/audits/stdlib-0.7.4.md", "usize(0)", 159, 24): "donnée d’audit historique",
     ("docs/design/container-ownership.md", "usize(0)", 90, 21): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 175, 21): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 176, 45): "pédagogique (index usize)",

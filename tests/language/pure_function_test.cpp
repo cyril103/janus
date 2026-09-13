@@ -75,7 +75,7 @@ pure tailrec def odd(value : int) : bool {
     if value == 0 { return false }
     return even(value - 1)
 }
-pure def apply(action : pure (int) => int, value : int) : int {
+pure def apply(action : pure Fn (int) => int, value : int) : int {
     return action(value)
 }
 pure def identity[T](value : T) : T { return move value }
@@ -88,8 +88,10 @@ def main() : int {
     val box : Box = new Box(output.value)
     return apply((value : int) => identity[int](value), box.read())
 }
-)", "pure functions support allocation, local mutation, recursion, callbacks, "
-    "generics, trusted FFI and methods");
+)",
+               "pure functions support allocation, local mutation, recursion, "
+               "callbacks, "
+               "generics, trusted FFI and methods");
 
   expect_valid(R"(
 pure def fail(value : int) : int {
@@ -164,29 +166,32 @@ def main() : int { return 0 }
                "pure functions reject mutable borrow parameters");
 
   expect_error(R"(
-pure def apply(action : (int) => int, value : int) : int {
+pure def apply(action : FnMut (int) => int, value : int) : int {
     return action(value)
 }
 def main() : int { return 0 }
-)", "without a pure function contract",
+)",
+               "without a pure function contract",
                "callbacks need an explicit pure function type");
 
   expect_error(R"(
 var state : int = 1
 def main() : int {
-    val action : pure (int) => int = (value : int) => value + state
+    val action : pure Fn (int) => int = (value : int) => value + state
     return action(1)
 }
-)", "pure lambda cannot observe mutable global 'state'",
+)",
+               "pure lambda cannot observe mutable global 'state'",
                "pure callback values verify their lambda body");
 
   expect_error(R"(
 def io() : int { return 1 }
 def main() : int {
-    val action : pure (int) => int = (value : int) => value + io()
+    val action : pure Fn (int) => int = (value : int) => value + io()
     return action(1)
 }
-)", "pure lambda cannot call impure function 'io'",
+)",
+               "pure lambda cannot call impure function 'io'",
                "pure lambdas reject transitive impure calls");
 
   expect_error(R"(

@@ -12,7 +12,7 @@ def consumeUnit(value : Unit) : Unit {
 def main() : int {
     val marker : Marker = new Marker(unit)
     val result : Option[Unit] = Option.Some[Unit](marker.value)
-    val callback : (Unit) => Unit =
+    val callback : FnMut (Unit) => Unit =
         (value : Unit) => consumeUnit(identity[Unit](value))
     callback(match result { Some(value) => value, None => unit })
     delete callback

@@ -268,18 +268,7 @@ std::string anchor_for(std::string_view qualified_name) {
 }
 
 std::string type_name(const janus::ast::TypeReference &type) {
-  std::string rendered =
-      type.is_pure_function ? "pure " + type.name : type.name;
-  if (!type.type_arguments.empty()) {
-    rendered += '[';
-    for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
-      if (index != 0)
-        rendered += ", ";
-      rendered += type_name(type.type_arguments[index]);
-    }
-    rendered += ']';
-  }
-  return rendered;
+  return janus::ast::type_reference_name(type);
 }
 
 std::string type_name(const std::optional<janus::ast::TypeReference> &type) {

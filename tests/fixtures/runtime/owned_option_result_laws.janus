@@ -84,14 +84,14 @@ def observeResource(borrow value : Resource) : Unit {
     observations = observations + value.id
 }
 
-def trackedFallback(value : int) : () => Resource {
+def trackedFallback(value : int) : FnMut () => Resource {
     return () => {
         fallbackCalls = fallbackCalls + 1
         return new Resource(value)
     }
 }
 
-def trackedOptionFallback(value : int) : () => Option[Resource] {
+def trackedOptionFallback(value : int) : FnMut () => Option[Resource] {
     return () => {
         fallbackCalls = fallbackCalls + 1
         return Option.Some[Resource](new Resource(value))

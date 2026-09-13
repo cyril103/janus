@@ -4,7 +4,7 @@ class Resource(val id : int) {
     }
 }
 
-def invoke(marker : int, callback : () => Unit) : Unit {
+def invoke(marker : int, callback : FnMut () => Unit) : Unit {
     val resource : Resource = new Resource(marker)
     defer delete resource
     callback()

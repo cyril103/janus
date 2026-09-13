@@ -18,7 +18,7 @@ private def persistentListInvariant[T](message : string) : T {
 private def persistentListSharedEquals[T](
     left : Shared[T],
     right : Shared[T],
-    scoped borrow equals : (borrow T, borrow T) => bool
+    scoped borrow var equals : FnMut (borrow T, borrow T) => bool
 ) : bool {
     val same : bool = equals(left.get(), right.get())
     delete right
@@ -40,7 +40,7 @@ private def persistentListTakeShared[T](
 private def persistentListOptionEquals[T](
     left : Option[Shared[T]],
     right : Option[Shared[T]],
-    scoped borrow equals : (borrow T, borrow T) => bool
+    scoped borrow var equals : FnMut (borrow T, borrow T) => bool
 ) : bool {
     val leftItem : Shared[T] = persistentListTakeShared[T](move left)
     val rightItem : Shared[T] = persistentListTakeShared[T](move right)
@@ -96,7 +96,7 @@ private class PersistentListIteratorState[T](
         }
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor { delete current }
 }
@@ -195,10 +195,8 @@ class PersistentList[T] internal(
         val state : PersistentListIteratorState[T] =
         new PersistentListIteratorState[T](move root)
         return new Iterator[Shared[T]](
-            () => state.next(),
-            owningCapture[PersistentListIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[PersistentListIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -234,7 +232,7 @@ class PersistentList[T] internal(
     /// Transforme chaque element observe, en conservant l'ordre.
     /// @param transform Fonction observant une valeur et produisant sa projection.
     /// @return Nouvelle liste des projections dans l'ordre source.
-    borrow def map[U](scoped transform : (borrow T) => U) : PersistentList[U] {
+    borrow def map[U](scoped transform : FnMut (borrow T) => U) : PersistentList[U] {
         defer delete transform
         val state : PersistentListBuildState[U] =
         new PersistentListBuildState[U](persistentListEmpty[U]())
@@ -254,7 +252,7 @@ class PersistentList[T] internal(
     /// @param predicate Fonction observant chaque valeur dans l'ordre.
     /// @return Nouvelle liste des valeurs acceptees dans l'ordre source.
     borrow def filter(
-        scoped predicate : (borrow T) => bool
+        scoped predicate : FnMut (borrow T) => bool
     ) : PersistentList[T] {
         defer delete predicate
         val state : PersistentListBuildState[T] =
@@ -280,7 +278,7 @@ class PersistentList[T] internal(
     /// @return Accumulateur final, ou `initial` pour une liste vide.
     borrow def fold[U](
         initial : U,
-        scoped combine : (U, borrow T) => U
+        scoped combine : FnMut (U, borrow T) => U
     ) : U {
         defer delete combine
         var accumulator : U = move initial
@@ -298,7 +296,7 @@ class PersistentList[T] internal(
     /// @return `true` si tailles et valeurs sont egales.
     borrow def equalsBy(
         borrow other : PersistentList[T],
-        scoped equals : (borrow T, borrow T) => bool
+        scoped equals : FnMut (borrow T, borrow T) => bool
     ) : bool {
         defer delete equals
         if length != other.length { return false }

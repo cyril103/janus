@@ -62,7 +62,7 @@ int main() {
   constexpr std::string_view source = R"(
 enum Option[T] { Some(T), None }
 extend[T] Option[T] {
-    consume def map[U](scoped transform : (T) => U) : Option[U] {
+    consume def map[U](scoped transform : FnMut (T) => U) : Option[U] {
         defer delete transform
         return match move this {
             Some(value) => Option.Some[U](transform(move value)),

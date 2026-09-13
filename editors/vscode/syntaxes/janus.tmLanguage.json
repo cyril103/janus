@@ -16,6 +16,10 @@
       "match": "\\b(class|trait|enum|const|pure|tailrec|def|val|var|private|internal|extern|module|import|extends|new|destructor|borrow)\\b"
     },
     {
+      "name": "storage.type.function.janus",
+      "match": "\\b(Fn|FnMut|FnOnce)\\b(?=\\s*\\()"
+    },
+    {
       "captures": {
         "3": {
           "name": "keyword.control.janus"

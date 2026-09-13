@@ -32,7 +32,7 @@ class ValidatedErrors[E] internal(errors : Array[E]) {
     /// @param action Callback bornée recevant toutes les erreurs dans l'ordre.
     /// @return Résultat indépendant produit par la callback.
     borrow def inspect[U](
-        scoped borrow action : (borrow Array[E]) => U
+        scoped borrow var action : FnMut (borrow Array[E]) => U
     ) : U {
         return match values {
             Some(items) => action(items),
@@ -152,7 +152,7 @@ private def nonEmptyErrors[E](errors : Array[E]) : ValidatedErrors[E] {
 
 private def mapErrors[E, F](
     errors : Array[E],
-    scoped borrow transform : (E) => F
+    scoped borrow var transform : FnMut (E) => F
 ) : Array[F] {
     val mapped : Array[F] = new Array[F](errors.size())
     for error in errors.intoIterator() {
@@ -230,7 +230,7 @@ def isInvalid[T, E](borrow value : Validated[T, E]) : bool {
 /// @return Validation transformée ou erreurs d'origine.
 def map[T, U, E](
     value : Validated[T, E],
-    scoped transform : (T) => U
+    scoped transform : FnMut (T) => U
 ) : Validated[U, E] {
     defer delete transform
     return match move value {
@@ -245,7 +245,7 @@ def map[T, U, E](
 /// @return Valeur valide d'origine ou erreurs transformées.
 def mapError[T, E, F](
     value : Validated[T, E],
-    scoped transform : (E) => F
+    scoped transform : FnMut (E) => F
 ) : Validated[T, F] {
     defer delete transform
     return match move value {
@@ -267,7 +267,7 @@ def mapError[T, E, F](
 def map2[A, B, E, U](
     left : Validated[A, E],
     right : Validated[B, E],
-    scoped combine : (A, B) => U
+    scoped combine : FnMut (A, B) => U
 ) : Validated[U, E] {
     defer delete combine
     val leftState : ValidatedState[A, E] = new ValidatedState[A, E](
@@ -313,7 +313,7 @@ def map3[A, B, C, E, U](
     first : Validated[A, E],
     second : Validated[B, E],
     third : Validated[C, E],
-    scoped combine : (A, B, C) => U
+    scoped combine : FnMut (A, B, C) => U
 ) : Validated[U, E] {
     defer delete combine
     val firstState : ValidatedState[A, E] = new ValidatedState[A, E](
@@ -382,7 +382,7 @@ def zip[A, B, E](
 /// @return `Some` du résultat indépendant de l'action, ou `None` pour `Valid`.
 def errorsBorrowed[T, E, U](
     borrow value : Validated[T, E],
-    scoped action : (borrow Array[E]) => U
+    scoped action : FnMut (borrow Array[E]) => U
 ) : Option[U] {
     defer delete action
     return match value {
@@ -473,14 +473,14 @@ extend[T, E] Validated[T, E] {
     /// Transforme la valeur valide.
     /// @param transform Callback recevant le succès déplacé.
     /// @return Succès transformé ou erreurs d'origine.
-    consume def map[U](scoped transform : (T) => U) : Validated[U, E] {
+    consume def map[U](scoped transform : FnMut (T) => U) : Validated[U, E] {
         return map[T, U, E](move this, move transform)
     }
 
     /// Transforme chaque erreur dans son ordre d'origine.
     /// @param transform Callback recevant chaque erreur déplacée.
     /// @return Succès d'origine ou erreurs transformées.
-    consume def mapError[F](scoped transform : (E) => F) : Validated[T, F] {
+    consume def mapError[F](scoped transform : FnMut (E) => F) : Validated[T, F] {
         return mapError[T, E, F](move this, move transform)
     }
 
@@ -499,7 +499,7 @@ extend[T, E] Validated[T, E] {
     /// @return Succès combiné ou toutes les erreurs gauche-droite.
     consume def map2[U, V](
         other : Validated[U, E],
-        scoped combine : (T, U) => V
+        scoped combine : FnMut (T, U) => V
     ) : Validated[V, E] {
         return map2[T, U, E, V](move this, move other, move combine)
     }
@@ -512,7 +512,7 @@ extend[T, E] Validated[T, E] {
     consume def map3[U, V, W](
         second : Validated[U, E],
         third : Validated[V, E],
-        scoped combine : (T, U, V) => W
+        scoped combine : FnMut (T, U, V) => W
     ) : Validated[W, E] {
         return map3[T, U, V, E, W](
             move this, move second, move third, move combine
@@ -523,7 +523,7 @@ extend[T, E] Validated[T, E] {
     /// @param action Callback recevant un emprunt du tableau pour `Invalid`.
     /// @return Résultat indépendant dans `Some`, ou `None` pour `Valid`.
     borrow def errorsBorrowed[U](
-        scoped action : (borrow Array[E]) => U
+        scoped action : FnMut (borrow Array[E]) => U
     ) : Option[U] {
         return errorsBorrowed[T, E, U](this, move action)
     }

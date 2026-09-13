@@ -412,18 +412,18 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   const std::vector<std::string> scoped_escape_diagnostic = server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-escape.janus","text":"def leak(scoped action : () => int) : () => int { return action }\ndef main() : int { return 0 }"}}})");
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-escape.janus","text":"def leak(scoped action : FnMut () => int) : FnMut () => int { return action }\ndef main() : int { return 0 }"}}})");
   JANUS_REQUIRE(scoped_escape_diagnostic.size() == 1);
   JANUS_REQUIRE(scoped_escape_diagnostic.front().find(
                     "\"code\":\"JANA0026\"") != std::string::npos);
 
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-signature.janus","text":"def invoke(scoped action : () => int) : int { defer delete action return action() }\ndef main() : int { return invoke(() => 1) }"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-signature.janus","text":"def invoke(scoped action : FnMut () => int) : int { defer delete action return action() }\ndef main() : int { return invoke(() => 1) }"}}})"));
   const std::vector<std::string> scoped_signature = server.handle(
       R"({"jsonrpc":"2.0","id":551,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///scoped-signature.janus"},"position":{"line":1,"character":33}}})");
   JANUS_REQUIRE(scoped_signature.size() == 1);
   JANUS_REQUIRE(scoped_signature.front().find(
-                    "invoke(scoped action : Function[int]) : int") !=
+                    "invoke(scoped action : FnMut () => int) : int") !=
                 std::string::npos);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///scoped-escape.janus"}}})"));
@@ -992,12 +992,12 @@ int main(int argc, char **argv) {
        std::vector<std::int64_t>{10, 0, 0, 10, 5, 8, 1, 1, 10, 8, 9, 6}));
 
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-callable.janus","text":"def invoke(f : (int) => int) : int { return f(1) }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-callable.janus","text":"def invoke(f : FnMut (int) => int) : int { return f(1) }\n"}}})"));
   const std::vector<std::string> callable_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":49,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-callable.janus"}}})");
-  JANUS_REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
-                 std::vector<std::int64_t>{10, 5, 8, 1, 13, 1, 1, 10, 8,
-                                           12}));
+  JANUS_REQUIRE(
+      (semantic_token_field(callable_tokens.front(), 3) ==
+       std::vector<std::int64_t>{10, 5, 8, 1, 1, 13, 1, 1, 10, 8, 12}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-imported-generics.janus","text":"import model.{User, Box as Crate}\ndef inspect(users : Array[User], mapping : Map[string, User], nested : Array[Map[string, Crate]], qualified : Array[model.User], User : int) : int { val indexed = users[User] return User }\ndef call(User : int) : int { identity[User](User) return User }\ndef qualifiedCall(User : int) : int { model.make[model.User](User) return User }\n"}}})"));
@@ -1377,9 +1377,11 @@ int main(int argc, char **argv) {
   const std::string buffer_only_uri =
       file_uri(workspace / "src/buffer_only.janus");
   static_cast<void>(source_server.handle(
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/"
+      "didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
       buffer_only_uri +
-      "\",\"text\":\"module buffer_only\\n\\ndef apply(callback : (int) => int) : int { return callback(41) }\\n\"}}}"));
+      "\",\"text\":\"module buffer_only\\n\\ndef apply(callback : FnMut (int) "
+      "=> int) : int { return callback(41) }\\n\"}}}"));
   static_cast<void>(source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_consumer_uri +
@@ -1500,7 +1502,7 @@ int main(int argc, char **argv) {
 
   janus::lsp::Server expression_range_server;
   static_cast<void>(expression_range_server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-ranges.janus","text":"def callback() : (int) => int =>\n    (x : int) =>\n        x +\n        1\nclass Box() {\n    def method(value : int) : int =>\n        match value {\n            0 => 1,\n            _ => value\n        }\n}\ndef single() : int => 1\ndef unicode() : string => \"café\"\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-ranges.janus","text":"def callback() : FnMut (int) => int =>\n    (x : int) =>\n        x +\n        1\nclass Box() {\n    def method(value : int) : int =>\n        match value {\n            0 => 1,\n            _ => value\n        }\n}\ndef single() : int => 1\ndef unicode() : string => \"café\"\n"}}})"));
   const std::string exact_folding = expression_range_server.handle(
       R"({"jsonrpc":"2.0","id":207,"method":"textDocument/foldingRange","params":{"textDocument":{"uri":"file:///expression-ranges.janus"}}})").front();
   if (exact_folding.find("\"startLine\":0") == std::string::npos)

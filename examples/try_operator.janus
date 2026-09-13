@@ -20,7 +20,7 @@ def convertResult(input : Result[int, string]) : Result[double, string] {
 }
 
 def convertWithLambda(input : Option[int]) : Option[int] {
-    val increment : (Option[int]) => Option[int] = value => {
+    val increment : FnMut (Option[int]) => Option[int] = value => {
         val item : int = value?
         return Option.Some[int](item + 1)
     }

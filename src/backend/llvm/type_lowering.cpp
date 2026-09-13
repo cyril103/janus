@@ -45,7 +45,8 @@ namespace janus::backend::llvm {
   case TypeKind::Function:
     return ::llvm::StructType::get(::llvm::PointerType::getUnqual(context),
                                    ::llvm::PointerType::getUnqual(context),
-                                   ::llvm::Type::getInt1Ty(context));
+                                   ::llvm::Type::getInt1Ty(context),
+                                   ::llvm::PointerType::getUnqual(context));
   case TypeKind::Pointer:
     return ::llvm::PointerType::getUnqual(context);
   case TypeKind::Class:

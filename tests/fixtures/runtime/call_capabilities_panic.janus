@@ -1,0 +1,13 @@
+class Resource(val value : int) {
+    destructor { println(value) }
+}
+def main() : int {
+    val owner = new Resource(42)
+    val once : FnOnce () => Unit = owningCapture[Resource](owner, () => {
+        println(owner.value)
+        panic("FnOnce failure")
+    })
+    defer delete once
+    once()
+    return 0
+}

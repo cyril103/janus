@@ -56,17 +56,7 @@ std::size_t lexical_distance(std::string_view left, std::string_view right) {
 }
 
 std::string type_name(const ast::TypeReference &type) {
-  std::string result = type.is_pure_function ? "pure " + type.name : type.name;
-  if (!type.type_arguments.empty()) {
-    result += '[';
-    for (std::size_t i = 0; i < type.type_arguments.size(); ++i) {
-      if (i != 0)
-        result += ", ";
-      result += type_name(type.type_arguments[i]);
-    }
-    result += ']';
-  }
-  return result;
+  return janus::ast::type_reference_name(type);
 }
 
 std::string type_name(const std::optional<ast::TypeReference> &type) {

@@ -118,7 +118,7 @@ private class IteratorValueState[T](private var value : Option[T]) {
 
 private class MapIteratorState[A, B](
     private val source : Iterator[A],
-    private val transform : (A) => B
+    private val transform : FnMut (A) => B
 ) {
     def next() : Option[B] {
         val value : Option[A] = source.next()
@@ -128,7 +128,7 @@ private class MapIteratorState[A, B](
         }
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -140,7 +140,7 @@ private class MapIteratorState[A, B](
 
 private class FilterIteratorState[T](
     private val source : Iterator[T],
-    private val predicate : (borrow T) => bool
+    private val predicate : FnMut (borrow T) => bool
 ) {
     def next() : Option[T] {
         var candidate : Option[T] = source.next()
@@ -154,7 +154,7 @@ private class FilterIteratorState[T](
         return move candidate
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -176,7 +176,7 @@ private class TakeIteratorState[T](
         return source.next()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -203,7 +203,7 @@ private class DropIteratorState[T](
         return source.next()
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor { delete source }
 }
@@ -240,7 +240,7 @@ private class ChainIteratorState[T](
         return second.next()
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor {
         delete second
@@ -250,7 +250,7 @@ private class ChainIteratorState[T](
 
 private class FilterMapIteratorState[A, B](
     private val source : Iterator[A],
-    private val transform : (A) => Option[B]
+    private val transform : FnMut (A) => Option[B]
 ) {
     def next() : Option[B] {
         while true {
@@ -268,7 +268,7 @@ private class FilterMapIteratorState[A, B](
         return Option.None[B]()
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor {
         delete transform
@@ -278,7 +278,7 @@ private class FilterMapIteratorState[A, B](
 
 private class TakeWhileIteratorState[T](
     private val source : Iterator[T],
-    private val predicate : (borrow T) => bool,
+    private val predicate : FnMut (borrow T) => bool,
     private var finished : bool
 ) {
     def next() : Option[T] {
@@ -298,7 +298,7 @@ private class TakeWhileIteratorState[T](
         return Option.None[T]()
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor {
         delete predicate
@@ -308,7 +308,7 @@ private class TakeWhileIteratorState[T](
 
 private class SkipWhileIteratorState[T](
     private val source : Iterator[T],
-    private val predicate : (borrow T) => bool,
+    private val predicate : FnMut (borrow T) => bool,
     private var skipping : bool
 ) {
     def next() : Option[T] {
@@ -332,7 +332,7 @@ private class SkipWhileIteratorState[T](
         return source.next()
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor {
         delete predicate
@@ -343,7 +343,7 @@ private class SkipWhileIteratorState[T](
 private class ScanIteratorState[A, S, B](
     private val source : Iterator[A],
     private var state : S,
-    private val transform : (borrow var S, A) => Option[B],
+    private val transform : FnMut (borrow var S, A) => Option[B],
     private var finished : bool
 ) {
     def next() : Option[B] {
@@ -366,7 +366,7 @@ private class ScanIteratorState[A, S, B](
         return move mapped
     }
 
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 
     destructor {
         delete transform
@@ -403,7 +403,7 @@ private class ZipIteratorState[A, B](
         }
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -433,7 +433,7 @@ private class EnumerateIteratorState[T](
         }
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -444,7 +444,7 @@ private class EnumerateIteratorState[T](
 
 private class FlatMapIteratorState[A, B](
     private val source : Iterator[A],
-    private val transform : (A) => Iterator[B],
+    private val transform : FnMut (A) => Iterator[B],
     private var current : Option[Iterator[B]]
 ) {
     private def start(nextIterator : Iterator[B]) : bool {
@@ -501,7 +501,7 @@ private class FlatMapIteratorState[A, B](
         return Option.None[B]()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -521,8 +521,8 @@ private class FlatMapIteratorState[A, B](
 /// @param advance Fermeture appelée pour produire la prochaine valeur ou `None`.
 /// @param release Fermeture appelée une fois lors de la destruction du parcours.
 class Iterator[T](
-    private val advance : () => Option[T],
-    private val release : () => Unit
+    private val advance : FnMut () => Option[T],
+    private val release : FnOnce () => Unit
 ) extends IntoIterable[T] {
     /// Produit la prochaine valeur et avance irréversiblement le parcours.
     ///
@@ -546,14 +546,12 @@ class Iterator[T](
     /// `next` du résultat.
     /// @param transform Fonction consommant une valeur source et produisant sa projection.
     /// @return Un itérateur propriétaire des valeurs transformées.
-    consume def map[U](transform : (T) => U) : Iterator[U] {
+    consume def map[U](transform : FnMut (T) => U) : Iterator[U] {
         val state : MapIteratorState[T, U] =
         new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
-            () => state.next(),
-            owningCapture[MapIteratorState[T, U]](
-            state, () => state.dispose()
-            )
+            owningCapture[MapIteratorState[T, U]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -563,14 +561,12 @@ class Iterator[T](
     /// détruites avant la recherche de la suivante.
     /// @param predicate Fonction empruntant chaque valeur candidate pour la tester.
     /// @return Un itérateur produisant uniquement les valeurs acceptées.
-    consume def filter(predicate : (borrow T) => bool) : Iterator[T] {
+    consume def filter(predicate : FnMut (borrow T) => bool) : Iterator[T] {
         val state : FilterIteratorState[T] =
         new FilterIteratorState[T](move this, move predicate)
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[FilterIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[FilterIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -584,10 +580,8 @@ class Iterator[T](
         val state : TakeIteratorState[T] =
         new TakeIteratorState[T](move this, count)
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[TakeIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[TakeIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -601,10 +595,8 @@ class Iterator[T](
         val state : DropIteratorState[T] =
         new DropIteratorState[T](move this, count)
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[DropIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[DropIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -621,10 +613,8 @@ class Iterator[T](
             move other
         )
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[ChainIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[ChainIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -635,15 +625,13 @@ class Iterator[T](
     /// @param transform Fonction retournant la projection éventuelle.
     /// @return Un itérateur des projections présentes.
     consume def filterMap[U](
-        transform : (T) => Option[U]
+        transform : FnMut (T) => Option[U]
     ) : Iterator[U] {
         val state : FilterMapIteratorState[T, U] =
         new FilterMapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
-            () => state.next(),
-            owningCapture[FilterMapIteratorState[T, U]](
-            state, () => state.dispose()
-            )
+            owningCapture[FilterMapIteratorState[T, U]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -655,15 +643,13 @@ class Iterator[T](
     /// @param predicate Fonction observant chaque valeur demandée jusqu'au refus.
     /// @return Un itérateur du préfixe accepté.
     consume def takeWhile(
-        predicate : (borrow T) => bool
+        predicate : FnMut (borrow T) => bool
     ) : Iterator[T] {
         val state : TakeWhileIteratorState[T] =
         new TakeWhileIteratorState[T](move this, move predicate, false)
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[TakeWhileIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[TakeWhileIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -674,15 +660,13 @@ class Iterator[T](
     /// @param predicate Fonction observant le préfixe à ignorer.
     /// @return Un itérateur commençant à la première valeur refusée.
     consume def skipWhile(
-        predicate : (borrow T) => bool
+        predicate : FnMut (borrow T) => bool
     ) : Iterator[T] {
         val state : SkipWhileIteratorState[T] =
         new SkipWhileIteratorState[T](move this, move predicate, true)
         return new Iterator[T](
-            () => state.next(),
-            owningCapture[SkipWhileIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[SkipWhileIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -695,17 +679,15 @@ class Iterator[T](
     /// @return Un itérateur possédant la source, l'état et la callback.
     consume def scan[S, U](
         initial : S,
-        transform : (borrow var S, T) => Option[U]
+        transform : FnMut (borrow var S, T) => Option[U]
     ) : Iterator[U] {
         val state : ScanIteratorState[T, S, U] =
         new ScanIteratorState[T, S, U](
             move this, move initial, move transform, false
         )
         return new Iterator[U](
-            () => state.next(),
-            owningCapture[ScanIteratorState[T, S, U]](
-            state, () => state.dispose()
-            )
+            owningCapture[ScanIteratorState[T, S, U]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -722,10 +704,8 @@ class Iterator[T](
         val state : ZipIteratorState[T, U] =
         new ZipIteratorState[T, U](move this, move other)
         return new Iterator[ZipItem[T, U]](
-            () => state.next(),
-            owningCapture[ZipIteratorState[T, U]](
-            state, () => state.dispose()
-            )
+            owningCapture[ZipIteratorState[T, U]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -738,10 +718,8 @@ class Iterator[T](
         val state : EnumerateIteratorState[T] =
         new EnumerateIteratorState[T](move this, usize(0))
         return new Iterator[Indexed[T]](
-            () => state.next(),
-            owningCapture[EnumerateIteratorState[T]](
-            state, () => state.dispose()
-            )
+            owningCapture[EnumerateIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -753,7 +731,7 @@ class Iterator[T](
     /// @param transform Fonction consommant une valeur et produisant son parcours intérieur.
     /// @return Un itérateur produisant successivement toutes les valeurs intérieures.
     consume def flatMap[U](
-        transform : (T) => Iterator[U]
+        transform : FnMut (T) => Iterator[U]
     ) : Iterator[U] {
         val state : FlatMapIteratorState[T, U] =
         new FlatMapIteratorState[T, U](
@@ -762,10 +740,8 @@ class Iterator[T](
             Option.None[Iterator[U]]()
         )
         return new Iterator[U](
-            () => state.next(),
-            owningCapture[FlatMapIteratorState[T, U]](
-            state, () => state.dispose()
-            )
+            owningCapture[FlatMapIteratorState[T, U]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -794,7 +770,7 @@ class Iterator[T](
     /// @return L’accumulateur final, ou `initial` si le parcours est vide.
     consume def fold[U](
         initial : U,
-        scoped combine : (U, T) => U
+        scoped combine : FnMut (U, T) => U
     ) : U {
         var accumulator : U = move initial
         for value in move this {
@@ -810,7 +786,7 @@ class Iterator[T](
     /// @param predicate Fonction empruntant chaque candidate jusqu'au succès.
     /// @return Première valeur acceptée, ou `None` après épuisement.
     consume def find(
-        scoped predicate : (borrow T) => bool
+        scoped predicate : FnMut (borrow T) => bool
     ) : Option[T] {
         defer delete predicate
         for value in move this {
@@ -825,7 +801,7 @@ class Iterator[T](
     /// Indique si au moins une valeur satisfait le prédicat.
     /// @param predicate Fonction empruntant les valeurs jusqu'au premier succès.
     /// @return `true` au premier succès, sinon `false` après épuisement.
-    consume def any(scoped predicate : (borrow T) => bool) : bool {
+    consume def any(scoped predicate : FnMut (borrow T) => bool) : bool {
         defer delete predicate
         for value in move this {
             val accepted : bool = predicate(value)
@@ -840,7 +816,7 @@ class Iterator[T](
     /// Indique si toutes les valeurs satisfont le prédicat.
     /// @param predicate Fonction empruntant les valeurs jusqu'au premier refus.
     /// @return `false` au premier refus, sinon `true`, y compris à vide.
-    consume def all(scoped predicate : (borrow T) => bool) : bool {
+    consume def all(scoped predicate : FnMut (borrow T) => bool) : bool {
         defer delete predicate
         for value in move this {
             val accepted : bool = predicate(value)
@@ -867,7 +843,7 @@ class Iterator[T](
     /// @param combine Fonction combinant l'accumulateur et la valeur suivante.
     /// @return Accumulateur final dans `Some`, ou `None` pour une source vide.
     consume def reduce(
-        scoped combine : (T, T) => T
+        scoped combine : FnMut (T, T) => T
     ) : Option[T] {
         defer delete combine
         val first : Option[T] = this.next()
@@ -893,7 +869,7 @@ class Iterator[T](
     /// @return Accumulateur final dans `Ok`, ou première erreur dans `Error`.
     consume def tryFold[U, E](
         initial : U,
-        scoped combine : (U, T) => Result[U, E]
+        scoped combine : FnMut (U, T) => Result[U, E]
     ) : Result[U, E] {
         defer delete combine
         val accumulator : IteratorValueState[U] =
@@ -926,7 +902,7 @@ class Iterator[T](
         Left <: Builder[T, A],
         Right <: Builder[T, B]
     ](
-        scoped predicate : (borrow T) => bool,
+        scoped predicate : FnMut (borrow T) => bool,
         borrow var accepted : Left,
         borrow var rejected : Right
     ) : PartitionResult[A, B] {
@@ -947,6 +923,5 @@ class Iterator[T](
     destructor {
         release()
         delete advance
-        delete release
     }
 }

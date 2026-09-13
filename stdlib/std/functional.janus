@@ -31,8 +31,8 @@ def constant[A, B](value : A, discarded : B) : A {
 /// @return Résultat de `outer(inner(value))`.
 def compose[A, B, C](
     value : A,
-    scoped outer : (B) => C,
-    scoped inner : (A) => B
+    scoped outer : FnOnce (B) => C,
+    scoped inner : FnOnce (A) => B
 ) : C {
     defer delete outer
     defer delete inner
@@ -46,8 +46,8 @@ def compose[A, B, C](
 /// @return Résultat de `after(first(value))`.
 def andThen[A, B, C](
     value : A,
-    scoped first : (A) => B,
-    scoped after : (B) => C
+    scoped first : FnOnce (A) => B,
+    scoped after : FnOnce (B) => C
 ) : C {
     defer delete first
     defer delete after
@@ -64,7 +64,7 @@ def andThen[A, B, C](
 def flip[A, B, C](
     right : B,
     left : A,
-    scoped function : (A, B) => C
+    scoped function : FnOnce (A, B) => C
 ) : C {
     defer delete function
     return function(move left, move right)
@@ -74,7 +74,7 @@ def flip[A, B, C](
 /// @param value Valeur à observer puis retransmettre.
 /// @param action Observation synchrone empruntant `value`.
 /// @return La valeur reçue, toujours propriétaire.
-def tap[T](value : T, scoped action : (borrow T) => Unit) : T {
+def tap[T](value : T, scoped action : FnOnce (borrow T) => Unit) : T {
     defer delete action
     action(value)
     return move value

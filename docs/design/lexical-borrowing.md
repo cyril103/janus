@@ -482,7 +482,7 @@ Capture échappante :
 
 ```janus
 borrow val view = document
-val callback : () => Unit = () => inspect(view)
+val callback : FnMut () => Unit = () => inspect(view)
 return move callback // interdit : la closure survivrait à `document`
 ```
 

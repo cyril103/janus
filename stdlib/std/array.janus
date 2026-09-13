@@ -32,7 +32,7 @@ private var index : usize
         return value
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -52,7 +52,7 @@ private var index : usize
         )
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -138,10 +138,8 @@ Index[usize], IndexMut[usize] {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[ArrayIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[ArrayIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -155,10 +153,8 @@ Index[usize], IndexMut[usize] {
         val state : ArrayIntoIteratorState[T] =
         new ArrayIntoIteratorState[T](move this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[ArrayIntoIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[ArrayIntoIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -428,7 +424,7 @@ Index[usize], IndexMut[usize] {
 
     private borrow def keepAt(
     index : usize,
-    scoped borrow predicate : (borrow T) => bool
+    scoped borrow var predicate : FnMut (borrow T) => bool
     ) : bool {
         return predicate(data.load(index))
     }
@@ -439,7 +435,7 @@ Index[usize], IndexMut[usize] {
     /// éléments conservés reste inchangé.
     /// @param predicate Callback borné observant chaque élément une fois.
     /// @return Nombre d'éléments conservés.
-    def retain(scoped predicate : (borrow T) => bool) : usize {
+    def retain(scoped predicate : FnMut (borrow T) => bool) : usize {
         defer delete predicate
         var index : usize = usize(0)
         while index < length {
@@ -477,7 +473,7 @@ Index[usize], IndexMut[usize] {
     /// @param action Fonction appelée une fois avec un emprunt sur la valeur.
     borrow def withValue(
     index : usize,
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
     ) : Unit {
         defer delete action
         if index >= length {
@@ -495,7 +491,7 @@ Index[usize], IndexMut[usize] {
     /// @param action Fonction synchrone recevant l'emprunt mutable.
     def withMutable(
     index : usize,
-    scoped action : (borrow var T) => Unit
+    scoped action : FnMut (borrow var T) => Unit
     ) : Unit {
         defer delete action
         if index >= length {
@@ -517,7 +513,7 @@ Index[usize], IndexMut[usize] {
     borrow def withValues[U](
     left : usize,
     right : usize,
-    scoped transform : (borrow T, borrow T) => U
+    scoped transform : FnMut (borrow T, borrow T) => U
     ) : U {
         defer delete transform
         if left >= length || right >= length {
@@ -528,7 +524,7 @@ Index[usize], IndexMut[usize] {
 
     /// Applique une action empruntée à tous les éléments, dans l’ordre.
     /// @param action Fonction observant chaque élément sans en prendre possession.
-    borrow def foreach(scoped action : (borrow T) => Unit) : Unit {
+    borrow def foreach(scoped action : FnMut (borrow T) => Unit) : Unit {
         defer delete action
         var index : usize = usize(0)
         while index < length {
@@ -543,7 +539,7 @@ Index[usize], IndexMut[usize] {
     /// Le coût est linéaire et le résultat réserve initialement la taille source.
     /// @param transform Fonction produisant une valeur depuis une observation source.
     /// @return Nouveau tableau possédant toutes les valeurs transformées.
-    borrow def map[U](scoped transform : (borrow T) => U) : Array[U] {
+    borrow def map[U](scoped transform : FnMut (borrow T) => U) : Array[U] {
         defer delete transform
         val result : Array[U] = new Array[U](length)
         var index : usize = usize(0)
@@ -561,7 +557,7 @@ Index[usize], IndexMut[usize] {
     /// @param predicate Fonction d’acceptation observant chaque élément.
     /// @return Nouveau tableau contenant les copies acceptées.
     borrow def filter(
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
     ) : Array[T] where T <: Copy {
         defer delete predicate
         val result : Array[T] = new Array[T](length)
@@ -582,7 +578,7 @@ Index[usize], IndexMut[usize] {
     /// @param predicate Fonction testée dans l’ordre des indices.
     /// @return `Some` avec une copie du premier élément trouvé, sinon `None`.
     borrow def find(
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
     ) : Option[T] where T <: Copy {
         defer delete predicate
         var index : usize = usize(0)
@@ -605,7 +601,7 @@ Index[usize], IndexMut[usize] {
     /// @return Accumulateur final, ou `initial` si le tableau est vide.
     borrow def fold[U](
     initial : U,
-    scoped combine : (U, borrow T) => U
+    scoped combine : FnMut (U, borrow T) => U
     ) : U {
         defer delete combine
         var accumulator : U = move initial
@@ -622,7 +618,7 @@ Index[usize], IndexMut[usize] {
     /// L’évaluation s’arrête au premier succès.
     /// @param predicate Fonction observant les éléments dans l’ordre.
     /// @return `true` si un élément est accepté, sinon `false`.
-    borrow def any(scoped predicate : (borrow T) => bool) : bool {
+    borrow def any(scoped predicate : FnMut (borrow T) => bool) : bool {
         defer delete predicate
         var index : usize = usize(0)
         while index < length {
@@ -639,7 +635,7 @@ Index[usize], IndexMut[usize] {
     /// L’évaluation s’arrête au premier échec; un tableau vide rend `true`.
     /// @param predicate Fonction observant les éléments dans l’ordre.
     /// @return `true` si aucun élément ne viole le prédicat.
-    borrow def all(scoped predicate : (borrow T) => bool) : bool {
+    borrow def all(scoped predicate : FnMut (borrow T) => bool) : bool {
         defer delete predicate
         var index : usize = usize(0)
         while index < length {
@@ -654,7 +650,7 @@ Index[usize], IndexMut[usize] {
     /// Compte les éléments qui satisfont le prédicat.
     /// @param predicate Fonction observant chaque élément une fois.
     /// @return Nombre d’éléments acceptés.
-    borrow def count(scoped predicate : (borrow T) => bool) : usize {
+    borrow def count(scoped predicate : FnMut (borrow T) => bool) : usize {
         defer delete predicate
         var matches : usize = usize(0)
         var index : usize = usize(0)
@@ -670,7 +666,7 @@ Index[usize], IndexMut[usize] {
     private def insertionSortRange(
     first : usize,
     last : usize,
-    scoped borrow less : (borrow T, borrow T) => bool
+    scoped borrow var less : FnMut (borrow T, borrow T) => bool
     ) : Unit where T <: Copy {
         var index : usize = first + usize(1)
         while index < last {
@@ -694,7 +690,7 @@ Index[usize], IndexMut[usize] {
     first : usize,
     middle : usize,
     last : usize,
-    scoped borrow less : (borrow T, borrow T) => bool
+    scoped borrow var less : FnMut (borrow T, borrow T) => bool
     ) : Unit where T <: Copy {
         var left : usize = first
         var right : usize = middle
@@ -733,7 +729,7 @@ Index[usize], IndexMut[usize] {
     /// `T` satisfasse `Copy`.
     /// @param less Comparateur strict cohérent avec un ordre total.
     def sortWith(
-    scoped less : (borrow T, borrow T) => bool
+    scoped less : FnMut (borrow T, borrow T) => bool
     ) : Unit where T <: Copy {
         defer delete less
         if length < usize(2) {
@@ -883,7 +879,7 @@ def filledArray[T <: Copy](count : usize, value : T) : Array[T] {
 /// )
 /// defer delete squares
 /// ```
-def generateArray[T](count : usize, scoped factory : (usize) => T) : Array[T] {
+def generateArray[T](count : usize, scoped factory : FnMut (usize) => T) : Array[T] {
     defer delete factory
     val state : ArrayFactoryState[T] =
     new ArrayFactoryState[T](new Array[T](checkedArrayCapacity[T](count)))

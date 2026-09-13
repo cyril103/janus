@@ -83,7 +83,7 @@ id : int
 def exercisePipeline() : Unit {
     val values : Array[Resource] = new Array[Resource](usize(4))
     addArrayValues(values, 4)
-    val predicate : (borrow Resource) => bool =
+    val predicate : FnMut (borrow Resource) => bool =
     (borrow value : Resource) => value.id % 2 == 0
     val collected : Array[Resource] = collectArray[Resource](
     values.intoIterator()
@@ -263,7 +263,7 @@ def exerciseOwnedSlice() : Unit {
 def exerciseBorrowedMap() : Unit {
     val values : Array[Resource] = new Array[Resource](usize(2))
     addArrayValues(values, 2)
-    val projection : (borrow Resource) => Resource =
+    val projection : FnMut (borrow Resource) => Resource =
     (borrow value : Resource) => new Resource(value.id + 1000)
     val mapped : Array[Resource] = values.map[Resource](move projection)
     delete mapped

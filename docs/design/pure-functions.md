@@ -23,7 +23,7 @@ class Box(val value : int) {
 Un callback pur porte aussi l'effet dans son type :
 
 ```janus
-pure def apply(action : pure (int) => int, value : int) : int {
+pure def apply(action : pure Fn (int) => int, value : int) : int {
     return action(value)
 }
 ```

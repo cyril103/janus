@@ -1972,6 +1972,74 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.generic_function COMMAND generic_function_test)
 
+    add_test(
+        NAME runtime.call_capabilities
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/call_capabilities_runtime"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.call_capabilities_panic
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/call_capabilities_panic_runtime"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_panic.expected.txt"
+            "-DEXPECTED_ERROR=FnOnce failure"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.call_capabilities_destructor_panic
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_destructor_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/call_capabilities_destructor_panic_runtime"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_destructor_panic.expected.txt"
+            "-DEXPECTED_ERROR=capture destructor failed"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.call_capabilities_try
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_try.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/call_capabilities_try_runtime"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_try.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.call_capabilities_argument_panic
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_argument_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/call_capabilities_argument_panic_runtime"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/call_capabilities_argument_panic.expected.txt"
+            "-DEXPECTED_ERROR=callback argument failed"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_executable(call_capability_test tests/language/call_capability_test.cpp)
+    target_link_libraries(call_capability_test PRIVATE janus_semantic janus_llvm_backend)
+    target_compile_options(call_capability_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME language.call_capabilities COMMAND call_capability_test)
+
     add_executable(first_class_function_test
         tests/language/first_class_function_test.cpp
     )
@@ -2791,7 +2859,7 @@ if(BUILD_TESTING)
     )
     foreach(option_contains_rejected_type closure pointer plain_type)
         if(option_contains_rejected_type STREQUAL "closure")
-            set(option_contains_rejected_name "[(]int[)] => int")
+            set(option_contains_rejected_name "FnMut [(]int[)] => int")
         elseif(option_contains_rejected_type STREQUAL "pointer")
             set(option_contains_rejected_name "Ptr[[]int[]]")
         else()

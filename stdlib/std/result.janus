@@ -122,7 +122,7 @@ private def discardAndNone[T, E](error : E) : Option[T] {
 
 private def observeValue[T](
     borrow value : T,
-    scoped borrow action : (borrow T) => Unit
+    scoped borrow var action : FnMut (borrow T) => Unit
 ) : bool {
     action(value)
     return true
@@ -130,7 +130,7 @@ private def observeValue[T](
 
 private def observeOk[T, E](
     borrow value : Result[T, E],
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
 ) : Unit {
     defer delete action
     val observed : bool = match value {
@@ -142,7 +142,7 @@ private def observeOk[T, E](
 
 private def observeError[T, E](
     borrow value : Result[T, E],
-    scoped action : (borrow E) => Unit
+    scoped action : FnMut (borrow E) => Unit
 ) : Unit {
     defer delete action
     val observed : bool = match value {
@@ -180,7 +180,7 @@ pure def isError[T, E](borrow value : Result[T, E]) : bool {
 /// @return `Some` du résultat transformé, ou `None` pour `Error`.
 def mapBorrowed[T, U, E](
     borrow value : Result[T, E],
-    scoped transform : (borrow T) => U
+    scoped transform : FnMut (borrow T) => U
 ) : Option[U] {
     defer delete transform
     return match value {
@@ -195,7 +195,7 @@ def mapBorrowed[T, U, E](
 /// @return `Some` du résultat transformé pour `Error`, ou `None` pour `Ok`.
 def mapErrorBorrowed[T, E, F](
     borrow value : Result[T, E],
-    scoped transform : (borrow E) => F
+    scoped transform : FnMut (borrow E) => F
 ) : Option[F] {
     defer delete transform
     return match value {
@@ -211,7 +211,7 @@ def mapErrorBorrowed[T, E, F](
 /// @return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.
 def map[T, U, E](
     value : Result[T, E],
-    scoped transform : (T) => U
+    scoped transform : FnMut (T) => U
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -227,7 +227,7 @@ def map[T, U, E](
 /// @return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.
 def mapError[T, E, F](
     value : Result[T, E],
-    scoped transform : (E) => F
+    scoped transform : FnMut (E) => F
 ) : Result[T, F] {
     defer delete transform
     return match move value {
@@ -243,7 +243,7 @@ def mapError[T, E, F](
 /// @return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.
 def andThen[T, U, E](
     value : Result[T, E],
-    scoped transform : (T) => Result[U, E]
+    scoped transform : FnMut (T) => Result[U, E]
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -280,8 +280,8 @@ def flatten[T, E](value : Result[Result[T, E], E]) : Result[T, E] {
 /// @return Projection de la branche active.
 def fold[T, E, U](
     value : Result[T, E],
-    scoped onOk : (T) => U,
-    scoped onError : (E) => U
+    scoped onOk : FnMut (T) => U,
+    scoped onError : FnMut (E) => U
 ) : U {
     defer delete onOk
     defer delete onError
@@ -341,7 +341,7 @@ def zip[T, U, E](
 def map2[T, U, E, V](
     left : Result[T, E],
     right : Result[U, E],
-    scoped combine : (T, U) => V
+    scoped combine : FnMut (T, U) => V
 ) : Result[V, E] {
     defer delete combine
     val leftState : ResultState[T, E] = new ResultState[T, E](
@@ -371,7 +371,7 @@ def map2[T, U, E, V](
 /// @return Le résultat d'origine avec sa propriété transférée.
 def inspect[T, E](
     value : Result[T, E],
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
 ) : Result[T, E] {
     observeOk[T, E](value, move action)
     return move value
@@ -387,7 +387,7 @@ def inspect[T, E](
 /// @return Le résultat d'origine avec sa propriété transférée.
 def inspectError[T, E](
     value : Result[T, E],
-    scoped action : (borrow E) => Unit
+    scoped action : FnMut (borrow E) => Unit
 ) : Result[T, E] {
     observeError[T, E](value, move action)
     return move value
@@ -403,7 +403,7 @@ def inspectError[T, E](
 /// @return Succès déplacé ou remplacement calculé.
 def unwrapOrElse[T, E](
     value : Result[T, E],
-    scoped fallback : (E) => T
+    scoped fallback : FnMut (E) => T
 ) : T {
     defer delete fallback
     return match move value {
@@ -419,7 +419,7 @@ def unwrapOrElse[T, E](
 /// @return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`.
 def orElse[T, E, F](
     value : Result[T, E],
-    scoped transform : (E) => Result[T, F]
+    scoped transform : FnMut (E) => Result[T, F]
 ) : Result[T, F] {
     defer delete transform
     return match move value {
@@ -527,7 +527,7 @@ extend[T, E] Result[T, E] {
     /// @param transform Fonction bornée recevant un emprunt du succès.
     /// @return Option contenant le résultat transformé pour `Ok`.
     borrow def mapBorrowed[U](
-        scoped transform : (borrow T) => U
+        scoped transform : FnMut (borrow T) => U
     ) : Option[U] {
         return mapBorrowed[T, U, E](this, move transform)
     }
@@ -536,7 +536,7 @@ extend[T, E] Result[T, E] {
     /// @param transform Fonction bornée recevant un emprunt de l'erreur.
     /// @return Option contenant le résultat transformé pour `Error`.
     borrow def mapErrorBorrowed[F](
-        scoped transform : (borrow E) => F
+        scoped transform : FnMut (borrow E) => F
     ) : Option[F] {
         return mapErrorBorrowed[T, E, F](this, move transform)
     }
@@ -544,7 +544,7 @@ extend[T, E] Result[T, E] {
     /// Consomme ce résultat et transforme sa valeur de succès.
     /// @param transform Fonction bornée recevant le succès déplacé.
     /// @return Résultat contenant le succès transformé ou l'erreur d'origine.
-    consume def map[U](scoped transform : (T) => U) : Result[U, E] {
+    consume def map[U](scoped transform : FnMut (T) => U) : Result[U, E] {
         return map[T, U, E](move this, move transform)
     }
 
@@ -552,7 +552,7 @@ extend[T, E] Result[T, E] {
     /// @param transform Fonction bornée recevant l'erreur déplacée.
     /// @return Résultat contenant le succès d'origine ou l'erreur transformée.
     consume def mapError[F](
-        scoped transform : (E) => F
+        scoped transform : FnMut (E) => F
     ) : Result[T, F] {
         return mapError[T, E, F](move this, move transform)
     }
@@ -561,7 +561,7 @@ extend[T, E] Result[T, E] {
     /// @param transform Fonction bornée recevant le succès déplacé.
     /// @return Résultat de `transform`, ou l'erreur d'origine.
     consume def andThen[U](
-        scoped transform : (T) => Result[U, E]
+        scoped transform : FnMut (T) => Result[U, E]
     ) : Result[U, E] {
         return andThen[T, U, E](move this, move transform)
     }
@@ -571,8 +571,8 @@ extend[T, E] Result[T, E] {
     /// @param onError Fonction bornée appelée pour `Error`.
     /// @return Projection de la branche active.
     consume def fold[U](
-        scoped onOk : (T) => U,
-        scoped onError : (E) => U
+        scoped onOk : FnMut (T) => U,
+        scoped onError : FnMut (E) => U
     ) : U {
         return fold[T, E, U](move this, move onOk, move onError)
     }
@@ -592,7 +592,7 @@ extend[T, E] Result[T, E] {
     /// @return Succès combiné ou première erreur gauche-droite.
     consume def map2[U, V](
         other : Result[U, E],
-        scoped combine : (T, U) => V
+        scoped combine : FnMut (T, U) => V
     ) : Result[V, E] {
         return map2[T, U, E, V](move this, move other, move combine)
     }
@@ -601,7 +601,7 @@ extend[T, E] Result[T, E] {
     /// @param action Action bornée appelée uniquement pour `Ok`.
     /// @return Ce résultat consommé puis retransmis.
     consume def inspect(
-        scoped action : (borrow T) => Unit
+        scoped action : FnMut (borrow T) => Unit
     ) : Result[T, E] {
         return inspect[T, E](move this, move action)
     }
@@ -610,7 +610,7 @@ extend[T, E] Result[T, E] {
     /// @param action Action bornée appelée uniquement pour `Error`.
     /// @return Ce résultat consommé puis retransmis.
     consume def inspectError(
-        scoped action : (borrow E) => Unit
+        scoped action : FnMut (borrow E) => Unit
     ) : Result[T, E] {
         return inspectError[T, E](move this, move action)
     }
@@ -619,7 +619,7 @@ extend[T, E] Result[T, E] {
     /// @param transform Fonction bornée recevant l'erreur déplacée.
     /// @return Succès d'origine ou résultat de `transform`.
     consume def orElse[F](
-        scoped transform : (E) => Result[T, F]
+        scoped transform : FnMut (E) => Result[T, F]
     ) : Result[T, F] {
         return orElse[T, E, F](move this, move transform)
     }
@@ -634,7 +634,7 @@ extend[T, E] Result[T, E] {
     /// Extrait le succès ou calcule un remplacement depuis l'erreur.
     /// @param fallback Fonction bornée appelée uniquement pour `Error`.
     /// @return Succès déplacé ou remplacement calculé.
-    consume def unwrapOrElse(scoped fallback : (E) => T) : T {
+    consume def unwrapOrElse(scoped fallback : FnMut (E) => T) : T {
         return unwrapOrElse[T, E](move this, move fallback)
     }
 

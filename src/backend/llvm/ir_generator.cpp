@@ -287,6 +287,8 @@ private:
     std::vector<janus::ast::ParameterOwnership> parameter_ownership;
     janus::ast::ReturnOwnership return_ownership{
         janus::ast::ReturnOwnership::Unspecified};
+    janus::ast::CallCapability capability{janus::ast::CallCapability::Fn};
+    bool pure{};
   };
 
   struct CleanupScope {
@@ -376,9 +378,10 @@ private:
         signature.push_back(&resolve(argument, substitutions));
       std::vector<const janus::Type *> parameters{signature.begin(),
                                                   signature.end() - 1};
-      return ensure_function_type(parameters, *signature.back(),
-                                  reference.function_parameter_ownership,
-                                  reference.function_return_ownership);
+      return ensure_function_type(
+          parameters, *signature.back(), reference.function_parameter_ownership,
+          reference.function_return_ownership, reference.call_capability,
+          reference.is_pure_function);
     }
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
@@ -442,7 +445,8 @@ private:
                                                   arguments.end() - 1};
       return ensure_function_type(parameters, *arguments.back(),
                                   type.function_parameter_ownership,
-                                  type.function_return_ownership);
+                                  type.function_return_ownership,
+                                  type.call_capability, type.pure_function);
     }
     if (type.is_pointer())
       return ensure_pointer(*arguments.front());
@@ -1055,12 +1059,14 @@ private:
     return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
-  std::string function_key(
-      const std::vector<const janus::Type *> &parameters,
-      const janus::Type &return_type,
-      const std::vector<janus::ast::ParameterOwnership> &ownerships,
-      janus::ast::ReturnOwnership return_ownership) const {
-    std::string key{"Function"};
+  std::string
+  function_key(const std::vector<const janus::Type *> &parameters,
+               const janus::Type &return_type,
+               const std::vector<janus::ast::ParameterOwnership> &ownerships,
+               janus::ast::ReturnOwnership return_ownership,
+               janus::ast::CallCapability capability, bool pure) const {
+    std::string key{pure ? "pure_" : ""};
+    key += janus::ast::call_capability_name(capability);
     for (std::size_t index = 0; index < parameters.size(); ++index) {
       const auto ownership = index < ownerships.size()
                                  ? ownerships[index]
@@ -1069,6 +1075,8 @@ private:
                  ? "__borrow_"
                  : (ownership == janus::ast::ParameterOwnership::BorrowMutable
                         ? "__borrow_mut_"
+                    : ownership == janus::ast::ParameterOwnership::Consume
+                        ? "__consume_"
                         : "__");
       key += std::string{parameters[index]->name()};
     }
@@ -1081,18 +1089,19 @@ private:
     return key;
   }
 
-  const janus::Type &
-  ensure_function_type(const std::vector<const janus::Type *> &parameters,
-                       const janus::Type &return_type,
-                       std::vector<janus::ast::ParameterOwnership> ownerships =
-                           {},
-                       janus::ast::ReturnOwnership return_ownership =
-                           janus::ast::ReturnOwnership::Unspecified) {
+  const janus::Type &ensure_function_type(
+      const std::vector<const janus::Type *> &parameters,
+      const janus::Type &return_type,
+      std::vector<janus::ast::ParameterOwnership> ownerships = {},
+      janus::ast::ReturnOwnership return_ownership =
+          janus::ast::ReturnOwnership::Unspecified,
+      janus::ast::CallCapability capability = janus::ast::CallCapability::Fn,
+      bool pure = false) {
     if (ownerships.empty())
       ownerships.resize(parameters.size(),
                         janus::ast::ParameterOwnership::Unspecified);
-    const std::string key =
-        function_key(parameters, return_type, ownerships, return_ownership);
+    const std::string key = function_key(parameters, return_type, ownerships,
+                                         return_ownership, capability, pure);
     if (const auto iterator = function_types_.find(key);
         iterator != function_types_.end())
       return iterator->second;
@@ -1101,7 +1110,7 @@ private:
     static_cast<void>(inserted);
     function_signatures_.emplace(
         key, FunctionSignature{parameters, &return_type, std::move(ownerships),
-                               return_ownership});
+                               return_ownership, capability, pure});
     return iterator->second;
   }
 
@@ -1561,8 +1570,103 @@ private:
         });
   }
 
+  void emit_cleanup_sequence(
+      const std::vector<std::pair<::llvm::Value *, const janus::Type *>>
+          &values,
+      ::llvm::IRBuilder<> &builder) {
+    if (values.empty())
+      return;
+    const auto caller_cleanup =
+        emitting_panic_cleanup_ || emitting_inline_cleanup_
+            ? TransientPanicCleanup{}
+            : push_transient_panic_cleanup(builder);
+    auto *frame_type = ::llvm::StructType::get(
+        context_, {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()});
+    auto push = module_->getOrInsertFunction(
+        "janus_push_panic_cleanup",
+        ::llvm::FunctionType::get(
+            builder.getVoidTy(),
+            {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()},
+            false));
+    auto pop = module_->getOrInsertFunction(
+        "janus_pop_panic_cleanup",
+        ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
+                                  false));
+    std::vector<::llvm::Value *> frames;
+    for (auto item = values.rbegin(); item != values.rend(); ++item) {
+      const auto &[value, type] = *item;
+      auto *cleanup = ::llvm::Function::Create(
+          ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
+                                    false),
+          ::llvm::Function::InternalLinkage,
+          "__janus_capture_cleanup_" + std::to_string(panic_cleanup_index_++),
+          *module_);
+      ::llvm::IRBuilder<> cleanup_builder{
+          ::llvm::BasicBlock::Create(context_, "entry", cleanup)};
+      auto saved_scopes = std::move(active_cleanup_scopes_);
+      active_cleanup_scopes_.clear();
+      auto *owned = cleanup_builder.CreateLoad(lower_type(*type, context_),
+                                               cleanup->getArg(0));
+      emit_owned_value_cleanup(owned, *type, cleanup_builder);
+      active_cleanup_scopes_ = std::move(saved_scopes);
+      cleanup_builder.CreateRetVoid();
+      auto *slot = create_entry_alloca(builder, lower_type(*type, context_),
+                                       "capture.cleanup.value");
+      builder.CreateStore(value, slot);
+      auto *frame =
+          create_entry_alloca(builder, frame_type, "capture.cleanup.frame");
+      builder.CreateCall(push, {frame, cleanup, slot});
+      frames.push_back(frame);
+    }
+    const bool previous_inline = emitting_inline_cleanup_;
+    emitting_inline_cleanup_ = true;
+    for (const auto &[value, type] : values) {
+      builder.CreateCall(pop, {frames.back()});
+      frames.pop_back();
+      emit_owned_value_cleanup(value, *type, builder);
+    }
+    emitting_inline_cleanup_ = previous_inline;
+    pop_transient_panic_cleanup(caller_cleanup, builder);
+  }
+
   void emit_owned_value_cleanup(::llvm::Value *value, const janus::Type &type,
                                 ::llvm::IRBuilder<> &builder) {
+    if (type.kind() != janus::TypeKind::Class &&
+        type.kind() != janus::TypeKind::Function) {
+      emit_present_owned_value_cleanup(value, type, builder);
+      return;
+    }
+    auto *function = builder.GetInsertBlock()->getParent();
+    auto *cleanup =
+        ::llvm::BasicBlock::Create(context_, "owner.cleanup", function);
+    auto *done =
+        ::llvm::BasicBlock::Create(context_, "owner.cleaned", function);
+    auto *pointer = type.kind() == janus::TypeKind::Function
+                        ? builder.CreateExtractValue(value, 0)
+                        : value;
+    builder.CreateCondBr(builder.CreateIsNotNull(pointer), cleanup, done);
+    builder.SetInsertPoint(cleanup);
+    emit_present_owned_value_cleanup(value, type, builder);
+    builder.CreateBr(done);
+    builder.SetInsertPoint(done);
+  }
+
+  void disarm_owner(const janus::ast::Expression &expression,
+                    const std::unordered_map<std::string, Local> &locals,
+                    ::llvm::IRBuilder<> &builder) {
+    if (const auto *identifier =
+            std::get_if<janus::ast::IdentifierExpression>(&expression.value)) {
+      const Local &local = resolve_storage(identifier->name, locals);
+      if (owns_value(*local.type))
+        builder.CreateStore(
+            ::llvm::Constant::getNullValue(lower_type(*local.type, context_)),
+            local.storage);
+    }
+  }
+
+  void emit_present_owned_value_cleanup(::llvm::Value *value,
+                                        const janus::Type &type,
+                                        ::llvm::IRBuilder<> &builder) {
     if (!owns_value(type))
       return;
     ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
@@ -1611,12 +1715,49 @@ private:
           owns_environment, environment,
           ::llvm::ConstantPointerNull::get(builder.getPtrTy()),
           "aggregate.lambda.owned.environment");
+      auto *drop = builder.CreateExtractValue(value, 3, "lambda.drop");
+      auto *function = builder.GetInsertBlock()->getParent();
+      auto *destroy = ::llvm::BasicBlock::Create(
+          context_, "lambda.destroy.captures", function);
+      auto *release =
+          ::llvm::BasicBlock::Create(context_, "lambda.release", function);
+      builder.CreateCondBr(builder.CreateIsNotNull(drop), destroy, release);
+      builder.SetInsertPoint(destroy);
+      const TransientPanicCleanup caller_cleanup =
+          emitting_panic_cleanup_ || emitting_inline_cleanup_
+              ? TransientPanicCleanup{}
+              : push_transient_panic_cleanup(builder);
+      auto *frame_type = ::llvm::StructType::get(
+          context_,
+          {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()});
+      auto *frame =
+          create_entry_alloca(builder, frame_type, "lambda.release.frame");
+      auto push = module_->getOrInsertFunction(
+          "janus_push_panic_cleanup",
+          ::llvm::FunctionType::get(
+              builder.getVoidTy(),
+              {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()},
+              false));
+      auto pop = module_->getOrInsertFunction(
+          "janus_pop_panic_cleanup",
+          ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
+                                    false));
+      builder.CreateCall(push,
+                         {frame, free_function.getCallee(), owned_environment});
+      builder.CreateCall(::llvm::FunctionType::get(builder.getVoidTy(),
+                                                   {builder.getPtrTy()}, false),
+                         drop, {environment});
+      builder.CreateCall(pop, {frame});
+      pop_transient_panic_cleanup(caller_cleanup, builder);
+      builder.CreateBr(release);
+      builder.SetInsertPoint(release);
       builder.CreateCall(free_function, {owned_environment});
       return;
     }
     if (type.kind() == janus::TypeKind::Struct) {
       const ClassSpecialization &specialization =
           class_specializations_.at(std::string{type.name()});
+      std::vector<std::pair<::llvm::Value *, const janus::Type *>> pending;
       for (std::size_t index =
                specialization.declaration->constructor_fields.size();
            index-- > 0;) {
@@ -1624,10 +1765,11 @@ private:
             specialization.declaration->constructor_fields[index].declared_type,
             specialization.substitutions);
         if (owns_value(field_type))
-          emit_owned_value_cleanup(builder.CreateExtractValue(
-                                       value, index, "aggregate.struct.field"),
-                                   field_type, builder);
+          pending.push_back({builder.CreateExtractValue(
+                                 value, index, "aggregate.struct.field"),
+                             &field_type});
       }
+      emit_cleanup_sequence(pending, builder);
       return;
     }
 
@@ -1667,17 +1809,19 @@ private:
             janus::TypeKind::Unit)
           ++stored_payloads;
       unsigned stored_index = stored_payloads;
+      std::vector<std::pair<::llvm::Value *, const janus::Type *>> pending;
       for (std::size_t index = enum_case.payload_types.size(); index-- > 0;) {
         const janus::Type &payload_type = resolve(
             enum_case.payload_types[index], specialization.substitutions);
         if (payload_type.kind() != janus::TypeKind::Unit)
           --stored_index;
         if (owns_value(payload_type))
-          emit_owned_value_cleanup(
-              builder.CreateExtractValue(value, payload_index + stored_index,
-                                         "aggregate.enum.payload"),
-              payload_type, builder);
+          pending.push_back(
+              {builder.CreateExtractValue(value, payload_index + stored_index,
+                                          "aggregate.enum.payload"),
+               &payload_type});
       }
+      emit_cleanup_sequence(pending, builder);
       builder.CreateBr(done);
       builder.SetInsertPoint(next);
       payload_index += stored_payloads;
@@ -1708,6 +1852,7 @@ private:
       ::llvm::Value *deleted_value =
           emit_expression(deletion->expression, deleted_type, substitutions,
                           cleanup_locals, builder);
+      disarm_owner(deletion->expression, cleanup_locals, builder);
       emit_owned_value_cleanup(deleted_value, deleted_type, builder);
       return;
     }
@@ -2608,6 +2753,7 @@ private:
           ::llvm::Value *deleted_value =
               emit_expression(deletion->expression, deleted_type, substitutions,
                               block_locals, builder);
+          disarm_owner(deletion->expression, block_locals, builder);
           emit_owned_value_cleanup(deleted_value, deleted_type, builder);
           continue;
         }
@@ -2981,9 +3127,9 @@ private:
             "janus_alloc",
             ::llvm::FunctionType::get(builder.getPtrTy(),
                                       {builder.getInt64Ty()}, false));
-        environment = builder.CreateCall(
+        environment = emit_protected_call(
             malloc_function,
-            {::llvm::ConstantExpr::getSizeOf(environment_type)},
+            {::llvm::ConstantExpr::getSizeOf(environment_type)}, builder,
             "lambda.environment");
       }
     }
@@ -3169,10 +3315,43 @@ private:
         builder.CreateInsertValue(closure, lambda_function, 0, "lambda.code");
     closure = builder.CreateInsertValue(closure, environment, 1,
                                         "lambda.environment");
-    return builder.CreateInsertValue(
-        closure, builder.getInt1(!capture_names.empty() &&
-                                 !stack_allocate_environment),
-        2, "lambda.value");
+    closure = builder.CreateInsertValue(
+        closure,
+        builder.getInt1(!capture_names.empty() && !stack_allocate_environment),
+        2);
+    ::llvm::Value *drop = ::llvm::ConstantPointerNull::get(builder.getPtrTy());
+    if (const auto owned = analysis_.owned_lambda_captures.find(&lambda);
+        owned != analysis_.owned_lambda_captures.end()) {
+      const auto position =
+          std::find(capture_names.begin(), capture_names.end(), owned->second);
+      if (position == capture_names.end())
+        throw std::logic_error{
+            "analyzed owned capture missing from environment"};
+      const auto index =
+          static_cast<unsigned>(position - capture_names.begin());
+      const janus::Type &capture_type = *locals.at(owned->second).type;
+      auto *drop_function = ::llvm::Function::Create(
+          ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
+                                    false),
+          ::llvm::Function::InternalLinkage,
+          "__janus_lambda_drop_" + std::to_string(lambda_index), *module_);
+      ::llvm::IRBuilder<> drop_builder{
+          ::llvm::BasicBlock::Create(context_, "entry", drop_function)};
+      auto *slot = drop_builder.CreateStructGEP(
+          environment_type, drop_function->getArg(0), index);
+      auto *value =
+          drop_builder.CreateLoad(lower_type(capture_type, context_), slot);
+      drop_builder.CreateStore(
+          ::llvm::Constant::getNullValue(lower_type(capture_type, context_)),
+          slot);
+      auto saved_scopes = std::move(active_cleanup_scopes_);
+      active_cleanup_scopes_.clear();
+      emit_owned_value_cleanup(value, capture_type, drop_builder);
+      active_cleanup_scopes_ = std::move(saved_scopes);
+      drop_builder.CreateRetVoid();
+      drop = drop_function;
+    }
+    return builder.CreateInsertValue(closure, drop, 3, "lambda.value");
   }
 
   const janus::Type &
@@ -3228,24 +3407,7 @@ private:
             return *resolve_storage(node.name, locals).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::LambdaExpression>) {
-            std::unordered_map<std::string, Local> lambda_locals = locals;
-            std::vector<const janus::Type *> parameters;
-            std::vector<janus::ast::ParameterOwnership> ownerships;
-            parameters.reserve(node.parameters.size());
-            ownerships.reserve(node.parameters.size());
-            for (const auto &parameter : node.parameters) {
-              const janus::Type &type = resolve(parameter.type, substitutions);
-              parameters.push_back(&type);
-              ownerships.push_back(parameter.ownership);
-              lambda_locals.insert_or_assign(parameter.name,
-                                             Local{nullptr, &type});
-            }
-            const janus::Type &return_type =
-                resolve(analysis_.inferred_generic_arguments.at(&expression)
-                            .back(),
-                        substitutions);
-            return ensure_function_type(parameters, return_type,
-                                        std::move(ownerships));
+            return resolve(analysis_.lambda_types.at(&node), substitutions);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
             if (const Local *callable = find_storage(node.callee, locals);
@@ -3776,8 +3938,11 @@ private:
                 std::get_if<janus::ast::LambdaExpression>(&expression.value))
           return emit_lambda(*lambda, parameter_type, substitutions, locals,
                              builder, true);
-      return emit_expression(expression, parameter_type, substitutions, locals,
-                             builder);
+      auto *value = emit_expression(expression, parameter_type, substitutions,
+                                    locals, builder);
+      if (parameter.ownership == janus::ast::ParameterOwnership::Consume)
+        disarm_owner(expression, locals, builder);
+      return value;
     }
     if (::llvm::Value *storage = emit_borrow_storage(
             expression, parameter_type, substitutions, locals, builder))
@@ -4494,6 +4659,24 @@ private:
                       : lower_type(*signature.return_type, context_);
               auto *callee_type = ::llvm::FunctionType::get(
                   callee_return_type, parameter_types, false);
+              const auto analyzed_call =
+                  analysis_.call_capabilities.find(&node);
+              const bool consumes =
+                  (analyzed_call == analysis_.call_capabilities.end()
+                       ? signature.capability
+                       : analyzed_call->second) ==
+                  janus::ast::CallCapability::FnOnce;
+              std::vector<const janus::ast::DeferStatement *> call_actions;
+              std::vector<std::pair<::llvm::Value *, const janus::Type *>>
+                  call_owned{{closure, local->type}};
+              auto call_locals = locals;
+              if (consumes) {
+                builder.CreateStore(::llvm::Constant::getNullValue(
+                                        lower_type(*local->type, context_)),
+                                    local->storage);
+                active_cleanup_scopes_.push_back(CleanupScope{
+                    &call_actions, &call_owned, &call_locals, &substitutions});
+              }
               ::llvm::Value *result =
                   signature.return_type->kind() == janus::TypeKind::Unit
                       ? emit_protected_indirect_call(callee_type, code,
@@ -4501,6 +4684,10 @@ private:
                       : emit_protected_indirect_call(
                             callee_type, code, arguments, builder,
                             node.callee + ".call");
+              if (consumes) {
+                active_cleanup_scopes_.pop_back();
+                emit_owned_value_cleanup(closure, *local->type, builder);
+              }
               return result;
             }
             if (node.callee == "debug") {
@@ -4773,14 +4960,19 @@ private:
               static_cast<void>(emit_expression(*node.arguments[0],
                                                 pointer_type, substitutions,
                                                 locals, builder));
-              return emit_expression(*node.arguments[1], pointer_type,
-                                     substitutions, locals, builder);
+              auto *result = emit_expression(*node.arguments[1], pointer_type,
+                                             substitutions, locals, builder);
+              disarm_owner(*node.arguments[0], locals, builder);
+              disarm_owner(*node.arguments[1], locals, builder);
+              return result;
             }
             if (node.callee == "owningCapture") {
               const janus::Type &closure_type =
                   expression_type(*node.arguments[1], substitutions, locals);
-              return emit_expression(*node.arguments[1], closure_type,
-                                     substitutions, locals, builder);
+              auto *closure = emit_expression(*node.arguments[1], closure_type,
+                                              substitutions, locals, builder);
+              disarm_owner(*node.arguments[0], locals, builder);
+              return closure;
             }
             if (node.callee == "free" || node.callee == "freeStorage") {
               const janus::Type &pointer_type = expression_type(
@@ -4788,6 +4980,7 @@ private:
               ::llvm::Value *pointer =
                   emit_expression(*node.arguments.front(), pointer_type,
                                   substitutions, locals, builder);
+              disarm_owner(*node.arguments.front(), locals, builder);
               ::llvm::FunctionCallee free_function =
                   module_->getOrInsertFunction(
                       "janus_free",
@@ -5318,6 +5511,12 @@ private:
                   method->parameters[index], *node.arguments[index],
                   parameter_type, substitutions, locals, builder));
             }
+            // Struct receivers point at their fields; their body disarms the
+            // fields it moves. Clearing the aggregate here would erase them
+            // before the callee can load them.
+            if (method->is_consuming &&
+                object_type.kind() != janus::TypeKind::Struct)
+              disarm_owner(*node.object, locals, builder);
             return target->getReturnType()->isVoidTy()
                        ? emit_protected_call(target, arguments, builder)
                        : emit_protected_call(target, arguments, builder,
@@ -5703,8 +5902,10 @@ private:
             return result;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::MoveExpression>) {
-            return emit_expression(*node.operand, expected_type, substitutions,
-                                   locals, builder);
+            auto *value = emit_expression(*node.operand, expected_type,
+                                          substitutions, locals, builder);
+            disarm_owner(*node.operand, locals, builder);
+            return value;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::TryExpression>) {
             const janus::Type &operand_type =

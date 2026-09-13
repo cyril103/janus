@@ -22,6 +22,7 @@ retrait requiert une note de migration.
 | `syntax.control-flow` | `stable-candidate` | Cœur 1.0. |
 | `syntax.generics-traits` | `stable-candidate` | Inclut types associés ; les types de genre supérieur restent hors surface. |
 | `syntax.modules-visibility` | `stable-candidate` | Cœur 1.0. |
+| `syntax.call-capabilities` | `experimental` | `Fn`, `FnMut`, `FnOnce` explicites ; migration des signatures et ABI de closure v2 (#312). |
 | `syntax.ownership` | `stable-candidate` | Inclut emprunts lexicaux, `scoped`, `move`, `consume` et `defer`. |
 | `semantics.numeric` | `stable-candidate` | Largeurs et conversions explicites conservées. |
 | `semantics.ownership-cleanup` | `stable-candidate` | Destruction exactement une fois. |

@@ -201,7 +201,7 @@ def main() : int {
   expect_compile_error(R"(
 class Resource(val identifier : int) { destructor { println(identifier) } }
 enum Slot { Occupied(Resource), Empty }
-def rejects(cleanup : () => Unit) : bool { return false }
+def rejects(cleanup : FnOnce () => Unit) : bool { return false }
 def main() : int {
     val slot : Slot = Slot.Occupied(new Resource(9))
     return match move slot {
@@ -210,7 +210,9 @@ def main() : int {
         Empty => 0
     }
 }
-)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+)",
+                       "pattern binding 'value' cannot be transferred or "
+                       "destroyed in a match guard");
   expect_compile_error(R"(
 enum Slot { Occupied(Ptr[int]), Empty }
 def main() : int {

@@ -61,7 +61,7 @@ private val count : usize
     borrow def withSlice[U](
     offset : usize,
     length : usize,
-    scoped action : (borrow ByteView) => U
+    scoped action : FnMut (borrow ByteView) => U
     ) : U {
         defer delete action
         if offset > count || length > count - offset {
@@ -84,7 +84,7 @@ private val count : usize
     /// @param action Callback natif borné.
     /// @return Résultat indépendant produit par `action`.
     borrow def withPointer[U](
-    scoped action : (borrow Ptr[byte], usize, usize) => U
+    scoped action : FnMut (borrow Ptr[byte], usize, usize) => U
     ) : U {
         defer delete action
         return action(nativeData, start, count)

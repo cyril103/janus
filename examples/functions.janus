@@ -1,25 +1,25 @@
-def apply[T](borrow function : (T) => T, value : T) : T {
+def apply[T](borrow function : Fn (T) => T, value : T) : T {
     return function(move value)
 }
 
-def makeAdder(amount : int) : (int) => int {
+def makeAdder(amount : int) : Fn (int) => int {
     return (value : int) => value + amount
 }
 
-def makeIdentity[T]() : (T) => T {
+def makeIdentity[T]() : Fn (T) => T {
     return (value : T) => move value
 }
 
 def main() : int {
-    val increment : (int) => int = (value : int) => value + 1
+    val increment : Fn (int) => int = (value : int) => value + 1
     defer delete increment
     val first : int = apply[int](increment, 41)
 
-    val addTen : (int) => int = makeAdder(10)
+    val addTen : Fn (int) => int = makeAdder(10)
     defer delete addTen
     val second : int = addTen(first)
 
-    val identity : (int) => int = makeIdentity[int]()
+    val identity : Fn (int) => int = makeIdentity[int]()
     defer delete identity
     val result : int = identity(second)
     return result

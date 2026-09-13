@@ -62,6 +62,10 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerHighGrowthLoop,
     DiagnosticCode::AnalyzerImplicitOwnershipTransfer,
     DiagnosticCode::AnalyzerConstMutableBorrowParameter,
+    DiagnosticCode::AnalyzerIncompatibleCallCapability,
+    DiagnosticCode::AnalyzerConsumedCallback,
+    DiagnosticCode::AnalyzerExclusiveCallback,
+    DiagnosticCode::AnalyzerAffineCallbackLoop,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::ConstantLegacy,
     DiagnosticCode::BackendLegacy,
@@ -116,6 +120,26 @@ explain_diagnostic(DiagnosticCode code) noexcept {
             "digits and denote a Unicode scalar value.",
             "Add the braces and use a value outside the surrogate range and "
             "no greater than U+10FFFF."};
+  case DiagnosticCode::AnalyzerIncompatibleCallCapability:
+    return {code, "incompatible call capability",
+            "The closure requires more access than its declared function type "
+            "permits.",
+            "Use FnMut for mutation or FnOnce for consumption; preserve the "
+            "other effects."};
+  case DiagnosticCode::AnalyzerConsumedCallback:
+    return {code, "callback already consumed",
+            "A FnOnce callback can be called only once on each execution path.",
+            "Create a new callback or remove the second use."};
+  case DiagnosticCode::AnalyzerExclusiveCallback:
+    return {code, "callback requires exclusive access",
+            "A FnMut call needs exclusive access to its captured environment.",
+            "Pass the callback with borrow var or retain its ownership."};
+  case DiagnosticCode::AnalyzerAffineCallbackLoop:
+    return {code, "affine callback in a loop",
+            "A callback created outside the loop could be consumed on multiple "
+            "iterations.",
+            "Create a fresh callback in each iteration or call it outside the "
+            "loop."};
   case DiagnosticCode::AnalyzerUnknownValue:
     return {code, "unknown value",
             "Name resolution found no visible declaration for this value.",

@@ -153,7 +153,7 @@ class ByteBuffer(initialCapacity : usize) {
     /// @param action Callback borné recevant la vue complète.
     /// @return Résultat indépendant produit par `action`.
     borrow def withView[U](
-    scoped action : (borrow ByteView) => U
+    scoped action : FnMut (borrow ByteView) => U
     ) : U {
         defer delete action
         val view : ByteView =

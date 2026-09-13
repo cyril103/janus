@@ -9,13 +9,13 @@ def main() : int {
     val counter : Counter = new Counter(1)
     if true {
         borrow var editable : Counter = counter
-        val change : () => Unit = () => editable.add(4)
+        val change : FnMut () => Unit = () => editable.add(4)
         change()
         delete change
     }
     if true {
         borrow val view : Counter = counter
-        val read : () => int = () => view.read()
+        val read : FnMut () => int = () => view.read()
         println(read())
         delete read
         val snapshots : Array[int] = generateArray[int](

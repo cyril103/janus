@@ -620,17 +620,7 @@ bool valid_identifier(std::string_view name) {
 }
 
 std::string type_reference(const janus::ast::TypeReference &type) {
-  std::string result = type.name;
-  if (!type.type_arguments.empty()) {
-    result += "[";
-    for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
-      if (index != 0)
-        result += ", ";
-      result += type_reference(type.type_arguments[index]);
-    }
-    result += "]";
-  }
-  return result;
+  return janus::ast::type_reference_name(type);
 }
 
 std::string
@@ -2923,6 +2913,16 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                    declaration != declaration_kinds.end()) {
           type = declaration->second.first;
           modifiers = declaration->second.second;
+        } else if ((token.lexeme == "Fn" || token.lexeme == "FnMut" ||
+                    token.lexeme == "FnOnce") &&
+                   (is_type_position(index) ||
+                    previous == frontend::TokenKind::Pure ||
+                    previous == frontend::TokenKind::Arrow ||
+                    previous == frontend::TokenKind::LeftParen) &&
+                   index + 1 < document_tokens.size() &&
+                   document_tokens[index + 1].kind ==
+                       frontend::TokenKind::LeftParen) {
+          type = 1;
         } else if (is_builtin_type(token.identifier())) {
           type = 1;
         } else if (is_type_position(index)) {
@@ -2944,8 +2944,8 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                      ? (module_function ? 5 : 6)
                      : resolved_kind(token.identifier(), token.location.offset)
                            .value_or(5);
-        } else if (const std::optional<std::int64_t> known =
-                       resolved_kind(token.identifier(), token.location.offset)) {
+        } else if (const std::optional<std::int64_t> known = resolved_kind(
+                       token.identifier(), token.location.offset)) {
           type = *known;
         } else if (index + 1 < document_tokens.size() &&
                    document_tokens[index + 1].kind ==
@@ -4224,8 +4224,9 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                        ? std::nullopt
                        : std::optional<std::string>{symbol.required_import});
         }
-        for (const std::string_view type : {"int", "double", "byte", "char",
-                                            "bool", "string", "Unit", "usize"})
+        for (const std::string_view type :
+             {"int", "double", "byte", "char", "bool", "string", "Unit",
+              "usize", "Fn", "FnMut", "FnOnce"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
              {"const", "pure",         "staticAssert", "val",    "var",    "tailrec",

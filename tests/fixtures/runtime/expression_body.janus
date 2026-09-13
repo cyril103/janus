@@ -11,8 +11,8 @@ def aggregate(value : int) : Pair => new Pair(value, value + 1)
 def variant(value : int) : Choice => Choice.Number(value)
 def owned(value : int) : Box => new Box(value)
 def transfer(value : Box) : Box => move value
-def apply(callback : (int) => int, value : int) : int => callback(value)
-def callback() : (int) => int => (value : int) => value + 3
+def apply(callback : FnMut (int) => int, value : int) : int => callback(value)
+def callback() : FnMut (int) => int => (value : int) => value + 3
 def generic[T](value : T) : T => move value
 const def constant() : int => 7
 def printUnit() : Unit => println("unit")

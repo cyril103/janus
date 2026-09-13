@@ -4,7 +4,7 @@ def forward[T](value : T) : T {
     return identity(identity(move value))
 }
 
-def apply[T](callback : (T) => T, value : T) : T {
+def apply[T](callback : FnMut (T) => T, value : T) : T {
     return callback(move value)
 }
 

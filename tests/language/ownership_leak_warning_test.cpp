@@ -531,17 +531,16 @@ def main() : int {
 
   const auto explicit_owning_capture = analyze(R"(
 class Resource() {
-    def dispose() : Unit { delete this }
+    consume def dispose() : Unit { delete this }
 }
 def main() : int {
     val pointer : Ptr[int] = alloc[int](usize(1))
     free(pointer)
     val state : Resource = new Resource()
-    val cleanup : () => Unit = owningCapture[Resource](
+    val cleanup : FnOnce () => Unit = owningCapture[Resource](
         state, () => state.dispose()
     )
     cleanup()
-    delete cleanup
     return 0
 }
 )");
@@ -603,17 +602,15 @@ def main() : int {
                          janus::DiagnosticCode::AnalyzerLoopAllocation),
          "a live owner inside a loop produces a repeated-leak warning");
 
-  const auto escaping_capture = analyze(R"(
+  expect_compile_error(R"(
 class Resource(val value : int) {}
-def makeReader() : () => int {
+def makeReader() : FnMut () => int {
     val resource : Resource = new Resource(42)
     return () => resource.value
 }
 def main() : int { return 0 }
-)");
-  expect(warns_with_code(escaping_capture,
-                         janus::DiagnosticCode::AnalyzerEscapingOwningCapture),
-         "returning a closure that captures an owner warns");
+)",
+                       "closure captures borrowed value");
 
   const auto pointer_cast = analyze(R"(
 def main() : int {

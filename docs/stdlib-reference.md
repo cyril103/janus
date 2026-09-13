@@ -735,7 +735,7 @@ def main() : int {
 // doctest: doctest name=stdlib-std-graphics-audio
 import std.graphics.audio
 def main() : int {
-    val loader : (string) => Sound = (file : string) => loadSound(file)
+    val loader : FnMut (string) => Sound = (file : string) => loadSound(file)
     delete loader
     return 0
 }
@@ -761,7 +761,7 @@ def main() : int {
 import std.graphics.input
 import std.graphics.types
 def main() : int {
-    val query : (Key) => bool = (key : Key) => isKeyPressed(key)
+    val query : FnMut (Key) => bool = (key : Key) => isKeyPressed(key)
     delete query
     return if int(Key.Space) == 32 { 0 } else { 1 }
 }
@@ -773,7 +773,7 @@ def main() : int {
 // doctest: doctest name=stdlib-std-graphics-resources
 import std.graphics.resources
 def main() : int {
-    val loader : (string) => Image = (file : string) => loadImage(file)
+    val loader : FnMut (string) => Image = (file : string) => loadImage(file)
     delete loader
     return 0
 }

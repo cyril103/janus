@@ -1,0 +1,13 @@
+enum Option[T] { Some(T), None }
+class Resource(val id : int) { destructor { println(id) } }
+def main() : int {
+    val owner = new Resource(6)
+    val once : FnOnce (Option[int]) => Option[int] = owningCapture[Resource](owner, input => {
+        val value : int = input?
+        return Option.Some[int](value + owner.id)
+    })
+    defer delete once
+    val result = once(Option.None[int]())
+    val value = match result { Some(value) => value, None => 0 }
+    return value
+}

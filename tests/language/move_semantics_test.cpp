@@ -215,7 +215,7 @@ def main() : int {
   expect_compile_error(
       "class Box() { consume def take() : int { delete this return 1 } } "
       "def main() : int { val box : Box = new Box() "
-      "val action : () => int = () => box.take() delete action "
+      "val action : FnMut () => int = () => box.take() delete action "
       "delete box return 0 }",
       "cannot be consumed from a loop, branch expression, or closure");
   expect_compile_error(

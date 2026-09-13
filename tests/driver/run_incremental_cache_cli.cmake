@@ -24,7 +24,7 @@ file(WRITE "${PROJECT}/src/lib/box.janus"
 file(WRITE "${PROJECT}/src/lib/generic.janus"
      "module lib.generic\n\nprivate def unrelated_generic_helper() : int { return 1 }\ndef identity[T](value : T) : T { return move value }\n")
 file(WRITE "${PROJECT}/src/lib/answer.janus"
-     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : (int) => int = (value : int) => value + base\nreturn transform(6) }\ndef answer() : int { return helper() }\n")
+     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : FnMut (int) => int = (value : int) => value + base\nreturn transform(6) }\ndef answer() : int { return helper() }\n")
 
 function(run_build NAME)
     execute_process(
@@ -129,7 +129,7 @@ endif()
 # Private dependency changes keep the consumer fingerprint, public changes do not.
 file(GLOB CONSUMERS_BEFORE "${CACHE_ROOT}/consumers/*")
 file(WRITE "${PROJECT}/src/lib/answer.janus"
-     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : (int) => int = (value : int) => value + base\nreturn transform(8) }\ndef answer() : int { return helper() }\n")
+     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : FnMut (int) => int = (value : int) => value + base\nreturn transform(8) }\ndef answer() : int { return helper() }\n")
 file(WRITE "${PROJECT}/src/lib/dynamic.janus"
      "module lib.dynamic\nprivate def seed() : int { return 2 }\nprivate val offset : int = seed()\ndef dynamic_value() : int { return offset }\n")
 file(WRITE "${PROJECT}/src/lib/constant.janus"
@@ -165,7 +165,7 @@ if(NOT CONSUMER_COUNT_PRIVATE EQUAL CONSUMER_COUNT_BEFORE)
     message(FATAL_ERROR "private change invalidated the consumer fingerprint")
 endif()
 file(WRITE "${PROJECT}/src/lib/answer.janus"
-     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : (int) => int = (value : int) => value + base\nreturn transform(8) }\ndef answer() : int { return helper() }\ndef added() : int { return 8 }\n")
+     "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : FnMut (int) => int = (value : int) => value + base\nreturn transform(8) }\ndef answer() : int { return helper() }\ndef added() : int { return 8 }\n")
 run_traced_build("public dependency change" "compiled")
 file(GLOB CONSUMERS_PUBLIC "${CACHE_ROOT}/consumers/*")
 list(LENGTH CONSUMERS_PUBLIC CONSUMER_COUNT_PUBLIC)

@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "f9f24262917f1f7ddbcbb3fce7ce9cff1e0079f4548f5dbd92c490e621ef995d",
+      "signature_digest": "b2a8c05a9b2ecbb6cedc6c329cc6976f893dca922e8b54fa6a052bd568347751",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.tryPop", "Array.remove", "Array.reserve", "Array.tryReserve", "Array.clear", "Array.retain", "Array.extend", "Array.drain", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "Array.sortBy", "filledArray", "generateArray"]
     },
     {
@@ -40,7 +40,7 @@
       "source": "stdlib/std/bytes.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "f0c3f49aadd2f9c4a07bedd31cbfb873e7fff609089251ab9529b34e62694b07",
+      "signature_digest": "f3d2928781525bbc124d47f70e73ffe73503b09820d9275cbd1cc09925d6ef88",
       "symbols": ["ByteView", "ByteView.size", "ByteView.isEmpty", "ByteView.get", "ByteView.getOption", "ByteView.isUtf8", "ByteView.withSlice", "ByteView.withPointer"]
     },
     {
@@ -56,7 +56,7 @@
       "source": "stdlib/std/deque.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "27e7a60afa9b8f2c1bbeb01adf3e3103a3bdfbaa5724d7161293a55512972804",
+      "signature_digest": "2d90acc54809832d6c092eebd2e942ea4f53597854956688e0b6c2ffb4e05dfe",
       "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.reserve", "Deque.tryReserve", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.tryPopFront", "Deque.tryPopBack", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.extend", "Deque.drain", "Deque.intoIterator", "Queue", "Queue.size", "Queue.capacity", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.tryDequeue", "Queue.withFirst", "Queue.clear", "Queue.reserve", "Queue.tryReserve", "Queue.extend", "Queue.drain", "Queue.intoIterator"]
     },
     {
@@ -121,7 +121,7 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "dedb4499419cfd277fb98d4b66d1eaa644426ae8b2f4c88263093272d36ef18c",
+      "signature_digest": "274992c312829eb7c0d6b8cacf8ff5296c4f33a1d0ae311f8442fee2c9569ca9",
       "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.asText", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
@@ -129,7 +129,7 @@
       "source": "stdlib/std/functional.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/functional-pipeline.md"],
       "status": "experimental",
-      "signature_digest": "ff1f501e08fc7744b873d4f0a5d720bc977b1b90ab445475296ec03be105a609",
+      "signature_digest": "1a0a5415925ad3b70d48217d5f5ad3765006daf66919dc01aec39b061ed2d3ea",
       "symbols": ["identity", "constant", "compose", "andThen", "flip", "tap"]
     },
     {
@@ -153,7 +153,7 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "de7640a2345381ac0f9b5772db00e39dec76173b50f075e3b8cc7f081cbbfe90",
+      "signature_digest": "5aff9d9c24a848d90305b83904e06809f5a8ab93269553141dde220efbac01f2",
       "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.capacity", "HashMap.isEmpty", "HashMap.reserve", "HashMap.tryReserve", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.withEntry", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.retain", "HashMap.extend", "HashMap.drainEntries", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
@@ -161,7 +161,7 @@
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "df290448954a1fb24596b48bff19f496765acca70ddfc0b9e0a612f74b68335f",
+      "signature_digest": "e3f903207370cffa03a789c042c22aad1627611ca4cbccb41ccf8967f64af019",
       "symbols": ["HashSet", "HashSet.size", "HashSet.capacity", "HashSet.isEmpty", "HashSet.reserve", "HashSet.tryReserve", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.retain", "HashSet.extend", "HashSet.drain", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
@@ -169,7 +169,7 @@
       "source": "stdlib/std/io.janus",
       "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "cbf5fdb095557c4df8727aac0e19d417ea04dc0cc65c082bffc7488181c299e0",
+      "signature_digest": "ca2629064f82ccc444c75b33f78d740f40d0692e6d90a71e812aa062780affe2",
       "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.withView", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
@@ -185,7 +185,7 @@
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/design/iterator-pipelines.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "d9bf7fffa189a6ee68beee37066c1ab4dce5be9439cf8bf44c15253bafec6b97",
+      "signature_digest": "adea39f5fb445f05ad1a03de3124bacd2ddd8db9baaced33ef430f7247294103",
       "symbols": ["Iterable", "Iterable.iterator", "IntoIterable", "IntoIterable.intoIterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "PartitionResult", "PartitionResult.accepted", "PartitionResult.rejected", "Iterator", "Iterator.next", "Iterator.intoIterator", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.drop", "Iterator.chain", "Iterator.filterMap", "Iterator.takeWhile", "Iterator.skipWhile", "Iterator.scan", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold", "Iterator.find", "Iterator.any", "Iterator.all", "Iterator.count", "Iterator.reduce", "Iterator.tryFold", "Iterator.partitionWith"]
     },
     {
@@ -209,7 +209,7 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "be89b57aa8b613793c39d9d8c09948606c50ca65d71735f79114ce4c4dbb2d0d",
+      "signature_digest": "7999c1508ceb6ecc70b42b17eee75dab7a4a94bb71dc45c3d4b4aa1abe8ff2fd",
       "symbols": ["Try", "Option", "Option.Some", "Option.None", "OptionPair", "OptionPair.left", "OptionPair.right", "isSome", "isNone", "mapBorrowed", "map", "andThen", "flatten", "filter", "fold", "contains", "zip", "map2", "inspect", "orElse", "unwrapOr", "unwrapOrElse", "orElseWith"]
     },
     {
@@ -233,7 +233,7 @@
       "source": "stdlib/std/persistent_list.janus",
       "documentation": ["docs/stdlib-reference.md", "docs/design/persistent-list.md"],
       "status": "experimental",
-      "signature_digest": "c5f2f3f46889e492bcc34a45e45cb211f99636a539c8c0d8fbe8a55d481e5ed3",
+      "signature_digest": "0907d8056a3b30e92304fd4775db9248bcb02840ed4b1160e6a5afc2b30c9ecb",
       "symbols": ["PersistentList", "PersistentList.size", "PersistentList.isEmpty", "PersistentList.clone", "PersistentList.prepend", "PersistentList.head", "PersistentList.tail", "PersistentList.iterator", "PersistentList.reverse", "PersistentList.concat", "PersistentList.map", "PersistentList.filter", "PersistentList.fold", "PersistentList.equalsBy", "PersistentList.equals", "PersistentList.toArray", "persistentListEmpty", "persistentListFromArray"]
     },
     {
@@ -241,7 +241,7 @@
       "source": "stdlib/std/priority_queue.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "42d38fd172ffd3012ec0ed02cc993f0b7a6a3175a378952ee4157dc7f7ff7d21",
+      "signature_digest": "ee425ce86ad7fab07528e2eac6cebcd3eeaee4e09d209dec3d521465a0633ace",
       "symbols": ["PriorityQueue", "PriorityQueue.size", "PriorityQueue.capacity", "PriorityQueue.isEmpty", "PriorityQueue.reserve", "PriorityQueue.tryReserve", "PriorityQueue.enqueue", "PriorityQueue.peek", "PriorityQueue.withFirst", "PriorityQueue.peekCopy", "PriorityQueue.peekCopyOption", "PriorityQueue.dequeue", "PriorityQueue.dequeueOption", "PriorityQueue.tryDequeue", "PriorityQueue.clear"]
     },
     {
@@ -257,7 +257,7 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "9a4eadc8192aae70f3c5a2de34fc271613e15c01ba9008c8628c8b25a82dec3b",
+      "signature_digest": "5357f10b9515cdc32faa756af77800394f1f33b47b6b1025f312845a7e454ba2",
       "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.withStdoutView", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ProcessResult.withStderrView", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
@@ -273,7 +273,7 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "20783c5b7eb4a699199805ad43f3ec70b5cc568e8854844c58db33bded1b0078",
+      "signature_digest": "cf0be6f76691e0f4b71cfe54ac071c169dc000897e91d4c7fbf82082a3a88b78",
       "symbols": ["Result", "Result.Ok", "Result.Error", "ResultPair", "ResultPair.left", "ResultPair.right", "isOk", "isError", "mapBorrowed", "mapErrorBorrowed", "map", "mapError", "andThen", "flatten", "fold", "zip", "map2", "inspect", "inspectError", "orElse", "unwrapOr", "unwrapOrElse", "toOption", "fromOption", "toResult", "transpose"]
     },
     {
@@ -313,7 +313,7 @@
       "source": "stdlib/std/testing.janus",
       "documentation": ["docs/testing.md", "docs/tooling.md"],
       "status": "experimental",
-      "signature_digest": "8af6e24ae63190e188ed5ea7b6e1c037562dd6e1e605daca37fcdc65828afbe1",
+      "signature_digest": "7070ab6ced2b9b4d1be19052b231d3dc132299f815397e5160b24425215abb38",
       "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "fail", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertBorrowedEqual", "assertSome", "assertNone", "assertSomeWhere", "assertOk", "assertError", "assertOkWhere", "assertErrorWhere", "assertValid", "assertInvalid", "assertValidWhere", "assertInvalidWhere", "assertBytesEqual"]
     },
     {
@@ -337,7 +337,7 @@
       "source": "stdlib/std/validated.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/validated.md"],
       "status": "experimental",
-      "signature_digest": "09446d86125d250d0b0397f6b13e5d1b4a5acdb1a72f40689d4813fede371e4c",
+      "signature_digest": "aeee27aeebf5b2a713a0578c75dd4061d6f0854af334dfc3852d1c541af5a190",
       "symbols": ["Validated", "Validated.Valid", "Validated.Invalid", "ValidatedErrors", "ValidatedErrors.inspect", "ValidatedErrors.intoArray", "ValidatedPair", "ValidatedPair.left", "ValidatedPair.right", "valid", "invalid", "invalidFromArray", "isValid", "isInvalid", "map", "mapError", "map2", "map3", "zip", "errorsBorrowed", "intoErrors", "fromResult", "toResult", "collectValidated"]
     },
     {

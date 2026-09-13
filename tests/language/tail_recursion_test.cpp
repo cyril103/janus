@@ -450,12 +450,14 @@ def forward(value : int) : int { return identity(value) }
 def main() : int { return forward(2) }
 )", "a terminal non-recursive call does not require tailrec"));
 
-  static_cast<void>(expect_accepted(R"(
-def shadowed(shadowed : (int) => int, value : int) : int {
+  static_cast<void>(expect_accepted(
+      R"(
+def shadowed(shadowed : FnMut (int) => int, value : int) : int {
     return shadowed(value)
 }
 def main() : int { return shadowed((value : int) => value, 2) }
-)", "a homonymous function parameter does not create false recursion"));
+)",
+      "a homonymous function parameter does not create false recursion"));
 
   static_cast<void>(expect_accepted(R"(
 def conditional(value : int) : int {

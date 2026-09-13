@@ -82,7 +82,7 @@ private class OptionFallback[T](private var value : Option[T]) {
 }
 
 private class OptionFilterState[T](private var value : Option[T]) {
-    def keep(scoped predicate : (borrow T) => bool) : bool {
+    def keep(scoped predicate : FnMut (borrow T) => bool) : bool {
         defer delete predicate
         return match value {
             Some(item) => predicate(item),
@@ -103,7 +103,7 @@ private class OptionFilterState[T](private var value : Option[T]) {
 
 private def observeSomeValue[T](
     borrow value : T,
-    scoped borrow action : (borrow T) => Unit
+    scoped borrow var action : FnMut (borrow T) => Unit
 ) : bool {
     action(value)
     return true
@@ -111,7 +111,7 @@ private def observeSomeValue[T](
 
 private def observeSome[T](
     borrow value : Option[T],
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
 ) : Unit {
     defer delete action
     val observed : bool = match value {
@@ -153,7 +153,7 @@ pure def isNone[T](borrow value : Option[T]) : bool {
 /// @return `Some` du résultat produit, ou `None` sans appeler `transform`.
 def mapBorrowed[T, U](
     borrow value : Option[T],
-    scoped transform : (borrow T) => U
+    scoped transform : FnMut (borrow T) => U
 ) : Option[U] {
     defer delete transform
     return match value {
@@ -169,7 +169,7 @@ def mapBorrowed[T, U](
 /// @return `Some` du résultat de `transform`, ou `None` sans appeler `transform`.
 def map[T, U](
     value : Option[T],
-    scoped transform : (T) => U
+    scoped transform : FnMut (T) => U
 ) : Option[U] {
     defer delete transform
     return match move value {
@@ -185,7 +185,7 @@ def map[T, U](
 /// @return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.
 def andThen[T, U](
     value : Option[T],
-    scoped transform : (T) => Option[U]
+    scoped transform : FnMut (T) => Option[U]
 ) : Option[U] {
     defer delete transform
     return match move value {
@@ -222,7 +222,7 @@ def flatten[T](value : Option[Option[T]]) : Option[T] {
 /// @return L'option d'origine si le prédicat réussit, sinon `None`.
 def filter[T](
     value : Option[T],
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
 ) : Option[T] {
     val state : OptionFilterState[T] =
     new OptionFilterState[T](move value)
@@ -248,7 +248,7 @@ def filter[T](
 def fold[T, U](
     value : Option[T],
     fallback : U,
-    scoped transform : (T) => U
+    scoped transform : FnMut (T) => U
 ) : U {
     defer delete transform
     val state : OptionFallback[U] =
@@ -327,7 +327,7 @@ def zip[T, U](
 def map2[T, U, V](
     left : Option[T],
     right : Option[U],
-    scoped combine : (T, U) => V
+    scoped combine : FnMut (T, U) => V
 ) : Option[V] {
     defer delete combine
     val leftState : OptionFallback[T] =
@@ -353,7 +353,7 @@ def map2[T, U, V](
 /// @return L'option d'origine, avec sa propriété transférée au résultat.
 def inspect[T](
     value : Option[T],
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
 ) : Option[T] {
     observeSome[T](value, move action)
     return move value
@@ -370,7 +370,7 @@ def inspect[T](
 /// @return Le contenu de `Some` ou le remplacement calculé.
 def unwrapOrElse[T](
     value : Option[T],
-    scoped fallback : () => T
+    scoped fallback : FnMut () => T
 ) : T {
     defer delete fallback
     return match move value {
@@ -390,7 +390,7 @@ def unwrapOrElse[T](
 /// @return L'option d'origine pour `Some`, sinon le remplacement calculé.
 def orElseWith[T](
     value : Option[T],
-    scoped fallback : () => Option[T]
+    scoped fallback : FnMut () => Option[T]
 ) : Option[T] {
     defer delete fallback
     return match move value {
@@ -454,7 +454,7 @@ extend[T] Option[T] {
     /// @param transform Fonction bornée recevant un emprunt du contenu.
     /// @return Option contenant le résultat transformé, ou `None`.
     borrow def mapBorrowed[U](
-        scoped transform : (borrow T) => U
+        scoped transform : FnMut (borrow T) => U
     ) : Option[U] {
         return mapBorrowed[T, U](this, move transform)
     }
@@ -462,7 +462,7 @@ extend[T] Option[T] {
     /// Consomme cette option et transforme son contenu présent.
     /// @param transform Fonction bornée recevant le contenu déplacé.
     /// @return Option contenant le résultat transformé, ou `None`.
-    consume def map[U](scoped transform : (T) => U) : Option[U] {
+    consume def map[U](scoped transform : FnMut (T) => U) : Option[U] {
         return map[T, U](move this, move transform)
     }
 
@@ -470,7 +470,7 @@ extend[T] Option[T] {
     /// @param transform Fonction bornée recevant le contenu déplacé.
     /// @return Résultat de `transform`, ou `None`.
     consume def andThen[U](
-        scoped transform : (T) => Option[U]
+        scoped transform : FnMut (T) => Option[U]
     ) : Option[U] {
         return andThen[T, U](move this, move transform)
     }
@@ -479,7 +479,7 @@ extend[T] Option[T] {
     /// @param predicate Fonction bornée appelée uniquement pour `Some`.
     /// @return Cette option si le prédicat réussit, sinon `None`.
     consume def filter(
-        scoped predicate : (borrow T) => bool
+        scoped predicate : FnMut (borrow T) => bool
     ) : Option[T] {
         return filter[T](move this, move predicate)
     }
@@ -490,7 +490,7 @@ extend[T] Option[T] {
     /// @return Le résultat transformé ou `fallback`.
     consume def fold[U](
         fallback : U,
-        scoped transform : (T) => U
+        scoped transform : FnMut (T) => U
     ) : U {
         return fold[T, U](move this, move fallback, move transform)
     }
@@ -518,7 +518,7 @@ extend[T] Option[T] {
     /// @return `Some` du résultat combiné, sinon `None`.
     consume def map2[U, V](
         other : Option[U],
-        scoped combine : (T, U) => V
+        scoped combine : FnMut (T, U) => V
     ) : Option[V] {
         return map2[T, U, V](move this, move other, move combine)
     }
@@ -526,7 +526,7 @@ extend[T] Option[T] {
     /// Observe le contenu sans interrompre une chaîne de transformations.
     /// @param action Action bornée appelée uniquement pour `Some`.
     /// @return Cette option consommée puis retransmise.
-    consume def inspect(scoped action : (borrow T) => Unit) : Option[T] {
+    consume def inspect(scoped action : FnMut (borrow T) => Unit) : Option[T] {
         return inspect[T](move this, move action)
     }
 
@@ -547,7 +547,7 @@ extend[T] Option[T] {
     /// Extrait le contenu ou calcule paresseusement un remplacement.
     /// @param fallback Fabrique bornée appelée uniquement pour `None`.
     /// @return Le contenu ou le remplacement calculé.
-    consume def unwrapOrElse(scoped fallback : () => T) : T {
+    consume def unwrapOrElse(scoped fallback : FnMut () => T) : T {
         return unwrapOrElse[T](move this, move fallback)
     }
 
@@ -555,7 +555,7 @@ extend[T] Option[T] {
     /// @param fallback Fabrique bornée appelée uniquement pour `None`.
     /// @return Cette option pour `Some`, sinon le remplacement calculé.
     consume def orElseWith(
-        scoped fallback : () => Option[T]
+        scoped fallback : FnMut () => Option[T]
     ) : Option[T] {
         return orElseWith[T](move this, move fallback)
     }

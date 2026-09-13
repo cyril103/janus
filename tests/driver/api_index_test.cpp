@@ -47,7 +47,7 @@ class InvalidNamed(val text : string) extends Named {
   programs.push_back(parser.parse_program());
   const auto index = janus::driver::build_api_index(
       programs, {"fixture", "1.0.0"});
-  expect(index.format_version == 1, "the index format is versioned");
+  expect(index.format_version == 2, "the index format is versioned");
   expect(index.symbols.size() == 7, "only public symbols are indexed");
   expect(std::none_of(index.symbols.begin(), index.symbols.end(),
                       [](const janus::driver::ApiSymbol &symbol) {
@@ -96,25 +96,27 @@ class InvalidNamed(val text : string) extends Named {
              tailrec_index.symbols[0].signature.starts_with("tailrec def loop"),
          "API signatures preserve the tailrec contract modifier");
   janus::frontend::Parser pure_parser{
-      "module effects\npure def apply(action : pure (int) => int, value : int) : int { return action(value) }\n"};
+      "module effects\npure def apply(action : pure Fn (int) => int, value : "
+      "int) : int { return action(value) }\n"};
   std::vector<janus::ast::Program> pure_programs;
   pure_programs.push_back(pure_parser.parse_program());
   const auto pure_index = janus::driver::build_api_index(
       pure_programs, {"fixture", "1.0.0"});
   expect(pure_index.symbols.size() == 1 &&
              pure_index.symbols[0].signature.starts_with("pure def apply") &&
-             pure_index.symbols[0].signature.find("pure Function") !=
+             pure_index.symbols[0].signature.find("pure Fn (int) => int") !=
                  std::string::npos,
          "API signatures preserve pure declarations and callback types");
   janus::frontend::Parser scoped_parser{
-      "module callbacks\ndef invoke(scoped action : () => int) : int { defer delete action return action() }\n"};
+      "module callbacks\ndef invoke(scoped action : FnMut () => int) : int { "
+      "defer delete action return action() }\n"};
   std::vector<janus::ast::Program> scoped_programs;
   scoped_programs.push_back(scoped_parser.parse_program());
   const auto scoped_index = janus::driver::build_api_index(
       scoped_programs, {"fixture", "1.0.0"});
   expect(scoped_index.symbols.size() == 1 &&
              scoped_index.symbols[0].signature.find(
-                 "scoped action : Function[int]") != std::string::npos,
+                 "scoped action : FnMut () => int") != std::string::npos,
          "API signatures expose the scoped callback contract");
 
   const auto by_name = janus::driver::search_api(index, {"write"});
@@ -166,7 +168,7 @@ class InvalidNamed(val text : string) extends Named {
   const std::string first = janus::driver::serialize_api_index(index);
   const std::string second = janus::driver::serialize_api_index(index);
   expect(first == second, "JSON output is deterministic");
-  expect(first.find("\"format_version\":1") != std::string::npos &&
+  expect(first.find("\"format_version\":2") != std::string::npos &&
              first.find("\"generic_constraints\"") != std::string::npos &&
              first.find("\"replacement\":\"sample.write\"") !=
                  std::string::npos,
@@ -181,16 +183,19 @@ class InvalidNamed(val text : string) extends Named {
              restored.symbols[0].deprecated == index.symbols[0].deprecated,
          "round trips preserve package, kinds, generics, and deprecation");
 
-  expect_invalid(R"({"format_version":1,"package":"p","package_version":"1"})",
+  expect_invalid(
+      R"({"format_version":1,"package":"p","package_version":"1","symbols":[]})",
+      "legacy callback indexes require regeneration");
+  expect_invalid(R"({"format_version":2,"package":"p","package_version":"1"})",
                  "symbols is required");
   expect_invalid(
       R"({"format_version":"1","package":"p","package_version":"1","symbols":[]})",
       "format_version has a strict integer type");
   expect_invalid(
-      R"({"format_version":1,"package":"p","package_version":"1","symbols":[7]})",
+      R"({"format_version":2,"package":"p","package_version":"1","symbols":[7]})",
       "every symbol must be an object");
   expect_invalid(
-      R"({"format_version":1,"package":"p","package_version":"1","symbols":[{"simple_name":"f"}]})",
+      R"({"format_version":2,"package":"p","package_version":"1","symbols":[{"simple_name":"f"}]})",
       "required symbol fields may not be omitted");
   std::string malformed_parameter = first;
   const std::size_t parameters = malformed_parameter.find("\"parameters\":[");

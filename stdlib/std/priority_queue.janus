@@ -33,7 +33,7 @@ import std.result
 /// @param less Comparateur strict plaçant la plus haute priorité en premier.
 class PriorityQueue[T](
 initialCapacity : usize,
-private val less : (borrow T, borrow T) => bool
+private val less : Fn (borrow T, borrow T) => bool
 ) {
     private var values : Array[T] = new Array[T](initialCapacity)
     private var sequences : Array[usize] =
@@ -192,7 +192,7 @@ private val less : (borrow T, borrow T) => bool
     /// Exécute une action empruntée sur la prochaine valeur sans la retirer.
     /// @param action Callback synchrone qui observe la tête pendant l'appel.
     borrow def withFirst(
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
     ) : Unit {
         defer delete action
         if values.isEmpty() {

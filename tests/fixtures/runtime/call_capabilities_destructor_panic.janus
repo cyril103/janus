@@ -1,0 +1,15 @@
+class Resource(val id : int, val failing : bool) {
+    destructor {
+        println(id)
+        if failing { panic("capture destructor failed") }
+    }
+}
+struct Pair(val first : Resource, val second : Resource) {}
+def main() : int {
+    val outer = new Resource(3, false)
+    defer delete outer
+    val pair = new Pair(new Resource(1, false), new Resource(2, true))
+    val f = owningCapture[Pair](pair, () => pair.first.id)
+    delete f
+    return 0
+}

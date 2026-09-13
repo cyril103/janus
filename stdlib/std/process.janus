@@ -255,7 +255,7 @@ class ProcessResult internal(private var nativeResult : isize) {
     /// @param action Callback borné recevant toute la capture standard.
     /// @return Résultat indépendant produit par `action`.
     borrow def withStdoutView[U](
-    scoped action : (borrow ByteView) => U
+    scoped action : FnMut (borrow ByteView) => U
     ) : U {
         defer delete action
         val view : ByteView = new ByteView(
@@ -284,7 +284,7 @@ class ProcessResult internal(private var nativeResult : isize) {
     /// @param action Callback borné recevant toute la capture d'erreur.
     /// @return Résultat indépendant produit par `action`.
     borrow def withStderrView[U](
-    scoped action : (borrow ByteView) => U
+    scoped action : FnMut (borrow ByteView) => U
     ) : U {
         defer delete action
         val view : ByteView = new ByteView(

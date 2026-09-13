@@ -122,7 +122,7 @@ def exerciseComplexityGuard() : bool {
     }
     val counter : ComparisonCounter = new ComparisonCounter(0)
     defer delete counter
-    val comparison : (borrow int, borrow int) => bool =
+    val comparison : FnMut (borrow int, borrow int) => bool =
     (borrow left : int, borrow right : int) => counter.less(left, right)
     values.sortWith(move comparison)
     return isSorted(values) && counter.value() < 4000000

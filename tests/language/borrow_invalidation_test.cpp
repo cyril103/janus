@@ -125,7 +125,7 @@ class Resource(val value : int) {}
 def exercise() : int {
   val resource : Resource = new Resource(1)
   borrow val view : Resource = resource
-  val callback : () => Unit = () => { println(view.value) }
+  val callback : FnMut () => Unit = () => { println(view.value) }
   callback()
   delete resource
   return 0
@@ -140,7 +140,7 @@ class Resource(val value : int) {}
 def exercise() : int {
   val resource : Resource = new Resource(1)
   borrow val view : Resource = resource
-  val callback : () => Unit = () => { println(view.value) }
+  val callback : FnMut () => Unit = () => { println(view.value) }
   callback()
   delete callback
   delete resource
@@ -482,7 +482,7 @@ class Resource(val value : int) {}
 def main() : int {
   val resource : Resource = new Resource(1)
   borrow val view : Resource = resource
-  val callback : () => Unit = () => { println(view.value) }
+  val callback : FnMut () => Unit = () => { println(view.value) }
   defer callback()
   defer delete resource
   return 0
@@ -498,7 +498,7 @@ def main() : int {
   val resource : Resource = new Resource(1)
   defer delete resource
   borrow val view : Resource = resource
-  val callback : () => Unit = () => { println(view.value) }
+  val callback : FnMut () => Unit = () => { println(view.value) }
   defer callback()
   return 0
 }

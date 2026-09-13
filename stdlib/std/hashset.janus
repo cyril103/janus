@@ -47,7 +47,7 @@ private var index : usize
         return result
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 }
@@ -68,7 +68,7 @@ private var index : usize
         return Option.None[T]()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -328,7 +328,7 @@ private borrow val hashing : H
     /// @return `true` si un membre égal a été trouvé et observé.
     def withValue(
     borrow value : T,
-    scoped action : (borrow T) => Unit
+    scoped action : FnMut (borrow T) => Unit
     ) : bool {
         defer delete action
         if length == usize(0) {
@@ -357,7 +357,7 @@ private borrow val hashing : H
     private def observeEqual(
     borrow existing : T,
     borrow query : T,
-    scoped borrow action : (borrow T) => Unit
+    scoped borrow var action : FnMut (borrow T) => Unit
     ) : bool {
         if hashing.equals(existing, query) {
             action(existing)
@@ -481,7 +481,7 @@ private borrow val hashing : H
 
     private borrow def keepAt(
     index : usize,
-    scoped borrow predicate : (borrow T) => bool
+    scoped borrow var predicate : FnMut (borrow T) => bool
     ) : bool {
         borrow val slot : SetSlot[T] = slots.getBorrowed(index)
         return match slot {
@@ -494,7 +494,7 @@ private borrow val hashing : H
     /// Conserve les membres qui satisfont le prédicat.
     /// @param predicate Callback borné observant chaque membre une fois.
     /// @return Nombre de membres conservés.
-    def retain(scoped predicate : (borrow T) => bool) : usize {
+    def retain(scoped predicate : FnMut (borrow T) => bool) : usize {
         defer delete predicate
         this.initializeSlots()
         var index : usize = usize(0)
@@ -535,10 +535,8 @@ private borrow val hashing : H
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[HashSetIteratorState[T, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[HashSetIteratorState[T, H]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -551,10 +549,8 @@ private borrow val hashing : H
         val state : HashSetIntoIteratorState[T, H] =
         new HashSetIntoIteratorState[T, H](move this, usize(0))
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[HashSetIntoIteratorState[T, H]](
-        state, () => state.dispose()
-        )
+        owningCapture[HashSetIntoIteratorState[T, H]](state, () => state.next()),
+            () => unit
         )
     }
 

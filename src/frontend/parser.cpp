@@ -2098,6 +2098,10 @@ ast::Expression Parser::parse_primary() {
               ownership = ast::ParameterOwnership::BorrowMutable;
             }
           }
+          if (current_.kind == TokenKind::Consume) {
+            advance();
+            ownership = ast::ParameterOwnership::Consume;
+          }
           const Token name = expect(TokenKind::Identifier);
           std::optional<ast::TypeReference> type;
           if (current_.kind == TokenKind::Colon) {
@@ -2371,7 +2375,23 @@ ast::TypeReference Parser::parse_type() {
   const bool is_pure_function = current_.kind == TokenKind::Pure;
   if (is_pure_function)
     advance();
+  std::optional<ast::CallCapability> capability;
+  if (current_.kind == TokenKind::Identifier &&
+      (current_.lexeme == "Fn" || current_.lexeme == "FnMut" ||
+       current_.lexeme == "FnOnce")) {
+    Lexer lookahead = lexer_;
+    if (lookahead.next().kind == TokenKind::LeftParen) {
+      capability = current_.lexeme == "Fn"      ? ast::CallCapability::Fn
+                   : current_.lexeme == "FnMut" ? ast::CallCapability::FnMut
+                                                : ast::CallCapability::FnOnce;
+      advance();
+    }
+  }
   if (current_.kind == TokenKind::LeftParen) {
+    if (!capability)
+      throw CompileError{
+          current_.location,
+          "function type requires an explicit Fn, FnMut or FnOnce capability"};
     const Token left_parenthesis = expect(TokenKind::LeftParen);
     std::vector<ast::TypeReference> arguments;
     std::vector<ast::ParameterOwnership> ownerships;
@@ -2386,6 +2406,9 @@ ast::TypeReference Parser::parse_type() {
             advance();
             ownership = ast::ParameterOwnership::BorrowMutable;
           }
+        } else if (current_.kind == TokenKind::Consume) {
+          advance();
+          ownership = ast::ParameterOwnership::Consume;
         }
         arguments.push_back(parse_type());
         ownerships.push_back(ownership);
@@ -2412,6 +2435,7 @@ ast::TypeReference Parser::parse_type() {
     result.function_parameter_ownership = std::move(ownerships);
     result.function_return_ownership = return_ownership;
     result.is_pure_function = is_pure_function;
+    result.call_capability = *capability;
     return result;
   }
   if (is_pure_function)
@@ -2511,7 +2535,7 @@ bool Parser::starts_lambda() const {
     return lookahead.next().kind == TokenKind::Arrow;
   Token token = first;
   while (true) {
-    if (token.kind == TokenKind::Borrow) {
+    if (token.kind == TokenKind::Borrow || token.kind == TokenKind::Consume) {
       token = lookahead.next();
       if (token.kind == TokenKind::Var)
         token = lookahead.next();
@@ -2608,16 +2632,19 @@ bool Parser::starts_generic_call() const {
   Lexer lookahead = lexer_;
   Token token = lookahead.next();
   TokenKind previous = TokenKind::LeftBracket;
+  std::string_view previous_name;
   int depth = 1;
   while (token.kind != TokenKind::End) {
     if (depth == 1 && token.kind == TokenKind::LeftParen &&
-        previous == TokenKind::Identifier)
+        previous == TokenKind::Identifier && previous_name != "Fn" &&
+        previous_name != "FnMut" && previous_name != "FnOnce")
       return false;
     if (token.kind == TokenKind::LeftBracket)
       ++depth;
     else if (token.kind == TokenKind::RightBracket && --depth == 0)
       return lookahead.next().kind == TokenKind::LeftParen;
     previous = token.kind;
+    previous_name = token.lexeme;
     token = lookahead.next();
   }
   return false;

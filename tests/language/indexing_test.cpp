@@ -195,7 +195,7 @@ def main() : int {
     val values : arrays.Array[int] = new arrays.Array[int](usize(1))
     defer delete values
     values.push(42)
-    val read : () => int = () => values[usize(0)]
+    val read : FnMut () => int = () => values[usize(0)]
     defer delete read
     return read() - 42
 }

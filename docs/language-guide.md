@@ -186,7 +186,7 @@ précédence, l'ordre d'évaluation et la propriété des closures composées.
 
 ```janus
 val configuration : Configuration = loadConfiguration()
-private val callback : () => int = () => configuration.status()
+private val callback : FnMut () => int = () => configuration.status()
 ```
 
 Les valeurs globales possédantes doivent être déclarées avec `val`. Elles sont
@@ -474,7 +474,7 @@ les valeurs qui l'entourent :
 
 ```janus
 val threshold : int = 10
-val isLarge : (int) => bool =
+val isLarge : FnMut (int) => bool =
     (value : int) => value > threshold
 ```
 
@@ -486,7 +486,7 @@ destructeur et les cleanups imbriqués respectent eux aussi ce contrat, y compri
 via `defer`, les agrégats et les spécialisations génériques. `const def`
 implique ce noyau mais conserve les restrictions plus fortes de l'évaluation à
 la compilation. Un callback appelable depuis ce contexte s'écrit
-`pure (T) => U`. Le contrat complet, y compris les règles des méthodes et de la
+`pure Fn (T) => U`. Le contrat complet, y compris les règles des méthodes et de la
 FFI, est défini dans
 [Contrat `pure def`](design/pure-functions.md).
 
@@ -517,9 +517,9 @@ Les effets d'emprunt font partie du type d'une fonction. Ils s'écrivent sur
 les paramètres du type et de la closure :
 
 ```janus
-val inspect : (borrow Document) => int =
+val inspect : FnMut (borrow Document) => int =
     (borrow document : Document) => document.revision()
-val edit : (borrow var Document) => Unit =
+val edit : FnMut (borrow var Document) => Unit =
     (borrow var document : Document) => document.touch()
 ```
 
@@ -530,12 +530,12 @@ avec `(borrow value) => ...` et `(borrow var value) => ...`. Cette omission est
 réservée aux lambdas : les paramètres d'une déclaration `def` restent annotés.
 
 ```janus
-def apply(value : int, operation : (int) => int) : int {
+def apply(value : int, operation : FnMut (int) => int) : int {
     return operation(value)
 }
 
 def main() : int {
-    val increment : (int) => int = value => value + 1
+    val increment : FnMut (int) => int = value => value + 1
     val answer : int = apply(41, value => value + 1)
     delete increment
     return answer - 42
@@ -561,7 +561,7 @@ d'instructions complet. Dans un bloc, le type résultat est inféré à partir d
 doit retourner une valeur. Un bloc sans `return` produit `Unit`.
 
 ```janus
-val adjust : (int) => int = (value : int) => {
+val adjust : FnMut (int) => int = (value : int) => {
     val next : int = value + threshold
     if next < 0 {
         return 0
@@ -841,7 +841,7 @@ fonction attendu fixe un retour `Option` ou `Result`. La propagation quitte la
 lambda elle-même, jamais la fonction qui la contient :
 
 ```janus
-val normalize : (Result[int, string]) => Result[int, string] = input => {
+val normalize : FnMut (Result[int, string]) => Result[int, string] = input => {
     val value : int = input?
     return Result.Ok[int, string](value * 2)
 }
@@ -1214,7 +1214,7 @@ capturer un emprunt tout en transférant sa propre propriété au callee, qui pe
 donc la détruire après l'appel :
 
 ```janus
-def invoke(scoped callback : () => int) : int {
+def invoke(scoped callback : FnMut () => int) : int {
     defer delete callback
     return callback()
 }
@@ -1321,7 +1321,7 @@ struct ou un enum, sans modifier sa représentation :
 
 ```janus
 extend[T] Option[T] {
-    consume def map[U](scoped transform : (T) => U) : Option[U] {
+    consume def map[U](scoped transform : FnMut (T) => U) : Option[U] {
         return match move this {
             Some(value) => Option.Some[U](transform(move value)),
             None => Option.None[U]()
@@ -2064,3 +2064,28 @@ diagnostic `JANA0035` et une suggestion `move <nom>`. La même règle s'applique
 aux paramètres génériques non contraints ; une contrainte `T <: Copy` conserve
 la copie implicite. Écrire `move` directement sur un type `Copy` concret reste
 une erreur.
+
+## Capacités des callbacks
+
+Les types de fonction exigent une capacité explicite : `Fn (A) => B`,
+`FnMut (A) => B` ou `FnOnce (A) => B`. La capacité est inférée pour une lambda
+sans annotation. Une fonction `Fn` peut être observée via `borrow` ; `FnMut`
+exige un propriétaire ou `borrow var` ; un appel `FnOnce` consomme la callback.
+Un second appel ou une utilisation après consommation est une erreur.
+
+Les conversions autorisées sont `Fn` vers `FnMut` ou `FnOnce`, et `FnMut` vers
+`FnOnce`. Elles préservent `pure`, les modes des paramètres et du retour, et
+`scoped`. Le transfert d'une callback propriétaire conserve son `move`
+explicite. Une capture empruntée ne peut pas s'échapper par une conversion.
+
+Pour migrer un ancien type `(A) => B`, choisir `Fn` pour un accès partagé,
+`FnMut` pour un état mutable appelé plusieurs fois, ou `FnOnce` lorsque
+l'appel consomme son état. Une méthode détruisant son receveur doit déclarer
+`consume`. Les closures créées avec `owningCapture[T](owner, lambda)` possèdent
+explicitement `owner`, y compris lorsqu'elles ne sont jamais appelées ; un
+`delete` ou `defer delete` nettoie les captures restantes. Ne pas conserver
+un `delete callback` après un appel consommant. Un `defer delete callback`
+placé avant l'appel reste valide et est désarmé par le transfert.
+
+Voir la [RFC des capacités d'appel](design/call-capabilities.md) pour la
+matrice complète et les bornes génériques `F <: FnOnce () => T`.

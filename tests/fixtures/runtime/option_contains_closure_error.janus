@@ -1,9 +1,9 @@
 import std.option
 
 def main() : int {
-    val option : Option[(int) => int] =
-    Option.Some[(int) => int]((value : int) => value)
-    val expected : (int) => int = (value : int) => value + 1
+    val option : Option[FnMut (int) => int] =
+    Option.Some[FnMut (int) => int]((value : int) => value)
+    val expected : FnMut (int) => int = (value : int) => value + 1
     println(option.contains(expected))
     delete option
     delete expected

@@ -64,6 +64,7 @@ BUILTIN_FUNCTIONS = {
     "print",
     "println",
     "realloc",
+    "owningCapture",
 } | BUILTIN_TYPES
 NON_API_SUFFIXES = {
     "dll",

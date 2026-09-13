@@ -8,7 +8,7 @@ def failArgument() : int {
     panic("callback argument failure\n")
 }
 
-def invoke(callback : (int) => Unit) : Unit {
+def invoke(callback : FnMut (int) => Unit) : Unit {
     val resource : Resource = new Resource(77)
     defer delete resource
     callback(failArgument())

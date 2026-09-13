@@ -123,7 +123,7 @@ Ajoutez une fonction générique `countMatching[T <: Copy]` qui reçoit un table
 
     def countMatching[T <: Copy](
         values : Array[T],
-        predicate : (T) => bool
+        predicate : FnMut (T) => bool
     ) : int {
         var count : int = 0
         for value in values {

@@ -1,4 +1,4 @@
-def identityClosure[T]() : (T) => T {
+def identityClosure[T]() : FnMut (T) => T {
     return (value : T) => {
         return move value
     }

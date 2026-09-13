@@ -174,7 +174,7 @@ def assertNone[T](borrow value : Option[T]) : Unit {
 /// @param predicate Condition bornée appelée uniquement pour `Some`.
 def assertSomeWhere[T](
     borrow value : Option[T],
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -207,7 +207,7 @@ def assertError[T, E](borrow value : Result[T, E]) : Unit {
 /// @param predicate Condition bornée appelée uniquement pour `Ok`.
 def assertOkWhere[T, E](
     borrow value : Result[T, E],
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -224,7 +224,7 @@ def assertOkWhere[T, E](
 /// @param predicate Condition bornée appelée uniquement pour `Error`.
 def assertErrorWhere[T, E](
     borrow value : Result[T, E],
-    scoped predicate : (borrow E) => bool
+    scoped predicate : FnMut (borrow E) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -257,7 +257,7 @@ def assertInvalid[T, E](borrow value : Validated[T, E]) : Unit {
 /// @param predicate Condition bornée appelée uniquement pour `Valid`.
 def assertValidWhere[T, E](
     borrow value : Validated[T, E],
-    scoped predicate : (borrow T) => bool
+    scoped predicate : FnMut (borrow T) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -274,7 +274,7 @@ def assertValidWhere[T, E](
 /// @param predicate Condition bornée appelée uniquement pour `Invalid`.
 def assertInvalidWhere[T, E](
     borrow value : Validated[T, E],
-    scoped predicate : (borrow Array[E]) => bool
+    scoped predicate : FnMut (borrow Array[E]) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {

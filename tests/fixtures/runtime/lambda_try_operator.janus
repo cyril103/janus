@@ -10,7 +10,7 @@ class Resource(val identifier : int) {
 }
 
 def main() : int {
-    val transform : (Option[int]) => Option[int] = input => {
+    val transform : FnMut (Option[int]) => Option[int] = input => {
         val resource : Resource = new Resource(7)
         defer delete resource
         val value : int = input?

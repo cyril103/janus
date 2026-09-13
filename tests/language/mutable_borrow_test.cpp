@@ -51,7 +51,7 @@ int main() {
 trait MutableAccess[T] {
   def value() : borrow var T
 }
-def accept[T](callback : () => borrow var T) : Unit {}
+def accept[T](callback : FnMut () => borrow var T) : Unit {}
 def main() : int { return 0 }
 )"};
     const janus::ast::Program qualifiers = qualifier_parser.parse_program();

@@ -165,7 +165,8 @@ janus::semantic::SemanticType resolve_type(
                                          true,
                                          std::move(ownerships),
                                          reference.function_return_ownership,
-                                         reference.is_pure_function};
+                                         reference.is_pure_function,
+                                         reference.call_capability};
   }
   if (type_parameters.contains(reference.name)) {
     if (!reference.type_arguments.empty())
@@ -281,6 +282,7 @@ bool same_type(const janus::semantic::SemanticType &left,
                right.function_parameter_ownership &&
            left.function_return_ownership == right.function_return_ownership &&
            left.pure_function == right.pure_function &&
+           left.call_capability == right.call_capability &&
            left.type_arguments.size() == right.type_arguments.size() &&
            std::equal(left.type_arguments.begin(), left.type_arguments.end(),
                       right.type_arguments.begin(), same_type);
@@ -291,6 +293,16 @@ bool same_type(const janus::semantic::SemanticType &left,
            same_type(left.type_arguments.front(), right.type_arguments.front());
   return left.is_concrete() ? left.concrete->kind() == right.concrete->kind()
                             : left.parameter == right.parameter;
+}
+
+bool accepts_type(const janus::semantic::SemanticType &actual,
+                  const janus::semantic::SemanticType &expected) {
+  if (!actual.is_function() || !expected.is_function())
+    return same_type(actual, expected);
+  auto converted = actual;
+  converted.call_capability = expected.call_capability;
+  return actual.call_capability <= expected.call_capability &&
+         same_type(converted, expected);
 }
 
 bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
@@ -557,7 +569,9 @@ std::string SemanticType::name() const {
   if (is_concrete())
     return std::string{concrete->name()};
   if (is_function()) {
-    std::string result{pure_function ? "pure (" : "("};
+    std::string result{pure_function ? "pure " : ""};
+    result += ast::call_capability_name(call_capability);
+    result += " (";
     for (std::size_t index = 0; index + 1 < type_arguments.size(); ++index) {
       if (index != 0)
         result += ", ";
@@ -569,6 +583,10 @@ std::string SemanticType::name() const {
                function_parameter_ownership[index] ==
                    ast::ParameterOwnership::BorrowMutable)
         result += "borrow var ";
+      else if (index < function_parameter_ownership.size() &&
+               function_parameter_ownership[index] ==
+                   ast::ParameterOwnership::Consume)
+        result += "consume ";
       result += type_arguments[index].name();
     }
     result += ") => ";
@@ -2519,7 +2537,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               substitute_effect_type(payload, substitutions), location);
       return;
     }
-    if (type.name == "Function" || builtin_type(type.name) != nullptr)
+    if (type.name == "Function") {
+      if (!type.is_pure_function)
+        throw pure_error(
+            location,
+            "cleanup of a callback requires a pure function contract");
+      return;
+    }
+    if (builtin_type(type.name) != nullptr)
       return;
     throw pure_error(location,
                      "pure def cannot prove that cleanup of generic type '" +
@@ -3028,8 +3053,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "trait constraint '" + constraint.trait.name +
                     "' is already declared for type parameter '" +
                     constraint.parameter + "'"};
-          if (derivation_constraint(constraint.trait.name).has_value() &&
-              constraint.trait.type_arguments.empty()) {
+          if (constraint.trait.name == "Function") {
+            static_cast<void>(resolve_type(constraint.trait, type_parameters,
+                                           &class_arities));
+          } else if (derivation_constraint(constraint.trait.name).has_value() &&
+                     constraint.trait.type_arguments.empty()) {
           } else {
             static_cast<void>(resolve_trait(constraint.trait, type_parameters));
           }
@@ -3563,7 +3591,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     nullptr,
                     derivation_constraint(constraint.trait.name),
                     {}};
-                if (!canonical.derivation.has_value()) {
+                if (constraint.trait.name == "Function") {
+                  canonical.arguments.push_back(
+                      canonical_reference(constraint.trait));
+                } else if (!canonical.derivation.has_value()) {
                   const TraitInstance instance =
                       resolve_trait(constraint.trait, type_parameters);
                   canonical.trait = instance.declaration;
@@ -4306,7 +4337,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             parameter.location,
             "consume parameter qualifiers are only supported on external "
             "functions"};
-      if (parameter.is_scoped && !parameter_type.is_function())
+      const bool callable_bound = std::any_of(
+          constraint_scopes.begin(), constraint_scopes.end(),
+          [&](const auto *scope) {
+            return std::any_of(
+                scope->begin(), scope->end(), [&](const auto &constraint) {
+                  return constraint.parameter == parameter_type.parameter &&
+                         constraint.trait.name == "Function";
+                });
+          });
+      if (parameter.is_scoped && !parameter_type.is_function() &&
+          !callable_bound)
         throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
                            parameter.location,
                            "scoped parameters require a function type"};
@@ -4419,10 +4460,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     std::unordered_map<std::string, std::vector<TraitInstance>>
         active_trait_constraints;
+    std::unordered_map<std::string, SemanticType> active_call_constraints;
     std::unordered_set<std::string> active_copy_constraints;
     const auto add_active_constraints =
         [&](const std::vector<ast::TypeConstraint> &constraints) {
           for (const ast::TypeConstraint &constraint : constraints) {
+            if (constraint.trait.name == "Function") {
+              active_call_constraints.insert_or_assign(
+                  constraint.parameter,
+                  resolve_type(constraint.trait, type_parameters,
+                               &class_arities));
+              continue;
+            }
             if (const auto kind = derivation_constraint(constraint.trait.name);
                 kind.has_value() && constraint.trait.type_arguments.empty()) {
               if (*kind == ast::DerivationKind::Copy)
@@ -4437,6 +4486,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       add_active_constraints(owner->type_constraints);
     if (!is_destructor)
       add_active_constraints(context.function->type_constraints);
+    const auto satisfies_call_constraint = [&](SemanticType candidate,
+                                               const SemanticType &required) {
+      if (!candidate.is_function())
+        if (const auto bound =
+                active_call_constraints.find(candidate.parameter);
+            bound != active_call_constraints.end())
+          candidate = bound->second;
+      return accepts_type(candidate, required);
+    };
     const auto satisfies_active_trait = [&](const SemanticType &candidate,
                                             const TraitInstance &requirement) {
       if (satisfies_trait(candidate, requirement))
@@ -4513,6 +4571,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     };
     const auto satisfies_copy = [&](const SemanticType &candidate) {
       return !potentially_owns_value(candidate);
+    };
+    const auto validate_pure_type_cleanup = [&](const SemanticType &type,
+                                                SourceLocation location) {
+      const auto to_reference =
+          [&](const auto &self,
+              const SemanticType &candidate) -> ast::TypeReference {
+        ast::TypeReference reference{
+            candidate.is_concrete() ? std::string{candidate.concrete->name()}
+                                    : candidate.parameter,
+            location};
+        for (const auto &argument : candidate.type_arguments)
+          reference.type_arguments.push_back(self(self, argument));
+        reference.is_pure_function = candidate.pure_function;
+        reference.call_capability = candidate.call_capability;
+        reference.function_parameter_ownership =
+            candidate.function_parameter_ownership;
+        reference.function_return_ownership =
+            candidate.function_return_ownership;
+        return reference;
+      };
+      validate_destroyed_type(to_reference(to_reference, type), location);
     };
     bool contextual_explicit_ownership_transfer = false;
     const auto require_explicit_ownership_transfer =
@@ -4659,6 +4738,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> closure_transfer_protected_values;
     std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
+    std::unordered_set<std::string> deferred_callback_deletes;
     std::unordered_set<std::string> borrowed_values;
     std::unordered_set<std::string> shared_borrow_values;
     std::unordered_set<std::string> mutable_borrow_values;
@@ -4679,6 +4759,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_map<std::string, std::unordered_set<std::string>>
         pattern_borrow_sources;
     std::size_t projection_object_depth = 0;
+    std::unordered_map<std::string, ast::CallCapability> active_callback_calls;
+    std::optional<std::string> contextual_owned_capture;
     const auto place_root = [](std::string_view place) {
       const std::size_t separator = place.find('.');
       return std::string{place.substr(0, separator)};
@@ -4808,10 +4890,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "' cannot escape into " +
                                    std::string{destination}};
         };
+    std::unordered_set<std::string> *active_lambda_mutations = nullptr;
     const auto require_no_live_borrow = [&](std::string_view owner_name,
                                             SourceLocation location,
                                             std::string_view action =
                                                 "released") {
+      if (active_lambda_mutations != nullptr)
+        active_lambda_mutations->insert(place_root(owner_name));
+      if (active_callback_calls.contains(std::string{owner_name}))
+        throw CompileError{DiagnosticCode::AnalyzerBorrowConflict, location,
+                           "callback is borrowed by its active call"};
       if (active_deferred_invalidations != nullptr) {
         active_deferred_invalidations->insert_or_assign(std::string{owner_name},
                                                         std::string{action});
@@ -4879,6 +4967,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto live_borrower_of =
         [&](std::string_view owner_name,
             bool include_shared) -> std::optional<std::string> {
+      if (include_shared && active_lambda_mutations != nullptr)
+        active_lambda_mutations->insert(place_root(owner_name));
       const auto depends_on =
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
@@ -4970,6 +5060,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           require_guard_transfer_allowed(expression, location);
           const auto *identifier =
               lexical_root_identifier(expression, lexical_root_identifier);
+          if (identifier != nullptr && identifier->name == "this" &&
+              owner != nullptr && !is_destructor &&
+              !context.function->is_consuming)
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                               location,
+                               "transferring this requires a consume method"};
           if (identifier != nullptr &&
               (transfer_protected_values.contains(identifier->name) ||
                closure_transfer_protected_values.contains(identifier->name)))
@@ -4991,7 +5087,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::size_t> lambda_mutable_borrow_captures;
     std::unordered_map<std::string, std::size_t> local_lambda_locations;
     std::unordered_set<std::string> *active_lambda_captures = nullptr;
-    std::unordered_set<std::string> *active_lambda_mutations = nullptr;
     if (owner != nullptr)
       for (const ast::ValueDeclaration &field : owner->constructor_fields)
         if (field.is_borrowed) {
@@ -5152,6 +5247,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               expected.function_return_ownership !=
                   actual.function_return_ownership ||
               expected.pure_function != actual.pure_function ||
+              expected.call_capability != actual.call_capability ||
               expected.type_arguments.size() != actual.type_arguments.size())
             return false;
           for (std::size_t index = 0; index < expected.type_arguments.size();
@@ -5760,6 +5856,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               pattern.function_return_ownership ==
                   candidate.function_return_ownership &&
               pattern.pure_function == candidate.pure_function &&
+              candidate.call_capability <= pattern.call_capability &&
               pattern.type_arguments.size() == candidate.type_arguments.size();
           if (!same_outer_type)
             return;
@@ -5848,6 +5945,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       for (const ast::TypeConstraint &constraint : callee.type_constraints) {
         const SemanticType &candidate = substitutions.at(constraint.parameter);
+        if (constraint.trait.name == "Function") {
+          auto requirement = substitute(
+              resolve_type(constraint.trait, callee_parameters, &class_arities),
+              substitutions);
+          if (!satisfies_call_constraint(candidate, requirement))
+            throw CompileError{location, "callback type '" + candidate.name() +
+                                             "' does not satisfy '" +
+                                             requirement.name() + "'"};
+          continue;
+        }
         if (const auto kind = derivation_constraint(constraint.trait.name);
             kind.has_value() && constraint.trait.type_arguments.empty()) {
           const bool satisfies = *kind == ast::DerivationKind::Copy
@@ -6152,7 +6259,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       contextual_expression = previous_contextual_expression;
       contextual_expected_type = previous_contextual_expected_type;
-      if (same_type(actual, expected)) {
+      if (accepts_type(actual, expected)) {
         if (contextual_borrow_expression && !actual.is_pointer() &&
             aggregate_owns_value(actual) &&
             !borrowed_return_source(expression).has_value() &&
@@ -6185,7 +6292,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
       if (actual.is_function() && expected.is_function())
         throw CompileError{
-            DiagnosticCode::AnalyzerInvalidBorrowAccess, location,
+            actual.call_capability > expected.call_capability
+                ? DiagnosticCode::AnalyzerIncompatibleCallCapability
+                : DiagnosticCode::AnalyzerInvalidBorrowAccess,
+            location,
             "cannot use expression of type '" + actual.name() +
                 "' where type '" + expected.name() + "' is required"};
       throw CompileError{DiagnosticCode::AnalyzerLegacy, location,
@@ -6243,7 +6353,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           contextual_expression = previous_contextual_expression;
           contextual_expected_type = previous_contextual_expected_type;
           contextual_borrow_expression = previous_contextual_borrow_expression;
-          if (same_type(actual, expected_return_type)) {
+          if (accepts_type(actual, expected_return_type)) {
             require_explicit_ownership_transfer(expression, actual,
                                                 return_statement.location,
                                                 "returning", borrowed_return);
@@ -6435,6 +6545,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    node.location,
                                    "unknown value '" + node.name + "'"};
               }
+              if (const auto call = active_callback_calls.find(node.name);
+                  call != active_callback_calls.end() &&
+                  call->second != ast::CallCapability::Fn)
+                throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                    "callback '" + node.name +
+                        "' is exclusively borrowed by its active call"};
               if (!iterator->second.is_initialized) {
                 throw CompileError{node.location,
                                    "variable '" + node.name +
@@ -6456,6 +6573,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 active_lambda_captures->insert(node.name);
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
+              const auto owned_capture = contextual_owned_capture;
+              contextual_owned_capture.reset();
               SymbolTable lambda_symbols = *active_symbols;
               std::unordered_set<std::string> parameter_names;
               const auto previous_borrowed_values = borrowed_values;
@@ -6483,8 +6602,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               std::unordered_set<std::size_t> lambda_outer_declarations;
               lambda_outer_declarations.reserve(local_declarations.size());
               for (const auto &[name, location] : local_declarations) {
-                static_cast<void>(name);
-                lambda_outer_declarations.insert(location.offset);
+                if (owned_capture != name)
+                  lambda_outer_declarations.insert(location.offset);
               }
               const std::size_t previous_loop_depth = loop_depth;
               const auto restore_lambda_state = [&] {
@@ -6614,7 +6733,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 active_lambda_mutations = &mutations;
                 for (const auto &[name, symbol] : *previous_symbols) {
                   static_cast<void>(symbol);
-                  if (!parameter_names.contains(name)) {
+                  if (!parameter_names.contains(name) &&
+                      owned_capture != name) {
                     transfer_protected_values.insert(name);
                     closure_transfer_protected_values.insert(name);
                   }
@@ -6668,7 +6788,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   // pattern: its generated callbacks are coupled to a sibling
                   // owning cleanup closure. Explicit aliases still use the
                   // general non-escaping closure rules below.
+                  const bool implicit_owner_borrow =
+                      owned_capture != capture &&
+                      previous_symbols->contains(capture) &&
+                      potentially_owns_value(
+                          previous_symbols->at(capture).type);
                   const bool captures_borrow =
+                      implicit_owner_borrow ||
                       borrowed_values.contains(capture) ||
                       borrow_sources.contains(capture) ||
                       pattern_borrow_sources.contains(capture) ||
@@ -6704,7 +6830,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "closure cannot mutate shared borrow '" + capture +
                             "'"};
                   if (contextual_lambda_may_escape &&
-                      (borrowed_values.contains(capture) ||
+                      (implicit_owner_borrow ||
+                       borrowed_values.contains(capture) ||
                        scoped_tainted_value(capture)))
                     throw CompileError{
                         DiagnosticCode::AnalyzerBorrowEscape, node.location,
@@ -6738,6 +6865,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          std::move(lambda_ownerships),
                                          ast::ReturnOwnership::Unspecified,
                                          lambda_is_pure};
+                for (const auto &capture : captures) {
+                  if (!previous_symbols->contains(capture))
+                    continue;
+                  if (mutations.contains(capture))
+                    lambda_type.call_capability =
+                        std::max(lambda_type.call_capability,
+                                 ast::CallCapability::FnMut);
+                  if (previous_symbols->at(capture).is_initialized &&
+                      !lambda_symbols.at(capture).is_initialized)
+                    lambda_type.call_capability = ast::CallCapability::FnOnce;
+                }
+                result.lambda_types.insert_or_assign(&node, lambda_type);
+                if (owned_capture)
+                  result.owned_lambda_captures.insert_or_assign(&node,
+                                                                *owned_capture);
                 restore_lambda_state();
                 return lambda_type;
               } catch (...) {
@@ -6753,16 +6895,89 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 callable = &local->second;
               else
                 callable = visible_global(node.callee);
+              std::optional<Symbol> bounded_callable;
+              if (callable != nullptr && !callable->type.is_function()) {
+                if (const auto bound =
+                        active_call_constraints.find(callable->type.parameter);
+                    bound != active_call_constraints.end()) {
+                  bounded_callable = *callable;
+                  bounded_callable->type = bound->second;
+                  callable = &*bounded_callable;
+                }
+              }
               if (callable != nullptr) {
                 if (active_lambda_captures != nullptr)
                   active_lambda_captures->insert(node.callee);
                 if (!callable->is_initialized)
-                  throw CompileError{node.location,
-                                     "function value '" + node.callee +
-                                         "' is used before initialization"};
+                  throw CompileError{
+                      callable->type.call_capability ==
+                              ast::CallCapability::FnOnce
+                          ? DiagnosticCode::AnalyzerConsumedCallback
+                          : DiagnosticCode::AnalyzerLegacy,
+                      node.location,
+                      "function value '" + node.callee +
+                          "' is used before initialization or after "
+                          "consumption"};
                 if (!callable->type.is_function())
                   throw CompileError{node.location, "value '" + node.callee +
                                                         "' is not callable"};
+                const auto capability = callable->type.call_capability;
+                result.call_capabilities.insert_or_assign(&node, capability);
+                if (const auto call = active_callback_calls.find(node.callee);
+                    call != active_callback_calls.end() &&
+                    (capability != ast::CallCapability::Fn ||
+                     call->second != ast::CallCapability::Fn))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                      "callback '" + node.callee +
+                          "' already has an active exclusive call"};
+                if (capability != ast::CallCapability::Fn &&
+                    shared_borrow_values.contains(node.callee) &&
+                    borrowed_values.contains(node.callee))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerExclusiveCallback, node.location,
+                      "FnMut call requires exclusive access to callback '" +
+                          node.callee + "'"};
+                if (capability == ast::CallCapability::Fn) {
+                  if (const auto borrower =
+                          live_borrower_of(node.callee, false))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                        "callback '" + node.callee +
+                            "' is mutably borrowed by '" + *borrower + "'"};
+                } else {
+                  require_no_live_borrow(node.callee, node.location,
+                                         "called exclusively");
+                  if (active_lambda_mutations != nullptr)
+                    active_lambda_mutations->insert(node.callee);
+                }
+                if (capability == ast::CallCapability::FnOnce) {
+                  if (owner_field_names.contains(node.callee) &&
+                      !is_destructor && !context.function->is_consuming)
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                        node.location,
+                        "calling a FnOnce field requires a consume method"};
+                  if (borrowed_values.contains(node.callee))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                        node.location,
+                        "FnOnce call requires ownership of callback '" +
+                            node.callee + "'"};
+                  if (transfer_protected_values.contains(node.callee) &&
+                      (loop_depth > 0 || inside_lambda))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerAffineCallbackLoop,
+                        node.location,
+                        "FnOnce callback '" + node.callee +
+                            "' cannot be consumed from a loop or closure"};
+                  if (deferred_values.contains(node.callee) && !inside_defer &&
+                      !deferred_callback_deletes.contains(node.callee))
+                    throw CompileError{
+                        node.location,
+                        "FnOnce callback '" + node.callee +
+                            "' is reserved for deferred cleanup"};
+                }
                 if ((inside_pure_context || inside_pure_lambda) &&
                     !callable->type.pure_function)
                   throw CompileError{node.location,
@@ -6773,8 +6988,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       "a function value does not accept type arguments"};
+                const SemanticType callable_type = callable->type;
                 const std::vector<SemanticType> &signature =
-                    callable->type.type_arguments;
+                    callable_type.type_arguments;
                 const std::size_t parameter_count = signature.size() - 1;
                 if (node.arguments.size() != parameter_count)
                   throw CompileError{node.location,
@@ -6783,30 +6999,106 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          std::to_string(parameter_count) +
                                          " argument(s), got " +
                                          std::to_string(node.arguments.size())};
-                for (std::size_t index = 0; index < parameter_count; ++index) {
-                  const bool previous_contextual_lambda_may_escape =
-                      contextual_lambda_may_escape;
-                  const bool previous_contextual_borrow_expression =
-                      contextual_borrow_expression;
-                  contextual_lambda_may_escape = signature[index].is_function();
-                  contextual_borrow_expression =
-                      index <
-                          callable->type.function_parameter_ownership.size() &&
-                      (callable->type.function_parameter_ownership[index] ==
-                           ast::ParameterOwnership::Borrow ||
-                       callable->type.function_parameter_ownership[index] ==
-                           ast::ParameterOwnership::BorrowMutable);
-                  reject_non_escaping_value(
-                      *node.arguments[index],
-                      expression_location(*node.arguments[index]),
-                      "function-value argument");
-                  validate_expression(
-                      *node.arguments[index], signature[index],
-                      expression_location(*node.arguments[index]));
-                  contextual_lambda_may_escape =
-                      previous_contextual_lambda_may_escape;
-                  contextual_borrow_expression =
-                      previous_contextual_borrow_expression;
+                const auto previous_calls = active_callback_calls;
+                active_callback_calls.insert_or_assign(node.callee, capability);
+                std::unordered_set<std::string> call_shared_borrows;
+                std::unordered_set<std::string> call_mutable_borrows;
+                try {
+                  for (std::size_t index = 0; index < parameter_count;
+                       ++index) {
+                    const auto ownership =
+                        index < callable_type.function_parameter_ownership
+                                    .size()
+                            ? callable_type.function_parameter_ownership[index]
+                            : ast::ParameterOwnership::Unspecified;
+                    if (ownership == ast::ParameterOwnership::Borrow ||
+                        ownership == ast::ParameterOwnership::BorrowMutable) {
+                      const auto *identifier = lexical_root_identifier(
+                          *node.arguments[index], lexical_root_identifier);
+                      if (identifier != nullptr) {
+                        if (ownership ==
+                            ast::ParameterOwnership::BorrowMutable) {
+                          if (shared_borrow_values.contains(identifier->name))
+                            throw CompileError{
+                                DiagnosticCode::AnalyzerBorrowConflict,
+                                expression_location(*node.arguments[index]),
+                                "shared borrow '" + identifier->name +
+                                    "' cannot be passed as a mutable borrow"};
+                          if (const auto borrower =
+                                  live_borrower_of(identifier->name, true))
+                            throw CompileError{
+                                DiagnosticCode::AnalyzerBorrowConflict,
+                                expression_location(*node.arguments[index]),
+                                "value '" + identifier->name +
+                                    "' is already borrowed by '" + *borrower +
+                                    "'"};
+                          if (call_shared_borrows.contains(identifier->name) ||
+                              !call_mutable_borrows.insert(identifier->name)
+                                   .second)
+                            throw CompileError{
+                                DiagnosticCode::AnalyzerBorrowConflict,
+                                expression_location(*node.arguments[index]),
+                                "value '" + identifier->name +
+                                    "' cannot be borrowed mutably more than "
+                                    "once in the "
+                                    "same call"};
+                        } else {
+                          if (const auto borrower =
+                                  live_borrower_of(identifier->name, false))
+                            throw CompileError{
+                                DiagnosticCode::AnalyzerBorrowConflict,
+                                expression_location(*node.arguments[index]),
+                                "value '" + identifier->name +
+                                    "' is already mutably borrowed by '" +
+                                    *borrower + "'"};
+                          if (call_mutable_borrows.contains(identifier->name))
+                            throw CompileError{
+                                DiagnosticCode::AnalyzerBorrowConflict,
+                                expression_location(*node.arguments[index]),
+                                "value '" + identifier->name +
+                                    "' cannot be shared while mutably borrowed "
+                                    "in the "
+                                    "same call"};
+                          call_shared_borrows.insert(identifier->name);
+                        }
+                      }
+                    }
+                    const bool previous_contextual_lambda_may_escape =
+                        contextual_lambda_may_escape;
+                    const bool previous_contextual_borrow_expression =
+                        contextual_borrow_expression;
+                    contextual_lambda_may_escape =
+                        signature[index].is_function();
+                    contextual_borrow_expression =
+                        index <
+                            callable_type.function_parameter_ownership.size() &&
+                        (callable_type.function_parameter_ownership[index] ==
+                             ast::ParameterOwnership::Borrow ||
+                         callable_type.function_parameter_ownership[index] ==
+                             ast::ParameterOwnership::BorrowMutable);
+                    reject_non_escaping_value(
+                        *node.arguments[index],
+                        expression_location(*node.arguments[index]),
+                        "function-value argument");
+                    validate_expression(
+                        *node.arguments[index], signature[index],
+                        expression_location(*node.arguments[index]));
+                    contextual_lambda_may_escape =
+                        previous_contextual_lambda_may_escape;
+                    contextual_borrow_expression =
+                        previous_contextual_borrow_expression;
+                  }
+                } catch (...) {
+                  active_callback_calls = previous_calls;
+                  throw;
+                }
+                active_callback_calls = previous_calls;
+                if (capability == ast::CallCapability::FnOnce) {
+                  if (!active_symbols->contains(node.callee))
+                    throw CompileError{node.location,
+                                       "FnOnce call requires a local owner"};
+                  active_symbols->at(node.callee).is_initialized = false;
+                  active_symbols->at(node.callee).may_be_initialized = false;
                 }
                 return signature.back();
               }
@@ -7074,7 +7366,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       "owningCapture expects one owner type argument, an "
-                      "owner, and a zero-argument closure"};
+                      "owner, and a lambda"};
                 const auto *owner_identifier =
                     std::get_if<ast::IdentifierExpression>(
                         &node.arguments[0]->value);
@@ -7110,13 +7402,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     previous_explicit_transfer;
                 require_no_live_borrow(owner_identifier->name, node.location,
                                        "transferred to a closure");
-                const SemanticType closure_type =
-                    expression_type(*node.arguments[1]);
-                if (!closure_type.is_function() ||
-                    closure_type.type_arguments.size() != 1)
-                  throw CompileError{
-                      expression_location(*node.arguments[1]),
-                      "owningCapture requires a zero-argument closure"};
+                const auto previous_owned_capture = contextual_owned_capture;
+                contextual_owned_capture = owner_identifier->name;
+                SemanticType closure_type;
+                try {
+                  closure_type = expression_type(*node.arguments[1]);
+                } catch (...) {
+                  contextual_owned_capture = previous_owned_capture;
+                  throw;
+                }
+                contextual_owned_capture = previous_owned_capture;
+                if (closure_type.pure_function)
+                  validate_pure_type_cleanup(owner_type, node.location);
+                if (!closure_type.is_function())
+                  throw CompileError{expression_location(*node.arguments[1]),
+                                     "owningCapture requires a lambda"};
                 const auto *lambda = std::get_if<ast::LambdaExpression>(
                     &node.arguments[1]->value);
                 const auto captures =
@@ -7556,6 +7856,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       pattern.function_return_ownership ==
                           candidate.function_return_ownership &&
                       pattern.pure_function == candidate.pure_function &&
+                      candidate.call_capability <= pattern.call_capability &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)
@@ -7643,6 +7944,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            "' for type "
                                            "parameter '" +
                                            constraint.parameter + "'"};
+                  continue;
+                }
+                if (constraint.trait.name == "Function") {
+                  auto requirement =
+                      substitute(resolve_type(constraint.trait,
+                                              class_parameters, &class_arities),
+                                 substitutions);
+                  if (!satisfies_call_constraint(candidate, requirement))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                        node.location,
+                        "callback does not satisfy bound '" +
+                            requirement.name() + "'"};
                   continue;
                 }
                 TraitInstance requirement =
@@ -8036,6 +8350,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         pattern.function_return_ownership ==
                             candidate.function_return_ownership &&
                         pattern.pure_function == candidate.pure_function &&
+                        candidate.call_capability <= pattern.call_capability &&
                         pattern.type_arguments.size() ==
                             candidate.type_arguments.size();
                     if (!same_outer_type)
@@ -8335,6 +8650,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           "'; declare the owner with `var` or request `borrow "
                           "var` access"};
               }
+              if (!method->is_borrowing && active_lambda_mutations != nullptr)
+                if (const auto *root = lexical_root_identifier(
+                        *node.object, lexical_root_identifier))
+                  active_lambda_mutations->insert(root->name);
+              if (method->is_consuming)
+                if (const auto *receiver =
+                        std::get_if<ast::IdentifierExpression>(
+                            &node.object->value);
+                    receiver != nullptr && receiver->name == "this" &&
+                    owner != nullptr && !is_destructor &&
+                    !context.function->is_consuming)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                      node.location,
+                      "consuming this requires a consume method"};
               if (!method->is_borrowing)
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
@@ -8461,6 +8791,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       pattern.function_return_ownership ==
                           candidate.function_return_ownership &&
                       pattern.pure_function == candidate.pure_function &&
+                      candidate.call_capability <= pattern.call_capability &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)
@@ -8555,6 +8886,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            "' for type "
                                            "parameter '" +
                                            constraint.parameter + "'"};
+                  continue;
+                }
+                if (constraint.trait.name == "Function") {
+                  auto requirement = substitute(resolve_type(constraint.trait,
+                                                             method_parameters,
+                                                             &class_arities),
+                                                substitutions);
+                  if (!satisfies_call_constraint(candidate, requirement))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                        node.location,
+                        "callback does not satisfy bound '" +
+                            requirement.name() + "'"};
                   continue;
                 }
                 TraitInstance requirement =
@@ -9399,10 +9743,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (identifier == nullptr)
                 throw CompileError{node.location,
                                    "move requires a local value identifier"};
+              if (identifier->name == "this" && owner != nullptr &&
+                  !is_destructor && !context.function->is_consuming)
+                throw CompileError{
+                    DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                    node.location, "moving this requires a consume method"};
               if (borrowed_values.contains(identifier->name))
                 throw CompileError{node.location, "borrowed value '" +
                                                       identifier->name +
                                                       "' cannot be moved"};
+              if (active_callback_calls.contains(identifier->name))
+                throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                    "callback cannot be moved during its active call"};
               require_no_live_borrow(identifier->name, node.location);
               require_guard_transfer_allowed(*node.operand, node.location);
               if (transfer_protected_values.contains(identifier->name))
@@ -10015,6 +10368,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           borrow_continue_continuation;
       const auto previous_local_constants = local_constants;
       const auto previous_deferred_values = deferred_values;
+      const auto previous_deferred_callback_deletes = deferred_callback_deletes;
       const std::size_t previous_deferred_effect_count =
           deferred_effects.size();
       std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
@@ -10746,6 +11100,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  assignment->location,
                                  "cannot mutate through shared borrow '" +
                                      assignment->object + "'"};
+            if (active_lambda_mutations != nullptr)
+              active_lambda_mutations->insert(assignment->object);
             require_no_live_borrow(assignment->object + "." + assignment->name,
                                    assignment->location, "mutated");
             if (!block_symbols.contains(assignment->object) &&
@@ -10854,6 +11210,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                    "its replacement"});
             continue;
           }
+          if (active_lambda_mutations != nullptr)
+            active_lambda_mutations->insert(assignment->name);
           const auto iterator = block_symbols.find(assignment->name);
           if (iterator == block_symbols.end()) {
             const Symbol *global = visible_global(assignment->name);
@@ -11077,6 +11435,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{
                 DiagnosticCode::AnalyzerInvalidBorrowAccess, deletion->location,
                 "borrowed value '" + identifier->name + "' cannot be deleted"};
+          if (const auto *receiver = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
+              receiver != nullptr && receiver->name == "this" &&
+              owner != nullptr && !is_destructor &&
+              !context.function->is_consuming)
+            throw CompileError{
+                DiagnosticCode::AnalyzerIncompatibleCallCapability,
+                deletion->location, "deleting this requires a consume method"};
           require_closure_delete_allowed(deletion->expression,
                                          deletion->location);
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -11092,6 +11458,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "' is destroyed automatically"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
+          if (inside_pure_lambda)
+            validate_pure_type_cleanup(deleted_type, deletion->location);
           const bool is_struct =
               deleted_type.is_class() &&
               classes.at(deleted_type.parameter)->is_value_type;
@@ -11140,6 +11508,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "' is already scheduled for deferred cleanup"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
+            if (inside_pure_lambda)
+              validate_pure_type_cleanup(deleted_type, deletion->location);
             const bool is_struct =
                 deleted_type.is_class() &&
                 classes.at(deleted_type.parameter)->is_value_type;
@@ -11154,6 +11524,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "deferred delete requires an object or a function value"};
             effect.invalidations.insert_or_assign(identifier->name, "destroy");
             deferred_values.insert(identifier->name);
+            if (deleted_type.is_function())
+              deferred_callback_deletes.insert(identifier->name);
           } else {
             const auto &action =
                 std::get<ast::ExpressionStatement>(deferred->action);
@@ -11647,6 +12019,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       borrow_continue_continuation = previous_borrow_continue_continuation;
       local_constants = previous_local_constants;
       deferred_values = previous_deferred_values;
+      deferred_callback_deletes = previous_deferred_callback_deletes;
       deferred_effects.resize(previous_deferred_effect_count);
       return has_terminator;
     };

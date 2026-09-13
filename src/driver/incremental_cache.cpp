@@ -55,6 +55,7 @@ void append_field(std::string &result, std::string_view name,
 std::string canonical_identity(const BuildFingerprintInput &input,
                                bool include_implementation) {
   std::string result;
+  append_field(result, "closure-abi", "2");
   append_field(result, "version", input.janus_version);
   append_field(result, "target", input.target);
   std::vector<std::string> sorted_options = input.options;
@@ -91,18 +92,7 @@ std::string hex_identity(std::string_view canonical) {
 }
 
 void append_type(std::string &output, const ast::TypeReference &type) {
-  if (type.is_pure_function)
-    output += "pure:";
-  output += type.name;
-  if (!type.type_arguments.empty()) {
-    output += '[';
-    for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
-      if (index != 0)
-        output += ',';
-      append_type(output, type.type_arguments[index]);
-    }
-    output += ']';
-  }
+  output += ast::type_reference_name(type);
 }
 
 void append_type(std::string &output,

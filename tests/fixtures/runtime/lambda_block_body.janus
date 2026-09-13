@@ -11,7 +11,7 @@ class Scope(val marker : int) {
 
 class Box(val value : int) {}
 
-def makeCalculator(base : int) : (int) => int {
+def makeCalculator(base : int) : FnMut (int) => int {
     return (value : int) => {
         val scope : Scope = new Scope(7)
         defer delete scope
@@ -22,7 +22,7 @@ def makeCalculator(base : int) : (int) => int {
     }
 }
 
-def makeArrayReader(amount : int) : () => int {
+def makeArrayReader(amount : int) : FnMut () => int {
     return () => {
         val values : arrays.Array[int] = [amount, amount + 1]
         defer delete values

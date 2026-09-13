@@ -10,7 +10,7 @@ class View(private borrow val source : Resource) {
 def main() : int {
     val resource : Resource = new Resource(42)
     val view : View = new View(resource)
-    val reader : () => int = () => view.read()
+    val reader : FnMut () => int = () => view.read()
     println(reader())
     delete reader
     delete view

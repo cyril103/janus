@@ -70,12 +70,12 @@ Le type `(int) => bool` désigne une fonction prenant un `int` et retournant un 
 
 ```janus
 // doctest: doctest name=function-value
-def apply(value : int, borrow operation : (int) => int) : int {
+def apply(value : int, borrow operation : Fn (int) => int) : int {
     return operation(value)
 }
 
 def main() : int {
-    val doubleIt : (int) => int =
+    val doubleIt : FnMut (int) => int =
         (value : int) => value * 2
     val answer : int = apply(21, doubleIt)
     delete doubleIt
@@ -87,7 +87,7 @@ Une closure est écrite `(paramètre : Type) => expression`. Elle peut capturer 
 
 ```janus
 val threshold : int = 10
-val isLarge : (int) => bool =
+val isLarge : FnMut (int) => bool =
     (value : int) => value > threshold
 ```
 
@@ -108,7 +108,7 @@ les règles d'une fonction. Le type de résultat vient des `return`, qui doivent
 `return`, le bloc produit `Unit`.
 
 ```janus
-val classify : (int) => int = (value : int) => {
+val classify : FnMut (int) => int = (value : int) => {
     if value < 0 {
         return -1
     }
@@ -121,7 +121,7 @@ val classify : (int) => int = (value : int) => {
 Capturer une ressource ne l’autorise pas à être déplacée depuis un corps de closure. Cette restriction empêche une closure rappelée plusieurs fois de consommer deux fois la même valeur. Passez plutôt la ressource explicitement à une opération consommante, ou structurez le traitement autour d’un itérateur consommant.
 
 !!! tip "Lire une signature"
-    `def map[T, U](source : Iterator[T], transform : (T) => U) : Iterator[U]` se lit : « pour chaque `T`, appeler une fonction qui produit un `U`, puis retourner un parcours de `U` ».
+    `def map[T, U](source : Iterator[T], transform : FnMut (T) => U) : Iterator[U]` se lit : « pour chaque `T`, appeler une fonction qui produit un `U`, puis retourner un parcours de `U` ».
 
 ## Exercice
 
@@ -129,12 +129,12 @@ Capturer une ressource ne l’autorise pas à être déplacée depuis un corps d
 
 ??? success "Correction"
     ```janus
-    def twice[T <: Copy](value : T, operation : (T) => T) : T {
+    def twice[T <: Copy](value : T, operation : FnMut (T) => T) : T {
         return operation(operation(value))
     }
 
     def main() : int {
-        val increment : (int) => int =
+        val increment : FnMut (int) => int =
             (value : int) => value + 1
         val answer : int = twice[int](40, increment)
         delete increment

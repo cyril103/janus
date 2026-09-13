@@ -5,6 +5,17 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Types et ownership
+
+- capacités d'appel explicites `Fn`, `FnMut` et `FnOnce` (#312), inférées sur
+  les lambdas et conservées par les signatures, les bornes génériques et les
+  outils. Les anciens types `(A) => B` doivent préciser leur capacité.
+- `owningCapture` prend en charge les signatures de toute arité ; le nettoyage
+  de l'environnement détruit aussi les captures possédées restantes. Les appels
+  `FnOnce` consomment la callback et désarment son ancien nettoyage.
+- migration de la stdlib, des exemples et de l'index d'API (format 2) ; les
+  anciens objets en cache sont invalidés par la nouvelle ABI des closures.
+
 ### Outils en ligne de commande
 
 - remontée des erreurs de lancement POSIX robuste aux interruptions et aux

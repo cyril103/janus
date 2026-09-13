@@ -33,7 +33,7 @@ kind `* -> *`; `Result` a le kind `* -> * -> *`. La syntaxe de travail est :
 trait Functor[F[_]] {
     consume def map[A, B](
         value : F[A],
-        scoped transform : (A) => B
+        scoped transform : FnMut (A) => B
     ) : F[B]
 }
 
@@ -122,14 +122,14 @@ trait Applicative[F[_]] {
     def map2[A, B, C](
         left : F[A],
         right : F[B],
-        scoped combine : (A, B) => C
+        scoped combine : FnMut (A, B) => C
     ) : F[C]
 }
 
 def traverseArray[F[_], A, B, AF <: Applicative[F]](
     values : Iterator[A],
     borrow applicative : AF,
-    scoped transform : (A) => F[B]
+    scoped transform : FnMut (A) => F[B]
 ) : F[Array[B]] {
     // Une seule boucle, avec destruction du builder, du suffixe et des effets
     // non retenus sur chaque sortie anticipée.

@@ -12,7 +12,7 @@
 
 namespace janus::driver {
 
-inline constexpr std::uint32_t api_index_format_version = 1;
+inline constexpr std::uint32_t api_index_format_version = 2;
 
 struct ApiParameter {
   std::string name;

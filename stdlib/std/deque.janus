@@ -19,7 +19,7 @@ private class DequeIteratorState[T](private val source : Deque[T]) {
         return source.popFrontOption()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -299,7 +299,7 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Observe l'élément avant sans le copier.
     /// @param action Callback borné appelé une fois lorsque la deque est non vide.
     /// @return `true` si la tête a été observée.
-    borrow def withFront(scoped action : (borrow T) => Unit) : bool {
+    borrow def withFront(scoped action : FnMut (borrow T) => Unit) : bool {
         defer delete action
         if length == usize(0) {
             return false
@@ -314,7 +314,7 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Observe l'élément arrière sans le copier.
     /// @param action Callback borné appelé une fois lorsque la deque est non vide.
     /// @return `true` si la queue a été observée.
-    borrow def withBack(scoped action : (borrow T) => Unit) : bool {
+    borrow def withBack(scoped action : FnMut (borrow T) => Unit) : bool {
         defer delete action
         if length == usize(0) {
             return false
@@ -330,7 +330,7 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
 
     private borrow def observe(
     borrow value : T,
-    scoped borrow action : (borrow T) => Unit
+    scoped borrow var action : FnMut (borrow T) => Unit
     ) : bool {
         action(value)
         return true
@@ -366,10 +366,8 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
         val state : DequeIteratorState[T] =
         new DequeIteratorState[T](move this)
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[DequeIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[DequeIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 
@@ -383,7 +381,7 @@ private class QueueIteratorState[T](private val source : Queue[T]) {
         return source.dequeueOption()
     }
 
-    def dispose() : Unit {
+    consume def dispose() : Unit {
         delete this
     }
 
@@ -431,7 +429,7 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Observe la première valeur sans la copier.
     /// @param action Callback borné appelé lorsque la file est non vide.
     /// @return `true` si la première valeur a été observée.
-    borrow def withFirst(scoped action : (borrow T) => Unit) : bool {
+    borrow def withFirst(scoped action : FnMut (borrow T) => Unit) : bool {
         return values.withFront(move action)
     }
 
@@ -469,10 +467,8 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
         val state : QueueIteratorState[T] =
         new QueueIteratorState[T](move this)
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[QueueIteratorState[T]](
-        state, () => state.dispose()
-        )
+        owningCapture[QueueIteratorState[T]](state, () => state.next()),
+            () => unit
         )
     }
 

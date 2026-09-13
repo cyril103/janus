@@ -74,7 +74,7 @@ def box(value : int) : Box => new Box(value)
 def transfer(value : Box) : Box => move value
 def pointer() : Ptr[int] => null[int]()
 def identity[T](value : T) : T => move value
-def callback() : (int) => int => (value : int) => value + 1
+def callback() : FnMut (int) => int => (value : int) => value + 1
 def borrowed(borrow value : Box) : borrow Box => value
 def discard() : Unit => println("discard")
 def unitExpression() : Unit { return }
@@ -128,7 +128,7 @@ def main() : int {
     val marker : Marker = new Marker(value)
     val option : Option[Unit] = Option.Some[Unit](marker.value)
     val outcome : Result[int, Unit] = Result.Error[int, Unit](unit)
-    val apply : (Unit) => Unit = (argument : Unit) => callback(argument)
+    val apply : FnMut (Unit) => Unit = (argument : Unit) => callback(argument)
     apply(match option { Some(payload) => payload, None => choose(false) })
     apply(match outcome { Ok(_) => unit, Error(reason) => reason })
     delete apply

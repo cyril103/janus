@@ -251,8 +251,8 @@ def main() : int { return 0 }
   expect_compile_error(R"(
 class Box(val value : int) {}
 def main() : int {
-  val owning : (Box) => int = (box : Box) => box.value
-  val observer : (borrow Box) => int = owning
+  val owning : FnMut (Box) => int = (box : Box) => box.value
+  val observer : FnMut (borrow Box) => int = owning
   delete observer
   return 0
 }
@@ -277,13 +277,13 @@ def main() : int {
   val second : int = forwardMutable(counter)
   if true {
     borrow val view : Counter = counter
-    val reader : () => int = () => view.read()
+    val reader : FnMut () => int = () => view.read()
     println(reader())
     delete reader
   }
   if true {
     borrow var editable : Counter = counter
-    val edit : () => Unit = () => editable.add(2)
+    val edit : FnMut () => Unit = () => editable.add(2)
     edit()
     delete edit
   }
@@ -301,7 +301,7 @@ class View(private borrow val source : Resource) {
 def main() : int {
   val resource : Resource = new Resource(424242)
   val view : View = new View(resource)
-  val reader : () => int = () => view.read()
+  val reader : FnMut () => int = () => view.read()
   delete view
   println(reader())
   delete reader
@@ -319,7 +319,7 @@ class View(private borrow val source : Resource) {
   borrow def read() : int { return source.value }
 }
 enum MaybeView { Some(View), None }
-def leak(borrow slot : MaybeView) : () => int {
+def leak(borrow slot : MaybeView) : FnMut () => int {
   return match slot {
     Some(view) => () => view.read(),
     None => () => 0
@@ -337,7 +337,7 @@ class View[T](private borrow val source : Resource, val marker : T) {
 }
 enum Option[T] { Some(T), None }
 enum Result[T, E] { Ok(T), Err(E) }
-def leak(borrow nested : Result[Option[View[int]], int]) : () => int {
+def leak(borrow nested : Result[Option[View[int]], int]) : FnMut () => int {
   return match nested {
     Ok(option) => match option {
       Some(view) => () => view.read(),
@@ -361,7 +361,7 @@ def main() : int {
   val resource : Resource = new Resource(7)
   val view : View = new View(resource)
   val option : Option[View] = Option.Some[View](move view)
-  var reader : () => int = () => 0
+  var reader : FnMut () => int = () => 0
   if true {
     borrow val observed : Option[View] = option
     reader = match observed {
@@ -390,7 +390,7 @@ def main() : int {
   val resource : Resource = new Resource(7)
   val view : View = new View(resource)
   val option : Option[View] = Option.Some[View](move view)
-  var reader : () => int = () => 0
+  var reader : FnMut () => int = () => 0
   if true {
     borrow val observed : Option[View] = option
     reader = match observed {
@@ -415,7 +415,7 @@ class MutableView(private borrow var source : Resource) {
 def main() : int {
   val resource : Resource = new Resource(1)
   val view : MutableView = new MutableView(resource)
-  val writer : () => Unit = () => view.write()
+  val writer : FnMut () => Unit = () => view.write()
   delete view
   writer()
   delete writer
@@ -435,7 +435,7 @@ class View(private borrow val source : Resource) {
 def main() : int {
   val resource : Resource = new Resource(424242)
   val view : View = new View(resource)
-  val reader : () => int = () => view.read()
+  val reader : FnMut () => int = () => view.read()
   println(reader())
   delete reader
   delete view
@@ -458,7 +458,7 @@ def main() : int { return 0 }
 class Counter(val value : int) {
   borrow def read() : int { return value }
 }
-def escape(borrow counter : Counter) : () => int {
+def escape(borrow counter : Counter) : FnMut () => int {
   return () => counter.read()
 }
 def main() : int { return 0 }
@@ -469,7 +469,7 @@ def main() : int { return 0 }
 class Counter(val value : int) {
   borrow def read() : int { return value }
 }
-def receive(callback : () => int) : Unit { delete callback }
+def receive(callback : FnMut () => int) : Unit { delete callback }
 def test(borrow counter : Counter) : Unit {
   receive(() => counter.read())
 }
@@ -482,7 +482,7 @@ class Counter(var value : int) {
   def add(amount : int) : Unit { value = value + amount }
 }
 def test(borrow counter : Counter) : Unit {
-  val edit : () => Unit = () => counter.add(1)
+  val edit : FnMut () => Unit = () => counter.add(1)
   delete edit
 }
 def main() : int { return 0 }
@@ -493,7 +493,7 @@ def main() : int { return 0 }
 class Counter(val value : int) {
   borrow def read() : int { return value }
 }
-class CallbackHolder(val callback : () => int) {}
+class CallbackHolder(val callback : FnMut () => int) {}
 def test(borrow counter : Counter) : Unit {
   val holder : CallbackHolder =
   new CallbackHolder(() => counter.read())
@@ -507,7 +507,7 @@ def main() : int { return 0 }
 class Counter(val value : int) {
   borrow def read() : int { return value }
 }
-def invoke(scoped callback : () => int) : int {
+def invoke(scoped callback : FnMut () => int) : int {
   defer delete callback
   return callback()
 }
@@ -520,7 +520,7 @@ def main() : int { return 0 }
 
   const std::string captureless_ir = generate_ir(R"(
 def main() : int {
-  val identity : (int) => int = (value : int) => value
+  val identity : FnMut (int) => int = (value : int) => value
   val result : int = identity(4)
   delete identity
   return result
@@ -530,7 +530,7 @@ def main() : int {
          "captureless closures use a null environment without allocation");
 
   const std::string scoped_ir = generate_ir(R"(
-def invoke(scoped callback : () => int) : int {
+def invoke(scoped callback : FnMut () => int) : int {
   defer delete callback
   return callback()
 }
@@ -548,7 +548,7 @@ def main() : int { return test(4) }
          "closure cleanup consults the environment ownership bit");
 
   expect_compile_error(R"(
-def leak(scoped action : () => int) : () => int {
+def leak(scoped action : FnMut () => int) : FnMut () => int {
   return action
 }
 def main() : int { return 0 }
@@ -557,8 +557,8 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-def leak(scoped action : () => int) : () => int {
-  val alias : () => int = move action
+def leak(scoped action : FnMut () => int) : FnMut () => int {
+  val alias : FnMut () => int = move action
   return move alias
 }
 def main() : int { return 0 }
@@ -567,7 +567,7 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-def leak(scoped action : () => int) : () => int {
+def leak(scoped action : FnMut () => int) : FnMut () => int {
   return if true { action } else { action }
 }
 def main() : int { return 0 }
@@ -576,8 +576,8 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-class Holder(var callback : () => int) {}
-def store(scoped action : () => int) : Holder {
+class Holder(var callback : FnMut () => int) {}
+def store(scoped action : FnMut () => int) : Holder {
   return new Holder(move action)
 }
 def main() : int { return 0 }
@@ -586,8 +586,8 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-class Holder(var callback : () => int) {}
-def store(scoped action : () => int) : int {
+class Holder(var callback : FnMut () => int) {}
+def store(scoped action : FnMut () => int) : int {
   val holder : Holder = new Holder(() => 0)
   holder.callback = () => action()
   delete holder
@@ -600,8 +600,8 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-enum CallbackBox { Some(() => int), None }
-def store(scoped action : () => int) : CallbackBox {
+enum CallbackBox { Some(FnMut () => int), None }
+def store(scoped action : FnMut () => int) : CallbackBox {
   return CallbackBox.Some(() => action())
 }
 def main() : int { return 0 }
@@ -610,11 +610,11 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-def retain(action : () => int) : int {
+def retain(action : FnMut () => int) : int {
   defer delete action
   return action()
 }
-def forward(scoped action : () => int) : int {
+def forward(scoped action : FnMut () => int) : int {
   return retain(move action)
 }
 def main() : int { return 0 }
@@ -623,7 +623,7 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_compile_error(R"(
-def leak(scoped action : () => int) : () => int {
+def leak(scoped action : FnMut () => int) : FnMut () => int {
   return () => action()
 }
 def main() : int { return 0 }
@@ -632,11 +632,11 @@ def main() : int { return 0 }
                        janus::DiagnosticCode::AnalyzerBorrowEscape);
 
   expect_valid(R"(
-def invoke[T](scoped action : () => T) : T {
+def invoke[T](scoped action : FnMut () => T) : T {
   defer delete action
   return action()
 }
-def forward[T](scoped action : () => T) : T {
+def forward[T](scoped action : FnMut () => T) : T {
   if false {
     delete action
     panic("unreachable")
@@ -648,9 +648,9 @@ def main() : int { return forward[int](() => 42) }
                true);
 
   const std::string escaping_ir = generate_ir(R"(
-def make(value : int) : () => int { return () => value }
+def make(value : int) : FnMut () => int { return () => value }
 def main() : int {
-  val callback : () => int = make(4)
+  val callback : FnMut () => int = make(4)
   val result : int = callback()
   delete callback
   return result

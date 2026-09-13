@@ -134,3 +134,12 @@ parser, les manifestes et le résolveur pendant 3 600 secondes chacune sous
 ASan/UBSan. Toute terminaison par signal, erreur de sanitizer ou expiration
 d'un cas conserve dans le log la charge utile hexadécimale permettant de le
 reproduire.
+
+## Capacités d’appel
+
+| Code | Cause |
+| --- | --- |
+| `JANA0037` | incompatible call capability |
+| `JANA0038` | callback already consumed |
+| `JANA0039` | callback requires exclusive access |
+| `JANA0040` | affine callback in a loop |
