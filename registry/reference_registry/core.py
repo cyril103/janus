@@ -15,6 +15,7 @@ import shutil
 import sqlite3
 import tarfile
 import tempfile
+import zlib
 from collections.abc import Iterable
 from typing import Any
 
@@ -46,6 +47,11 @@ MAX_ARCHIVE = 128 * 1024 * 1024
 MAX_FILE = 32 * 1024 * 1024
 MAX_EXTRACTED = 256 * 1024 * 1024
 MAX_ENTRIES = 10_000
+MAX_EXTENDED_HEADER = 64 * 1024
+MAX_EXTENDED_TOTAL = 8 * 1024 * 1024
+MAX_EXTENDED_CHAIN = 16
+# File headers/padding, extended headers, and final tar record padding.
+MAX_DECOMPRESSED = MAX_EXTRACTED + MAX_ENTRIES * 1024 + MAX_EXTENDED_TOTAL + 10240
 SCHEMA_VERSION = 1
 
 
@@ -160,52 +166,121 @@ def _validate_manifest(
     return manifest, entries
 
 
+class _BudgetReader:
+    """Bound output from gzip, including bytes tarfile does not interpret."""
+
+    def __init__(self, stream: gzip.GzipFile):
+        self.stream = stream
+        self.remaining = MAX_DECOMPRESSED
+
+    def read(self, size: int = -1) -> bytes:
+        size = min(size if size >= 0 else 64 * 1024, 64 * 1024, self.remaining + 1)
+        chunk = self.stream.read(size)
+        self.remaining -= len(chunk)
+        if self.remaining < 0:
+            raise UnsafeArchiveError("archive exceeds decompressed size limit")
+        return chunk
+
+
+class _BudgetTarInfo(tarfile.TarInfo):
+    def _proc_member(self, archive):
+        # tarfile processes extension bodies (and recursively reads headers)
+        # before returning a member. Check their raw sizes before that happens.
+        if self.type in (
+            tarfile.XHDTYPE, tarfile.XGLTYPE, tarfile.SOLARIS_XHDTYPE,
+            tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK,
+        ):
+            total = getattr(archive, "_extended_total", 0) + 512 + self._block(self.size)
+            chain = getattr(archive, "_extended_chain", 0) + 1
+            if (
+                self.size < 0 or self.size > MAX_EXTENDED_HEADER
+                or total > MAX_EXTENDED_TOTAL or chain > MAX_EXTENDED_CHAIN
+            ):
+                raise UnsafeArchiveError("archive exceeds extended header limit")
+            archive._extended_total = total
+            archive._extended_chain = chain
+        elif self.type not in (tarfile.REGTYPE, tarfile.AREGTYPE):
+            raise UnsafeArchiveError("archive contains an unsafe entry type")
+        elif self.size < 0 or self.size > MAX_FILE:
+            raise UnsafeArchiveError("archive entry exceeds size limit")
+        return super()._proc_member(archive)
+
+    # Sparse extensions can allocate maps or read more data inside _proc_pax.
+    # Packages contain ordinary files only; reject before sparse processing.
+    def _proc_gnusparse_00(self, *args):
+        raise UnsafeArchiveError("archive contains a sparse entry")
+
+    _proc_gnusparse_01 = _proc_gnusparse_00
+    _proc_gnusparse_10 = _proc_gnusparse_00
+
+
 def _validate_archive(contents: bytes, entries: dict[str, tuple[int, str]]) -> None:
     if not contents or len(contents) > MAX_ARCHIVE:
         raise UnsafeArchiveError("archive size is invalid")
     actual: set[str] = set()
     try:
-        with tarfile.open(fileobj=io.BytesIO(contents), mode="r:gz") as archive:
-            members = archive.getmembers()
-            if len(members) != len(entries) or len(members) > MAX_ENTRIES:
+        with gzip.GzipFile(fileobj=io.BytesIO(contents), mode="rb") as compressed:
+            reader = _BudgetReader(compressed)
+            with tarfile.open(
+                fileobj=reader, mode="r|", bufsize=512, tarinfo=_BudgetTarInfo
+            ) as archive:
+                _validate_archive_members(archive, entries, actual)
+            if actual != entries.keys():
                 raise UnsafeArchiveError("archive entries differ from manifest")
-            for member in members:
-                name = member.name.removeprefix("./")
-                if (
-                    not member.isfile()
-                    or name not in entries
-                    or name in actual
-                    or "\\" in name
-                    or pathlib.PurePosixPath(name).is_absolute()
-                    or ".." in pathlib.PurePosixPath(name).parts
-                ):
-                    raise UnsafeArchiveError("archive contains an unsafe entry")
-                expected_size, expected_sha = entries[name]
-                if member.size != expected_size or member.size > MAX_FILE:
-                    raise UnsafeArchiveError(
-                        "archive entry size differs from manifest"
-                    )
-                stream = archive.extractfile(member)
-                if stream is None:
-                    raise UnsafeArchiveError("archive entry cannot be read")
-                digest = hashlib.sha256()
-                consumed = 0
-                while chunk := stream.read(64 * 1024):
-                    consumed += len(chunk)
-                    if consumed > expected_size:
-                        raise UnsafeArchiveError(
-                            "archive entry exceeds declared size"
-                        )
-                    digest.update(chunk)
-                if consumed != expected_size or digest.hexdigest() != expected_sha:
-                    raise UnsafeArchiveError(
-                        "archive entry checksum differs from manifest"
-                    )
-                actual.add(name)
-    except (tarfile.TarError, OSError, EOFError) as error:
+            # Check the gzip trailer and budget even after tar's end marker.
+            while reader.read(64 * 1024):
+                pass
+    except (tarfile.TarError, OSError, EOFError, zlib.error) as error:
         raise UnsafeArchiveError("archive is not a valid gzip tar file") from error
-    if actual != entries.keys():
-        raise UnsafeArchiveError("archive entries differ from manifest")
+
+
+def _validate_archive_members(
+    archive: tarfile.TarFile,
+    entries: dict[str, tuple[int, str]],
+    actual: set[str],
+) -> None:
+    total = 0
+    for member in archive:
+        archive._extended_chain = 0
+        # Older Python versions cache members even in streaming mode.
+        archive.members.clear()
+        if len(actual) >= MAX_ENTRIES or len(actual) >= len(entries):
+            raise UnsafeArchiveError("archive entries differ from manifest")
+        name = member.name.removeprefix("./")
+        if (
+            not member.isfile()
+            or name not in entries
+            or name in actual
+            or "\\" in name
+            or pathlib.PurePosixPath(name).is_absolute()
+            or ".." in pathlib.PurePosixPath(name).parts
+        ):
+            raise UnsafeArchiveError("archive contains an unsafe entry")
+        expected_size, expected_sha = entries[name]
+        if member.size < 0 or member.size != expected_size or member.size > MAX_FILE:
+            raise UnsafeArchiveError(
+                "archive entry size differs from manifest"
+            )
+        total += member.size
+        if total > MAX_EXTRACTED:
+            raise UnsafeArchiveError("archive exceeds extracted size limit")
+        stream = archive.extractfile(member)
+        if stream is None:
+            raise UnsafeArchiveError("archive entry cannot be read")
+        digest = hashlib.sha256()
+        consumed = 0
+        while chunk := stream.read(64 * 1024):
+            consumed += len(chunk)
+            if consumed > expected_size:
+                raise UnsafeArchiveError(
+                    "archive entry exceeds declared size"
+                )
+            digest.update(chunk)
+        if consumed != expected_size or digest.hexdigest() != expected_sha:
+            raise UnsafeArchiveError(
+                "archive entry checksum differs from manifest"
+            )
+        actual.add(name)
 
 
 def validate_publication(

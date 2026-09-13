@@ -96,6 +96,16 @@ le même support de sauvegarde.
 
 ## Refus anonymes, capacité et limites obligatoires
 
+La validation des publications contrôle chaque fichier avant de poursuivre la
+lecture : 10 000 fichiers au maximum, 32 Mio par fichier et 256 Mio au total.
+Les extensions PAX/GNU sont limitées à 64 Kio par en-tête, à 8 Mio cumulés
+(en-têtes et alignement compris) et à 16 en-têtes consécutifs par fichier.
+Les fichiers creux (« sparse ») sont refusés. Le flux décompressé entier,
+y compris les données après la fin du tar, est borné à 256 Mio +
+10 000 × 1 024 octets + 8 Mio + 10 240 octets, pour inclure les en-têtes et
+l’alignement. Un dépassement est refusé avant l’écriture des artefacts de
+publication.
+
 Les échecs d'authentification (jeton absent, mal formé, invalide ou révoqué) et
 les publications rejetées avant authentification ne sont jamais écrits dans
 SQLite ni signés. Ils alimentent seulement dix compteurs en mémoire : cinq

@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Paquets
 
+- le registre de référence applique les budgets d’archive pendant la lecture
+  et refuse dès la première incohérence (#366). La décompression et les
+  extensions PAX/GNU sont bornées, sans laisser de publication partielle
+  après un refus.
 - `janus add` insère désormais la dépendance dans sa section quel que soit
   l’ordre du manifeste (#365). Les en-têtes espacés ou commentés sont reconnus,
   les commentaires et champs existants sont préservés et une section absente

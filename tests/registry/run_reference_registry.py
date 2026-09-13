@@ -18,6 +18,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import unittest
 from unittest.mock import patch
 
 
@@ -201,6 +202,13 @@ def main() -> None:
     python_path = str(args.source_root / "registry")
     sys.path.insert(0, python_path)
     from reference_registry.server import AnonymousDenials
+    from test_archive_validation import ArchiveValidationTests
+
+    result = unittest.TextTestRunner().run(
+        unittest.defaultTestLoader.loadTestsFromTestCase(ArchiveValidationTests)
+    )
+    if not result.wasSuccessful():
+        raise AssertionError("archive validation regressions failed")
 
     with patch("reference_registry.server.time.monotonic", return_value=0) as clock:
         counters = AnonymousDenials()
