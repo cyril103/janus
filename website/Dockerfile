@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.18@sha256:dabfc0969b935b2080555ace70ee69a5261af8a8f1b4df97b9e7fbcf6722eddf
 # Python 3.13 slim Bookworm (multi-platform digest; compatible with dependency wheels).
-FROM python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e AS builder
+FROM python:3.14-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f AS builder
 WORKDIR /src
 COPY website/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements.txt
