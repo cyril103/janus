@@ -1,0 +1,576 @@
+/// Collections associatives immutables par trie de hachage partage (HAMT).
+module std.persistent_map
+import std.array
+import std.array_builder
+import std.hashmap
+import std.iterator
+import std.option
+import std.shared
+
+private class PersistentMapPolicy[K](
+    private val hashKey : Fn (borrow K) => usize,
+    private val equalKeys : Fn (borrow K, borrow K) => bool
+) {
+    borrow def hash(borrow key : K) : usize { return hashKey(key) }
+    borrow def equals(borrow left : K, borrow right : K) : bool { return equalKeys(left, right) }
+    destructor { delete equalKeys; delete hashKey }
+}
+
+private class PersistentMapItem[K, V](
+    private val key : Shared[K], private val value : Shared[V]
+) {
+    borrow def keyRef() : borrow K { return key.get() }
+    borrow def valueRef() : borrow V { return value.get() }
+    borrow def keyHandle() : Shared[K] { return key.clone() }
+    borrow def valueHandle() : Shared[V] { return value.clone() }
+    destructor { delete value; delete key }
+}
+
+// A leaf contains only entries with the same complete hash. A branch has
+// sorted radix slots and nonempty children. Published arrays are never mutated.
+private class PersistentMapNode[K, V](
+    private val code : usize,
+    private val items : Array[Shared[PersistentMapItem[K, V]]],
+    private val slots : Array[usize],
+    private val children : Array[Shared[PersistentMapNode[K, V]]]
+) {
+    borrow def isLeaf() : bool { return children.isEmpty() }
+    borrow def isEmpty() : bool { return children.isEmpty() && items.isEmpty() }
+    borrow def childCount() : usize { return children.size() }
+    borrow def itemCount() : usize { return items.size() }
+    borrow def child(index : usize) : Shared[PersistentMapNode[K, V]] { return children.getBorrowed(index).clone() }
+    borrow def item(index : usize) : Shared[PersistentMapItem[K, V]] { return items.getBorrowed(index).clone() }
+    borrow def find(borrow key : K, hash : usize, rest : usize, borrow policy : PersistentMapPolicy[K]) : Option[Shared[V]] {
+        if this.isLeaf() {
+            if hash == code {
+                var i : usize = usize(0)
+                while i < items.size() {
+                    if policy.equals(items.getBorrowed(i).get().keyRef(), key) {
+                        return Option.Some[Shared[V]](items.getBorrowed(i).get().valueHandle())
+                    }
+                    i = i + usize(1)
+                }
+            }
+        } else {
+            var i : usize = usize(0)
+            while i < slots.size() {
+                if slots.get(i) == rest % usize(32) {
+                    return children.getBorrowed(i).get().find(key, hash, rest / usize(32), policy)
+                }
+                i = i + usize(1)
+            }
+        }
+        return Option.None[Shared[V]]()
+    }
+
+    borrow def write(borrow item : Shared[PersistentMapItem[K, V]], hash : usize, divisor : usize, borrow policy : PersistentMapPolicy[K]) : Shared[PersistentMapNode[K, V]] {
+        val entries : ArrayBuilder[Shared[PersistentMapItem[K, V]]] = new ArrayBuilder[Shared[PersistentMapItem[K, V]]](usize(0))
+        defer delete entries
+        val nextSlots : ArrayBuilder[usize] = new ArrayBuilder[usize](usize(0))
+        defer delete nextSlots
+        val nextChildren : ArrayBuilder[Shared[PersistentMapNode[K, V]]] = new ArrayBuilder[Shared[PersistentMapNode[K, V]]](usize(0))
+        defer delete nextChildren
+        if this.isLeaf() {
+            if items.isEmpty() || hash == code {
+                var found : bool = false
+                var i : usize = usize(0)
+                while i < items.size() {
+                    if policy.equals(items.getBorrowed(i).get().keyRef(), item.get().keyRef()) {
+                        entries.add(item.clone())
+                        found = true
+                    } else { entries.add(items.getBorrowed(i).clone()) }
+                    i = i + usize(1)
+                }
+                if !found { entries.add(item.clone()) }
+                return share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](hash, entries.result(), nextSlots.result(), nextChildren.result()))
+            }
+            // Reuse all collision entries while splitting a leaf.
+            var i : usize = usize(0)
+            while i < items.size() { entries.add(items.getBorrowed(i).clone()); i = i + usize(1) }
+            val old : Shared[PersistentMapNode[K, V]] = share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](code, entries.result(), new Array[usize](usize(0)), new Array[Shared[PersistentMapNode[K, V]]](usize(0))))
+            defer delete old
+            return persistentMapMerge[K, V](old, code, item, hash, divisor, policy)
+        }
+        val slot : usize = (hash / divisor) % usize(32)
+        var inserted : bool = false
+        var i : usize = usize(0)
+        while i < slots.size() {
+            if !inserted && slot < slots.get(i) {
+                nextSlots.add(slot)
+                nextChildren.add(persistentMapLeaf[K, V](item, hash))
+                inserted = true
+            }
+            nextSlots.add(slots.get(i))
+            if slot == slots.get(i) {
+                nextChildren.add(children.getBorrowed(i).get().write(item, hash, divisor * usize(32), policy))
+                inserted = true
+            } else { nextChildren.add(children.getBorrowed(i).clone()) }
+            i = i + usize(1)
+        }
+        if !inserted { nextSlots.add(slot); nextChildren.add(persistentMapLeaf[K, V](item, hash)) }
+        return share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](usize(0), entries.result(), nextSlots.result(), nextChildren.result()))
+    }
+
+    borrow def erase(borrow key : K, hash : usize, rest : usize, borrow policy : PersistentMapPolicy[K]) : Shared[PersistentMapNode[K, V]] {
+        val entries : ArrayBuilder[Shared[PersistentMapItem[K, V]]] = new ArrayBuilder[Shared[PersistentMapItem[K, V]]](usize(0))
+        defer delete entries
+        val nextSlots : ArrayBuilder[usize] = new ArrayBuilder[usize](usize(0))
+        defer delete nextSlots
+        val nextChildren : ArrayBuilder[Shared[PersistentMapNode[K, V]]] = new ArrayBuilder[Shared[PersistentMapNode[K, V]]](usize(0))
+        defer delete nextChildren
+        var i : usize = usize(0)
+        if this.isLeaf() {
+            while i < items.size() {
+                if !policy.equals(items.getBorrowed(i).get().keyRef(), key) { entries.add(items.getBorrowed(i).clone()) }
+                i = i + usize(1)
+            }
+        } else {
+            while i < children.size() {
+                if slots.get(i) == rest % usize(32) {
+                    val changed : Shared[PersistentMapNode[K, V]] = children.getBorrowed(i).get().erase(key, hash, rest / usize(32), policy)
+                    defer delete changed
+                    if !changed.get().isEmpty() { nextSlots.add(slots.get(i)); nextChildren.add(changed.clone()) }
+                } else { nextSlots.add(slots.get(i)); nextChildren.add(children.getBorrowed(i).clone()) }
+                i = i + usize(1)
+            }
+        }
+        val childArray : Array[Shared[PersistentMapNode[K, V]]] = nextChildren.result()
+        defer delete childArray
+        // Only leaves may be lifted without changing the radix depth.
+        if childArray.size() == usize(1) && childArray.getBorrowed(usize(0)).get().isLeaf() { return childArray.getBorrowed(usize(0)).clone() }
+        val copied : ArrayBuilder[Shared[PersistentMapNode[K, V]]] = new ArrayBuilder[Shared[PersistentMapNode[K, V]]](usize(0))
+        defer delete copied
+        i = usize(0)
+        while i < childArray.size() { copied.add(childArray.getBorrowed(i).clone()); i = i + usize(1) }
+        return share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](code, entries.result(), nextSlots.result(), copied.result()))
+    }
+    destructor { delete children; delete slots; delete items }
+}
+
+private def persistentMapLeaf[K, V](borrow item : Shared[PersistentMapItem[K, V]], hash : usize) : Shared[PersistentMapNode[K, V]] {
+    val entries : ArrayBuilder[Shared[PersistentMapItem[K, V]]] = new ArrayBuilder[Shared[PersistentMapItem[K, V]]](usize(0))
+    defer delete entries
+    entries.add(item.clone())
+    return share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](hash, entries.result(), new Array[usize](usize(0)), new Array[Shared[PersistentMapNode[K, V]]](usize(0))))
+}
+
+private def persistentMapMerge[K, V](borrow old : Shared[PersistentMapNode[K, V]], oldHash : usize, borrow item : Shared[PersistentMapItem[K, V]], hash : usize, divisor : usize, borrow policy : PersistentMapPolicy[K]) : Shared[PersistentMapNode[K, V]] {
+    val slots : ArrayBuilder[usize] = new ArrayBuilder[usize](usize(0))
+    defer delete slots
+    val children : ArrayBuilder[Shared[PersistentMapNode[K, V]]] = new ArrayBuilder[Shared[PersistentMapNode[K, V]]](usize(0))
+    defer delete children
+    val a : usize = (oldHash / divisor) % usize(32)
+    val b : usize = (hash / divisor) % usize(32)
+    if a == b {
+        slots.add(a)
+        children.add(persistentMapMerge[K, V](old, oldHash, item, hash, divisor * usize(32), policy))
+    } else {
+        if a < b {
+            slots.add(a); children.add(old.clone())
+            slots.add(b); children.add(persistentMapLeaf[K, V](item, hash))
+        } else {
+            slots.add(b); children.add(persistentMapLeaf[K, V](item, hash))
+            slots.add(a); children.add(old.clone())
+        }
+    }
+    return share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](usize(0), new Array[Shared[PersistentMapItem[K, V]]](usize(0)), slots.result(), children.result()))
+}
+
+private class PersistentMapIteratorState[K, V](
+    private val pending : Array[Shared[PersistentMapNode[K, V]]], private var offset : usize
+) {
+    def next() : Option[MapEntry[Shared[K], Shared[V]]] {
+        while !pending.isEmpty() {
+            val node : Shared[PersistentMapNode[K, V]] = pending.pop()
+            defer delete node
+            if node.get().isLeaf() {
+                if offset < node.get().itemCount() {
+                    val item : Shared[PersistentMapItem[K, V]] = node.get().item(offset)
+                    defer delete item
+                    offset = offset + usize(1)
+                    pending.push(node.clone())
+                    return Option.Some[MapEntry[Shared[K], Shared[V]]](new MapEntry[Shared[K], Shared[V]](item.get().keyHandle(), item.get().valueHandle()))
+                }
+                offset = usize(0)
+            } else {
+                var i : usize = node.get().childCount()
+                while i > usize(0) { i = i - usize(1); pending.push(node.get().child(i)) }
+            }
+        }
+        return Option.None[MapEntry[Shared[K], Shared[V]]]()
+    }
+    consume def dispose() : Unit { delete this }
+    destructor { delete pending }
+}
+
+/// Map immutable; les observations retournent des handles Shared proprietaires.
+/// @param root Racine interne partagee.
+/// @param policy Contrat interne de hash et d'egalite.
+/// @param length Nombre d'associations.
+class PersistentMap[K, V] internal(
+    private val root : Shared[PersistentMapNode[K, V]],
+    private val policy : Shared[PersistentMapPolicy[K]],
+    private val length : usize
+) {
+    /// Taille en O(1).
+    /// @return Nombre de cles.
+    pure borrow def size() : usize { return length }
+    /// Test du vide en O(1).
+    /// @return Vrai si vide.
+    pure borrow def isEmpty() : bool { return length == usize(0) }
+    /// Partage la racine en O(1).
+    /// @return Nouvelle enveloppe proprietaire.
+    borrow def clone() : PersistentMap[K, V] { return new PersistentMap[K, V](root.clone(), policy.clone(), length) }
+    /// Recherche avec un seul appel au hash.
+    /// @param key Cle empruntee.
+    /// @return Handle immutable a detruire, ou None.
+    borrow def get(borrow key : K) : Option[Shared[V]] {
+        val hash : usize = policy.get().hash(key)
+        return root.get().find(key, hash, hash, policy.get())
+    }
+    /// Teste la presence d'une cle.
+    /// @param key Cle empruntee.
+    /// @return Vrai si presente.
+    borrow def containsKey(borrow key : K) : bool {
+        val found : Option[Shared[V]] = this.get(key)
+        defer delete found
+        return isSome[Shared[V]](found)
+    }
+    internal borrow def insertShared(key : Shared[K], value : Shared[V]) : PersistentMap[K, V] {
+        val item : Shared[PersistentMapItem[K, V]] = share[PersistentMapItem[K, V]](new PersistentMapItem[K, V](move key, move value))
+        defer delete item
+        val hash : usize = policy.get().hash(item.get().keyRef())
+        val existing : Option[Shared[V]] = root.get().find(item.get().keyRef(), hash, hash, policy.get())
+        defer delete existing
+        var count : usize = length
+        if !isSome[Shared[V]](existing) { count = count + usize(1) }
+        val updated : Shared[PersistentMapNode[K, V]] = root.get().write(item, hash, usize(1), policy.get())
+        return new PersistentMap[K, V](move updated, policy.clone(), count)
+    }
+    /// Insere ou remplace en reconstruisant uniquement le chemin de la cle.
+    /// @param key Nouvelle cle transferee.
+    /// @param value Nouvelle valeur transferee.
+    /// @return Nouvelle version; la source reste utilisable.
+    borrow def insert(key : K, value : V) : PersistentMap[K, V] {
+        val pending : PersistentMapOwned[V] = new PersistentMapOwned[V](move value)
+        defer delete pending
+        val sharedKey : Shared[K] = share[K](move key)
+        defer delete sharedKey
+        val sharedValue : Shared[V] = share[V](pending.take())
+        defer delete sharedValue
+        return this.insertShared(sharedKey.clone(), sharedValue.clone())
+    }
+    private borrow def insertValue(borrow key : Shared[K], value : V) : PersistentMap[K, V] {
+        val sharedValue : Shared[V] = share[V](move value)
+        defer delete sharedValue
+        return this.insertShared(key.clone(), sharedValue.clone())
+    }
+    /// Supprime une cle presente, sans modifier la source.
+    /// @param key Cle observee.
+    /// @return Some(nouvelle version) si presente; None sinon.
+    borrow def remove(borrow key : K) : Option[PersistentMap[K, V]] {
+        val hash : usize = policy.get().hash(key)
+        val existing : Option[Shared[V]] = root.get().find(key, hash, hash, policy.get())
+        defer delete existing
+        if !isSome[Shared[V]](existing) { return Option.None[PersistentMap[K, V]]() }
+        val updated : Shared[PersistentMapNode[K, V]] = root.get().erase(key, hash, hash, policy.get())
+        return Option.Some[PersistentMap[K, V]](new PersistentMap[K, V](move updated, policy.clone(), length - usize(1)))
+    }
+    /// Parcourt les entrees en O(n), sans ordre public garanti.
+    /// @return Iterateur possedant sa racine et des entrees de handles.
+    borrow def iterator() : Iterator[MapEntry[Shared[K], Shared[V]]] {
+        return persistentMapIterator[K, V](root.clone())
+    }
+    /// Consomme l'enveloppe et transfere le parcours autonome.
+    /// @return Iterateur proprietaire de la racine.
+    consume def intoIterator() : Iterator[MapEntry[Shared[K], Shared[V]]] {
+        defer delete this
+        val result : Iterator[MapEntry[Shared[K], Shared[V]]] = persistentMapIterator[K, V](root.clone())
+        return move result
+    }
+    /// Parcourt les cles partagees.
+    /// @return Iterateur proprietaire.
+    borrow def keys() : Iterator[Shared[K]] {
+        return this.clone().intoIterator().map[Shared[K]]((entry : MapEntry[Shared[K], Shared[V]]) => entry.intoKey())
+    }
+    /// Parcourt les valeurs partagees.
+    /// @return Iterateur proprietaire.
+    borrow def values() : Iterator[Shared[V]] {
+        return this.clone().intoIterator().map[Shared[V]]((entry : MapEntry[Shared[K], Shared[V]]) => entry.intoValue())
+    }
+    /// Transforme une association; le callback possede l'option de handle.
+    /// @param key Cle transferee dans une eventuelle insertion.
+    /// @param transform None supprime; Some transfere la nouvelle valeur.
+    /// @return Nouvelle version, y compris en cas d'absence inchangee.
+    borrow def alter(key : K, scoped transform : FnMut (Option[Shared[V]]) => Option[V]) : PersistentMap[K, V] {
+        defer delete transform
+        val sharedKey : Shared[K] = share[K](move key)
+        defer delete sharedKey
+        val changed : Option[V] = transform(this.get(sharedKey.get()))
+        return match move changed {
+            Some(value) => this.insertValue(sharedKey, move value),
+            None => match this.remove(sharedKey.get()) {
+                Some(result) => move result,
+                None => this.clone()
+            }
+        }
+    }
+    /// Transforme les valeurs en partageant les cles.
+    /// @param transform Callback observant chaque valeur.
+    /// @return Nouvelle map avec la meme strategie.
+    borrow def mapValues[U](scoped transform : FnMut (borrow V) => U) : PersistentMap[K, U] {
+        defer delete transform
+        val initial : PersistentMap[K, U] = persistentMapWithPolicy[K, U](policy.clone())
+        val state : PersistentMapBuildState[K, U] = new PersistentMapBuildState[K, U](move initial)
+        defer delete state
+        val traversal : Iterator[MapEntry[Shared[K], Shared[V]]] = this.iterator()
+        for entry in move traversal {
+            defer delete entry
+            val projected : Shared[U] = share[U](transform(entry.value.get()))
+            defer delete projected
+            state.add(entry.key.clone(), projected.clone())
+        }
+        return state.finish()
+    }
+    /// Filtre en partageant les cles et valeurs retenues.
+    /// @param predicate Callback observant chaque association.
+    /// @return Nouvelle map.
+    borrow def filter(scoped predicate : FnMut (borrow K, borrow V) => bool) : PersistentMap[K, V] {
+        defer delete predicate
+        val initial : PersistentMap[K, V] = persistentMapWithPolicy[K, V](policy.clone())
+        val state : PersistentMapBuildState[K, V] = new PersistentMapBuildState[K, V](move initial)
+        defer delete state
+        val traversal : Iterator[MapEntry[Shared[K], Shared[V]]] = this.iterator()
+        for entry in move traversal {
+            defer delete entry
+            if predicate(entry.key.get(), entry.value.get()) { state.add(entry.key.clone(), entry.value.clone()) }
+        }
+        return state.finish()
+    }
+    /// Reduit les associations dans l'ordre du parcours.
+    /// @param initial Accumulateur transfere.
+    /// @param combine Callback empruntant cle et valeur.
+    /// @return Accumulateur final.
+    borrow def fold[U](initial : U, scoped combine : FnMut (U, borrow K, borrow V) => U) : U {
+        defer delete combine
+        var result : U = move initial
+        val traversal : Iterator[MapEntry[Shared[K], Shared[V]]] = this.iterator()
+        for entry in move traversal {
+            defer delete entry
+            result = combine(move result, entry.key.get(), entry.value.get())
+        }
+        return move result
+    }
+    /// Compare les associations, independamment de l'ordre de parcours.
+    /// @param other Map utilisant le meme contrat logique de cles.
+    /// @param equals Comparateur de valeurs observees.
+    /// @return Vrai si les associations sont egales.
+    borrow def equalsBy(borrow other : PersistentMap[K, V], scoped equals : FnMut (borrow V, borrow V) => bool) : bool {
+        defer delete equals
+        if length != other.length { return false }
+        val traversal : Iterator[MapEntry[Shared[K], Shared[V]]] = this.iterator()
+        for entry in move traversal {
+            defer delete entry
+            val found : Option[Shared[V]] = other.get(entry.key.get())
+            defer delete found
+            val same : bool = persistentMapValueEquals[V](found, entry.value.get(), equals)
+            if !same { return false }
+        }
+        return true
+    }
+    /// Compare avec l'egalite derivee des valeurs.
+    /// @param other Map de meme contrat de cles.
+    /// @return Egalite structurelle.
+    borrow def equals(borrow other : PersistentMap[K, V]) : bool {
+        return this.equalsBy(other, (borrow a : V, borrow b : V) => __derivedEquals[V](a, b))
+    }
+    destructor { delete policy; delete root }
+}
+
+private class PersistentMapBuildState[K, V](private var result : PersistentMap[K, V]) {
+    def add(key : Shared[K], value : Shared[V]) : Unit {
+        val previous : PersistentMap[K, V] = move result
+        defer delete previous
+        result = previous.insertShared(move key, move value)
+    }
+    def finish() : PersistentMap[K, V] {
+        val completed : PersistentMap[K, V] = move result
+        result = completed.clone()
+        return move completed
+    }
+    destructor { delete result }
+}
+
+private def persistentMapWithPolicy[K, V](policy : Shared[PersistentMapPolicy[K]]) : PersistentMap[K, V] {
+    defer delete policy
+    val root : Shared[PersistentMapNode[K, V]] = share[PersistentMapNode[K, V]](new PersistentMapNode[K, V](usize(0), new Array[Shared[PersistentMapItem[K, V]]](usize(0)), new Array[usize](usize(0)), new Array[Shared[PersistentMapNode[K, V]]](usize(0))))
+    return new PersistentMap[K, V](move root, policy.clone(), usize(0))
+}
+
+/// Cree une map vide avec des fonctions de hash et d'egalite stables.
+/// @param hash Hash coherent avec l'egalite, possede et partage entre versions.
+/// @param equals Egalite des cles; aucune mutation des cles n'est exposee.
+/// @return Map vide; les fonctions sont conservees jusqu'a la derniere version.
+def persistentMapWith[K, V](hash : Fn (borrow K) => usize, equals : Fn (borrow K, borrow K) => bool) : PersistentMap[K, V] {
+    return persistentMapWithPolicy[K, V](share[PersistentMapPolicy[K]](new PersistentMapPolicy[K](move hash, move equals)))
+}
+
+/// Cree une map vide avec les capacites derivees Hashing et Equality de K.
+/// @return Map vide proprietaire.
+def persistentMapEmpty[K, V]() : PersistentMap[K, V] {
+    return persistentMapWith[K, V]((borrow key : K) => __derivedHash[K](key), (borrow a : K, borrow b : K) => __derivedEquals[K](a, b))
+}
+
+private def persistentMapIterator[K, V](root : Shared[PersistentMapNode[K, V]]) : Iterator[MapEntry[Shared[K], Shared[V]]] {
+    val pending : ArrayBuilder[Shared[PersistentMapNode[K, V]]] = new ArrayBuilder[Shared[PersistentMapNode[K, V]]](usize(0))
+    defer delete pending
+    pending.add(move root)
+    val state : PersistentMapIteratorState[K, V] = new PersistentMapIteratorState[K, V](pending.result(), usize(0))
+    return new Iterator[MapEntry[Shared[K], Shared[V]]](owningCapture[PersistentMapIteratorState[K, V]](state, () => state.next()), () => unit)
+}
+
+private def persistentMapValueEquals[V](borrow found : Option[Shared[V]], borrow left : V, scoped borrow var equals : FnMut (borrow V, borrow V) => bool) : bool {
+    return match found { Some(value) => equals(left, value.get()), None => false }
+}
+
+private class PersistentMapOwned[T](value : T) {
+    private var slot : Option[T] = Option.Some[T](move value)
+    def take() : T {
+        val active : Option[T] = move slot
+        slot = Option.None[T]()
+        return match move active { Some(value) => move value, None => persistentMapInvariant[T]() }
+    }
+    destructor { delete slot }
+}
+
+private def persistentMapInvariant[T]() : T { panic("empty persistent map staging slot\n") }
+
+/// Ensemble immutable represente par une map vers Unit.
+/// @param values Map interne possedee.
+class PersistentSet[T] internal(private val values : PersistentMap[T, Unit]) {
+    /// Taille en O(1).
+    /// @return Nombre de membres.
+    pure borrow def size() : usize { return values.size() }
+    /// Test du vide en O(1).
+    /// @return Vrai si vide.
+    pure borrow def isEmpty() : bool { return values.isEmpty() }
+    /// Partage la racine en O(1).
+    /// @return Nouvelle enveloppe.
+    borrow def clone() : PersistentSet[T] {
+        val nextMap : PersistentMap[T, Unit] = values.clone()
+        return new PersistentSet[T](move nextMap)
+    }
+    /// Recherche un membre.
+    /// @param value Valeur observee.
+    /// @return Vrai si presente.
+    borrow def contains(borrow value : T) : bool { return values.containsKey(value) }
+    /// Insere une valeur transferee.
+    /// @param value Membre transfere.
+    /// @return Nouvelle version.
+    borrow def insert(value : T) : PersistentSet[T] {
+        val nextMap : PersistentMap[T, Unit] = values.insert(move value, unit)
+        return new PersistentSet[T](move nextMap)
+    }
+    /// Supprime un membre sans modifier la source.
+    /// @param value Membre observe.
+    /// @return Some(nouvelle version) si present; None sinon.
+    borrow def remove(borrow value : T) : Option[PersistentSet[T]] {
+        return match values.remove(value) {
+            Some(result) => Option.Some[PersistentSet[T]](new PersistentSet[T](move result)),
+            None => Option.None[PersistentSet[T]]()
+        }
+    }
+    /// Parcourt les membres avec des handles partages.
+    /// @return Iterateur proprietaire, ordre non specifie.
+    borrow def iterator() : Iterator[Shared[T]] { return persistentSetIterator[T](values.clone()) }
+    /// Consomme l'enveloppe et retourne un parcours autonome.
+    /// @return Iterateur proprietaire.
+    consume def intoIterator() : Iterator[Shared[T]] {
+        defer delete this
+        val result : Iterator[Shared[T]] = persistentSetIterator[T](values.clone())
+        return move result
+    }
+    /// Garde les membres acceptes.
+    /// @param predicate Callback empruntant chaque membre.
+    /// @return Nouvelle version.
+    borrow def filter(scoped predicate : FnMut (borrow T) => bool) : PersistentSet[T] {
+        defer delete predicate
+        val nextMap : PersistentMap[T, Unit] = values.filter((borrow key : T, borrow value : Unit) => predicate(key))
+        return new PersistentSet[T](move nextMap)
+    }
+    /// Reduit les membres dans l'ordre non specifie du parcours.
+    /// @param initial Accumulateur transfere.
+    /// @param combine Callback empruntant le membre.
+    /// @return Accumulateur final.
+    borrow def fold[U](initial : U, scoped combine : FnMut (U, borrow T) => U) : U {
+        defer delete combine
+        return values.fold[U](move initial, (accumulator : U, borrow key : T, borrow value : Unit) => combine(move accumulator, key))
+    }
+    /// Reunion; les deux ensembles doivent utiliser le meme contrat de cles.
+    /// @param other Autre ensemble observe.
+    /// @return Ensemble partageant les membres des deux sources.
+    borrow def union(borrow other : PersistentSet[T]) : PersistentSet[T] {
+        val state : PersistentSetBuildState[T] = new PersistentSetBuildState[T](values.clone())
+        defer delete state
+        val traversal : Iterator[Shared[T]] = other.iterator()
+        for item in move traversal { state.add(move item) }
+        val nextMap : PersistentMap[T, Unit] = state.finish()
+        return new PersistentSet[T](move nextMap)
+    }
+    /// Intersection pour un meme contrat de cles.
+    /// @param other Autre ensemble observe.
+    /// @return Membres communs.
+    borrow def intersection(borrow other : PersistentSet[T]) : PersistentSet[T] {
+        return this.filter((borrow item : T) => other.contains(item))
+    }
+    /// Difference pour un meme contrat de cles.
+    /// @param other Membres a exclure.
+    /// @return Membres propres a cette source.
+    borrow def difference(borrow other : PersistentSet[T]) : PersistentSet[T] {
+        return this.filter((borrow item : T) => !other.contains(item))
+    }
+    /// Egalite structurelle independante de l'ordre.
+    /// @param other Ensemble de meme contrat de cles.
+    /// @return Vrai si memes membres.
+    borrow def equals(borrow other : PersistentSet[T]) : bool {
+        return values.equalsBy(other.values, (borrow a : Unit, borrow b : Unit) => true)
+    }
+    destructor { delete values }
+}
+
+private class PersistentSetBuildState[T](private var result : PersistentMap[T, Unit]) {
+    def add(value : Shared[T]) : Unit {
+        defer delete value
+        val sharedUnit : Shared[Unit] = share[Unit](unit)
+        defer delete sharedUnit
+        val previous : PersistentMap[T, Unit] = move result
+        defer delete previous
+        result = previous.insertShared(value.clone(), sharedUnit.clone())
+    }
+    def finish() : PersistentMap[T, Unit] {
+        val completed : PersistentMap[T, Unit] = move result
+        result = completed.clone()
+        return move completed
+    }
+    destructor { delete result }
+}
+
+/// Construit un ensemble vide avec les capacites derivees de T.
+/// @return Nouvelle version vide.
+def persistentSetEmpty[T]() : PersistentSet[T] {
+    val nextMap : PersistentMap[T, Unit] = persistentMapEmpty[T, Unit]()
+    return new PersistentSet[T](move nextMap)
+}
+
+/// Construit un ensemble avec un contrat de hash et d'egalite stable.
+/// @param hash Fonction de hash possedee.
+/// @param equals Egalite des membres possedee.
+/// @return Ensemble vide partageant ces fonctions entre versions.
+def persistentSetWith[T](hash : Fn (borrow T) => usize, equals : Fn (borrow T, borrow T) => bool) : PersistentSet[T] {
+    val nextMap : PersistentMap[T, Unit] = persistentMapWith[T, Unit](move hash, move equals)
+    return new PersistentSet[T](move nextMap)
+}
+
+private def persistentSetIterator[T](source : PersistentMap[T, Unit]) : Iterator[Shared[T]] {
+    return source.intoIterator().map[Shared[T]]((entry : MapEntry[Shared[T], Shared[Unit]]) => entry.intoKey())
+}

@@ -850,3 +850,62 @@ def main() : int {
     return if oldValue.get() == 42 && newValue.get() == 7 { 0 } else { 1 }
 }
 ```
+
+### `std.persistent_map`
+
+`PersistentMap[K, V]` et `PersistentSet[T]` conservent les anciennes versions par
+partage structurel HAMT. `persistentMapEmpty[K, V]()` et
+`persistentSetEmpty[T]()` utilisent les capacités dérivées Hashing/Equality;
+`persistentMapWith` et `persistentSetWith` acceptent des fonctions stables `Fn`.
+
+`size`, `isEmpty`, `clone` coûtent O(1); `get`, `containsKey`/`contains`, `insert`
+et `remove` coûtent O(log_32 n) attendu, hors collisions pathologiques.
+`insert` transfère clé/valeur et retourne une nouvelle version. `remove` observe
+la clé et retourne `Some(nouvelle version)` ou `None` si absente. `get` produit
+`Option[Shared[V]]`, dont le handle propriétaire doit être détruit.
+
+La map expose `iterator` (entrées `MapEntry[Shared[K], Shared[V]]`), `keys`,
+`values`, `intoIterator`, `mapValues`, `filter`, `fold`, `equalsBy`, `equals`, et
+`alter(key, scoped callback)`. Le callback d'alter possède son
+`Option[Shared[V]]` d'entrée et retourne `Option[V]`; les autres callbacks
+empruntent les éléments. Le set expose `iterator`, `intoIterator`, `union`,
+`intersection`, `difference`, `filter`, `fold` et `equals`. L'ordre des parcours
+est non spécifié; les opérations entre collections exigent le même contrat
+logique de hash et d'égalité des clés.
+
+```janus
+// doctest: doctest name=stdlib-std-persistent-map
+import std.persistent_map
+def main() : int {
+    val empty : PersistentMap[string, int] = persistentMapEmpty[string, int]()
+    defer delete empty
+    val base : PersistentMap[string, int] = empty.insert("timeout", 30)
+    defer delete base
+    val preview : PersistentMap[string, int] = base.insert("timeout", 60)
+    defer delete preview
+    return if base.size() == usize(1) && !base.equals(preview) { 0 } else { 1 }
+}
+```
+
+Voir [la conception, les collisions et les paniques](design/persistent-map.md)
+et [la configuration versionnée](../examples/versioned-config/README.md).
+
+### `std.persistent_set`
+
+Ce module donne accès à `PersistentSet[T]` et aux factories `persistentSetEmpty`
+et `persistentSetWith` du moteur `std.persistent_map`. Chaque opération construit
+une version immutable; les anciennes versions restent utilisables.
+
+```janus
+// doctest: doctest name=stdlib-std-persistent-set
+import std.persistent_set
+def main() : int {
+    val empty : PersistentSet[int] = persistentSetEmpty[int]()
+    defer delete empty
+    val one : PersistentSet[int] = empty.insert(7)
+    defer delete one
+    val same : PersistentSet[int] = one.union(one)
+    defer delete same
+    return if empty.isEmpty() && same.equals(one) && same.contains(7) { 0 } else { 1 }
+}
+```

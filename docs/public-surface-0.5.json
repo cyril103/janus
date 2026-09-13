@@ -237,6 +237,66 @@
       "symbols": ["PersistentList", "PersistentList.size", "PersistentList.isEmpty", "PersistentList.clone", "PersistentList.prepend", "PersistentList.head", "PersistentList.tail", "PersistentList.iterator", "PersistentList.reverse", "PersistentList.concat", "PersistentList.map", "PersistentList.filter", "PersistentList.fold", "PersistentList.equalsBy", "PersistentList.equals", "PersistentList.toArray", "persistentListEmpty", "persistentListFromArray"]
     },
     {
+      "name": "std.persistent_map",
+      "source": "stdlib/std/persistent_map.janus",
+      "documentation": [
+        "docs/stdlib-reference.md",
+        "docs/design/persistent-map.md"
+      ],
+      "status": "experimental",
+      "signature_digest": "ed2501ad34e19de3ddc1a02e08e4edb4a17864f5565f7fb83417faff8489308c",
+      "symbols": [
+        "PersistentMap",
+        "PersistentMap.alter",
+        "PersistentMap.clone",
+        "PersistentMap.containsKey",
+        "PersistentMap.equals",
+        "PersistentMap.equalsBy",
+        "PersistentMap.filter",
+        "PersistentMap.fold",
+        "PersistentMap.get",
+        "PersistentMap.insert",
+        "PersistentMap.intoIterator",
+        "PersistentMap.isEmpty",
+        "PersistentMap.iterator",
+        "PersistentMap.keys",
+        "PersistentMap.mapValues",
+        "PersistentMap.remove",
+        "PersistentMap.size",
+        "PersistentMap.values",
+        "PersistentSet",
+        "PersistentSet.clone",
+        "PersistentSet.contains",
+        "PersistentSet.difference",
+        "PersistentSet.equals",
+        "PersistentSet.filter",
+        "PersistentSet.fold",
+        "PersistentSet.insert",
+        "PersistentSet.intersection",
+        "PersistentSet.intoIterator",
+        "PersistentSet.isEmpty",
+        "PersistentSet.iterator",
+        "PersistentSet.remove",
+        "PersistentSet.size",
+        "PersistentSet.union",
+        "persistentMapEmpty",
+        "persistentMapWith",
+        "persistentSetEmpty",
+        "persistentSetWith"
+      ]
+    },
+    {
+      "name": "std.persistent_set",
+      "source": "stdlib/std/persistent_set.janus",
+      "documentation": [
+        "docs/stdlib-reference.md",
+        "docs/design/persistent-map.md"
+      ],
+      "status": "experimental",
+      "signature_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "symbols": []
+    },
+    {
       "name": "std.persistent_vector",
       "source": "stdlib/std/persistent_vector.janus",
       "documentation": [

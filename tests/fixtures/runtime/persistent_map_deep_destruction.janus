@@ -1,0 +1,28 @@
+import std.persistent_map
+import std.iterator
+import std.shared
+var destroyed : int = 0
+class Resource(val value : int) { destructor { destroyed = destroyed + 1 } }
+class State(private var map : PersistentMap[int, Resource]) {
+    def add(key : int) : Unit {
+        val old : PersistentMap[int, Resource] = move map
+        map = old.insert(key, new Resource(key))
+        delete old
+    }
+    borrow def snapshot() : PersistentMap[int, Resource] { return map.clone() }
+    destructor { delete map }
+}
+def main() : int {
+    val state : State = new State(persistentMapEmpty[int, Resource]())
+    var i : int = 0
+    while i < 100000 { state.add(i); i = i + 1 }
+    val map : PersistentMap[int, Resource] = state.snapshot()
+    delete state
+    val iterator : Iterator[Shared[Resource]] = map.values()
+    delete iterator.next()
+    delete iterator
+    delete map
+    if destroyed != 100000 { panic("persistent map deep destruction failed\n") }
+    println("persistent map deep destruction ok")
+    return 0
+}

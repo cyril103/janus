@@ -1,0 +1,29 @@
+module config
+import std.persistent_map
+import std.option
+import std.shared
+
+/// Configuration immutable partageant les valeurs entre revisions.
+class Setting(val text : string) {}
+class Configuration(private var current : PersistentMap[string, Setting]) {
+    def set(key : string, text : string) : Unit {
+        val previous : PersistentMap[string, Setting] = move current
+        defer delete previous
+        current = previous.insert(key, new Setting(text))
+    }
+    def restore(borrow saved : PersistentMap[string, Setting]) : Unit {
+        val previous : PersistentMap[string, Setting] = move current
+        current = saved.clone()
+        delete previous
+    }
+    borrow def snapshot() : PersistentMap[string, Setting] { return current.clone() }
+    destructor { delete current }
+}
+def setting(borrow source : PersistentMap[string, Setting], key : string) : string {
+    return match source.get(key) { Some(value) => settingText(move value), None => "unset" }
+}
+private def settingText(value : Shared[Setting]) : string {
+    val result : string = value.get().text
+    delete value
+    return result
+}

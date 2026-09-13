@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Collections
 
+- `PersistentMap[K, V]` et `PersistentSet[T]` immutables (#315), moteur HAMT
+  partagé, collisions complètes, callbacks scoped et parcours de handles Shared.
+- validation des anciennes versions et des paniques sous ASan/UBSan, benchmarks
+  comparatifs et exemple de configuration versionnée.
+
 - `std.persistent_vector.PersistentVector[T]` à partage structurel (#314), avec
   accès et mises à jour logarithmiques, parcours de handles `Shared[T]`,
   transformations linéaires et conservation des valeurs propriétaires.

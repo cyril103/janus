@@ -3296,7 +3296,30 @@ if(BUILD_TESTING)
         COMMAND "$<TARGET_FILE:janus>" test --fail-if-empty
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/examples/persistent-editor"
     )
-    foreach(vector_fixture persistent_vector persistent_vector_deep_destruction)
+    add_test(
+        NAME downstream.versioned_config
+        COMMAND "$<TARGET_FILE:janus>" test --fail-if-empty
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/examples/versioned-config"
+    )
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_test(
+            NAME runtime.persistent_map_allocation_panics
+            COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/runtime/run_persistent_map_allocations.py"
+                --janusc "$<TARGET_FILE:janusc>" --clang "${CLANG_EXECUTABLE}"
+                --source "${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/persistent_map_allocation_panic.janus"
+                --runtime "$<TARGET_FILE:janus_runtime>"
+                --shim "${PROJECT_SOURCE_DIR}/tests/runtime/persistent_vector_allocations.c"
+                --output "${PROJECT_BINARY_DIR}/persistent_map_allocations"
+        )
+        add_test(
+            NAME benchmarks.persistent_map_smoke
+            COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/benchmarks/run_persistent_map.py"
+                --build-dir "${PROJECT_BINARY_DIR}" --clang "${CLANG_EXECUTABLE}" --repeats 1
+        )
+    endif()
+    foreach(vector_fixture persistent_vector persistent_vector_deep_destruction persistent_map persistent_map_deep_destruction)
         add_test(
             NAME runtime.${vector_fixture}
             COMMAND ${CMAKE_COMMAND}

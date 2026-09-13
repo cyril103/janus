@@ -1,0 +1,26 @@
+import config
+import std.persistent_map
+import std.testing
+
+/// @test
+def snapshotsSurviveReplacementRollbackAndBranch() : Unit {
+    val config : Configuration = new Configuration(persistentMapEmpty[string, Setting]())
+    defer delete config
+    config.set("theme", "light")
+    config.set("locale", "fr")
+    val saved : PersistentMap[string, Setting] = config.snapshot()
+    defer delete saved
+    config.set("theme", "dark")
+    val preview : PersistentMap[string, Setting] = config.snapshot()
+    defer delete preview
+    config.restore(saved)
+    config.set("locale", "en")
+    val branch : PersistentMap[string, Setting] = config.snapshot()
+    defer delete branch
+    assertEqual[string](setting(saved, "theme"), "light")
+    assertEqual[string](setting(preview, "theme"), "dark")
+    assertEqual[string](setting(branch, "theme"), "light")
+    assertEqual[string](setting(saved, "locale"), "fr")
+    assertEqual[string](setting(branch, "locale"), "en")
+    assertEqual[usize](saved.size(), usize(2))
+}

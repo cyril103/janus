@@ -1,0 +1,3 @@
+/// Facade des ensembles persistants, moteur et types dans std.persistent_map.
+module std.persistent_set
+import std.persistent_map

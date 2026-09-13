@@ -302,6 +302,8 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
   bool stdlib_generic_metadata_complete = true;
   bool slice_metadata_complete = false;
   bool mutable_slice_metadata_complete = false;
+  bool persistent_map_metadata_complete = false;
+  bool persistent_set_metadata_complete = false;
   for (const auto &symbol : installed.symbols) {
     const bool type = symbol.kind == "class" || symbol.kind == "struct" ||
                       symbol.kind == "trait" || symbol.kind == "enum";
@@ -315,6 +317,12 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
         symbol.signature[name + symbol.simple_name.size()] == '[';
     if (declaration_is_generic && symbol.generic_parameters.empty())
       stdlib_generic_metadata_complete = false;
+    if (symbol.qualified_name == "std.persistent_map.PersistentMap")
+      persistent_map_metadata_complete =
+          symbol.generic_parameters == std::vector<std::string>{"K", "V"};
+    if (symbol.qualified_name == "std.persistent_map.PersistentSet")
+      persistent_set_metadata_complete =
+          symbol.generic_parameters == std::vector<std::string>{"T"};
     if (symbol.qualified_name == "std.slice.Slice")
       slice_metadata_complete =
           symbol.generic_parameters == std::vector<std::string>{"T"};
@@ -322,10 +330,11 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
       mutable_slice_metadata_complete =
           symbol.generic_parameters == std::vector<std::string>{"T"};
   }
-  expect(stdlib_types_with_generic_syntax == 43 &&
+  expect(stdlib_types_with_generic_syntax == 46 &&
              stdlib_generic_metadata_complete && slice_metadata_complete &&
-             mutable_slice_metadata_complete,
-         "all 43 stdlib type signatures preserve generic declaration metadata");
+             mutable_slice_metadata_complete && persistent_map_metadata_complete &&
+             persistent_set_metadata_complete,
+         "all 46 stdlib type signatures preserve generic declaration metadata");
   expect(janus::driver::format_api_search(by_doc, "human") ==
              janus::driver::format_api_search(by_doc, "human"),
          "human output is deterministic");

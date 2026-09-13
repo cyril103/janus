@@ -96,3 +96,13 @@ temps par processus ainsi que les allocations et le pic d'octets vivants, puis
 écrit un JSON dans le répertoire de build. Le shim de comptage utilise GNU
 `--wrap`; les mesures et leurs limites sont décrites dans
 [`persistent-vector.md`](../docs/design/persistent-vector.md).
+
+## Map et set persistants
+
+`python3 benchmarks/run_persistent_map.py --build-dir build --repeats 3`
+compare Array de paires, HashMap/PersistentMap et HashSet/PersistentSet avec 1024
+associations et 32 versions conservées de 1025 entrées. Sous Linux, le rapport
+`build/persistent_map_benchmark/measurements.json` contient les temps de processus,
+allocations, octets demandés, pic mémoire Janus et RSS GNU time. Les checksums,
+le nombre de versions et l'absence de mémoire Janus restante sont vérifiés.
+Voir [le contrat et les limites](../docs/design/persistent-map.md).

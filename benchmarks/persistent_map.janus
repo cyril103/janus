@@ -1,0 +1,123 @@
+import std.array
+import std.hashmap
+import std.hashset
+import std.hashing
+import std.iterator
+import std.option
+import std.persistent_map
+private extern("vector_mode") def mode() : int
+private extern("vector_report") def report() : Unit
+
+class MapState(private var value : PersistentMap[int, int]) {
+    def put(key : int) : Unit {
+        val old : PersistentMap[int, int] = move value
+        value = old.insert(key, key)
+        delete old
+    }
+    borrow def snapshot() : PersistentMap[int, int] { return value.clone() }
+    destructor { delete value }
+}
+class SetState(private var value : PersistentSet[int]) {
+    def put(key : int) : Unit {
+        val old : PersistentSet[int] = move value
+        value = old.insert(key)
+        delete old
+    }
+    borrow def snapshot() : PersistentSet[int] { return value.clone() }
+    destructor { delete value }
+}
+def mapWork() : Unit {
+    val state : MapState = new MapState(persistentMapEmpty[int, int]())
+    var i : int = 0
+    while i < 1024 { state.put(i); i = i + 1 }
+    val source : PersistentMap[int, int] = state.snapshot()
+    val versions : Array[PersistentMap[int, int]] = new Array[PersistentMap[int, int]](usize(0))
+    i = 0
+    while i < 32 { versions.push(source.insert(1024 + i, i)); i = i + 1 }
+    println(source.fold[int](0, (sum : int, borrow key : int, borrow value : int) => sum + value))
+    println(versions.size())
+    delete versions; delete source; delete state
+}
+def setWork() : Unit {
+    val state : SetState = new SetState(persistentSetEmpty[int]())
+    var i : int = 0
+    while i < 1024 { state.put(i); i = i + 1 }
+    val source : PersistentSet[int] = state.snapshot()
+    val versions : Array[PersistentSet[int]] = new Array[PersistentSet[int]](usize(0))
+    i = 0
+    while i < 32 { versions.push(source.insert(1024 + i)); i = i + 1 }
+    println(source.fold[int](0, (sum : int, borrow key : int) => sum + key))
+    println(versions.size())
+    delete versions; delete source; delete state
+}
+def hashMapWork() : Unit {
+    val hashing : IntHashing = new IntHashing()
+    val source : HashMap[int, int, IntHashing] = new HashMap[int, int, IntHashing](usize(2048), hashing)
+    var i : int = 0
+    while i < 1024 { val _previous : Option[int] = source.put(i, i); i = i + 1 }
+    val versions : Array[HashMap[int, int, IntHashing]] = new Array[HashMap[int, int, IntHashing]](usize(0))
+    i = 0
+    while i < 32 {
+        val next : HashMap[int, int, IntHashing] = new HashMap[int, int, IntHashing](usize(2048), hashing)
+        val keys : Iterator[int] = source.keys()
+        for key in move keys {
+            val value : int = match source.getOption(key) { Some(item) => item, None => -1 }
+            val _previous : Option[int] = next.put(key, value)
+        }
+        val _previous : Option[int] = next.put(1024 + i, i)
+        versions.push(move next)
+        i = i + 1
+    }
+    var sum : int = 0
+    val values : Iterator[int] = source.values()
+    for value in move values { sum = sum + value }
+    println(sum); println(versions.size())
+    delete versions; delete source; delete hashing
+}
+def hashSetWork() : Unit {
+    val hashing : IntHashing = new IntHashing()
+    val source : HashSet[int, IntHashing] = new HashSet[int, IntHashing](usize(2048), hashing)
+    var i : int = 0
+    while i < 1024 { source.add(i); i = i + 1 }
+    val versions : Array[HashSet[int, IntHashing]] = new Array[HashSet[int, IntHashing]](usize(0))
+    i = 0
+    while i < 32 {
+        val next : HashSet[int, IntHashing] = new HashSet[int, IntHashing](usize(2048), hashing)
+        val keys : Iterator[int] = source.iterator()
+        for key in move keys { next.add(key) }
+        next.add(1024 + i)
+        versions.push(move next)
+        i = i + 1
+    }
+    var sum : int = 0
+    val values : Iterator[int] = source.iterator()
+    for value in move values { sum = sum + value }
+    println(sum); println(versions.size())
+    delete versions; delete source; delete hashing
+}
+struct Pair(val key : int, val value : int) derives Copy {}
+def arrayWork() : Unit {
+    val source : Array[Pair] = new Array[Pair](usize(0))
+    var i : int = 0
+    while i < 1024 { source.push(new Pair(i, i)); i = i + 1 }
+    val versions : Array[Array[Pair]] = new Array[Array[Pair]](usize(0))
+    i = 0
+    while i < 32 {
+        val next : Array[Pair] = source.map[Pair]((entry : Pair) => entry)
+        next.push(new Pair(1024 + i, i))
+        versions.push(move next)
+        i = i + 1
+    }
+    println(source.fold[int](0, (sum : int, entry : Pair) => sum + entry.value))
+    println(versions.size())
+    delete versions; delete source
+}
+def main() : int {
+    if mode() == 0 { arrayWork() }
+    if mode() == 1 { hashMapWork() }
+    if mode() == 2 { mapWork() }
+    if mode() == 3 { hashSetWork() }
+    if mode() == 4 { setWork() }
+    report()
+    return 0
+}

@@ -93,6 +93,10 @@ OWNER_MODULES = {
     "#314": {
         "std.persistent_vector",
     },
+    "#315": {
+        "std.persistent_map",
+        "std.persistent_set",
+    },
     "#300": {
         "std.persistent_list",
     },

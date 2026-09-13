@@ -1,0 +1,271 @@
+import std.array
+import std.hashmap
+import std.iterator
+import std.option
+import std.persistent_set
+import std.shared
+
+var destroyed : int = 0
+class Resource(val value : int) { destructor { destroyed = destroyed + 1 } }
+def check(value : bool) : Unit { if !value { panic("persistent map assertion failed\n") } }
+def read(borrow source : PersistentMap[int, int], key : int) : int {
+    return match source.get(key) {
+        Some(value) => readHandle(move value),
+        None => -999
+    }
+}
+def readHandle(value : Shared[int]) : int { val result : int = value.get() + 0; delete value; return result }
+class Versions(private var current : PersistentMap[int, int]) {
+    def put(key : int, value : int) : Unit {
+        val old : PersistentMap[int, int] = move current
+        current = old.insert(key, value)
+        delete old
+    }
+    def erase(key : int) : Unit {
+        val old : PersistentMap[int, int] = move current
+        current = match old.remove(key) { Some(next) => move next, None => old.clone() }
+        delete old
+    }
+    borrow def snapshot() : PersistentMap[int, int] { return current.clone() }
+    destructor { delete current }
+}
+
+def corpus(mode : int, count : int) : Unit {
+    val state : Versions = new Versions(persistentMapWith[int, int](
+        (borrow key : int) => {
+            if mode == 1 { return usize(7) }
+            if mode == 2 { return numericCast[usize](key) * (usize(1073741824) * usize(1073741824)) }
+            return numericCast[usize](key)
+        }, (borrow a : int, borrow b : int) => a == b))
+    val versions : Array[PersistentMap[int, int]] = new Array[PersistentMap[int, int]](usize(0))
+    var i : int = 0
+    while i < count {
+        versions.push(state.snapshot())
+        state.put(i, i * 3)
+        i = i + 1
+    }
+    val full : PersistentMap[int, int] = state.snapshot()
+    check(full.size() == numericCast[usize](count))
+    i = 0
+    while i < count {
+        check(read(full, i) == i * 3)
+        check(versions.getBorrowed(numericCast[usize](i)).size() == numericCast[usize](i))
+        check(!versions.getBorrowed(numericCast[usize](i)).containsKey(i))
+        i = i + 1
+    }
+    val replaced : PersistentMap[int, int] = full.insert(0, -1)
+    check(read(full, 0) == 0)
+    check(read(replaced, 0) == -1)
+    check(replaced.size() == full.size())
+    val diamond : PersistentMap[int, int] = replaced.insert(0, 0)
+    check(diamond.equals(full))
+    val missing : Option[PersistentMap[int, int]] = full.remove(-1)
+    check(!isSome[PersistentMap[int, int]](missing))
+    delete missing
+    val identity : PersistentMap[int, int] = full.mapValues[int]((borrow value : int) => value + 0)
+    check(identity.equals(full))
+    val kept : PersistentMap[int, int] = full.filter((borrow key : int, borrow value : int) => key % 2 == 0)
+    check(kept.size() == numericCast[usize]((count + 1) / 2))
+    check(full.fold[int](0, (sum : int, borrow key : int, borrow value : int) => sum + value) == (count * (count - 1) / 2) * 3)
+    val altered : PersistentMap[int, int] = full.alter(0, (old : Option[Shared[int]]) => { delete old; return Option.Some[int](123); })
+    check(read(altered, 0) == 123)
+    val removed : PersistentMap[int, int] = full.alter(0, (old : Option[Shared[int]]) => { delete old; return Option.None[int](); })
+    check(!removed.containsKey(0))
+    val noChange : PersistentMap[int, int] = full.alter(-1, (old : Option[Shared[int]]) => { delete old; return Option.None[int](); })
+    check(noChange.equals(full))
+    val keys : Iterator[Shared[int]] = full.keys()
+    delete keys.next()
+    delete keys
+    val values : Iterator[Shared[int]] = full.values()
+    delete values.next()
+    delete values
+    val entries : Iterator[MapEntry[Shared[int], Shared[int]]] = full.clone().intoIterator()
+    delete entries.next()
+    delete entries
+    i = count - 1
+    while i >= 0 { state.erase(i); i = i - 1 }
+    val empty : PersistentMap[int, int] = state.snapshot()
+    check(empty.isEmpty())
+    check(full.size() == numericCast[usize](count))
+    delete empty
+    delete noChange
+    delete removed
+    delete altered
+    delete kept
+    delete identity
+    delete diamond
+    delete replaced
+    delete full
+    delete versions
+    delete state
+}
+
+def owned() : Unit {
+    val empty : PersistentMap[Resource, Resource] = persistentMapWith[Resource, Resource](
+        (borrow key : Resource) => usize(0),
+        (borrow a : Resource, borrow b : Resource) => a.value == b.value)
+    val one : PersistentMap[Resource, Resource] = empty.insert(new Resource(1), new Resource(10))
+    val two : PersistentMap[Resource, Resource] = one.insert(new Resource(2), new Resource(20))
+    val replaced : PersistentMap[Resource, Resource] = two.insert(new Resource(1), new Resource(30))
+    val probe : Resource = new Resource(2)
+    val before : Option[Shared[Resource]] = two.get(probe)
+    val after : Option[Shared[Resource]] = replaced.get(probe)
+    check(same(before, after))
+    delete after
+    delete before
+    delete probe
+    val filtered : PersistentMap[Resource, Resource] = two.filter((borrow key : Resource, borrow value : Resource) => true)
+    check(filtered.equalsBy(two, (borrow a : Resource, borrow b : Resource) => a.value == b.value))
+    delete filtered
+    val iter : Iterator[MapEntry[Shared[Resource], Shared[Resource]]] = replaced.clone().intoIterator()
+    delete replaced
+    check(destroyed == 1)
+    delete iter.next()
+    delete iter
+    check(destroyed == 3)
+    delete two
+    check(destroyed == 5)
+    delete one
+    delete empty
+    check(destroyed == 7)
+}
+def same(borrow a : Option[Shared[Resource]], borrow b : Option[Shared[Resource]]) : bool {
+    return match a { Some(left) => match b { Some(right) => left.isSame(right), None => false }, None => false }
+}
+
+def sets() : Unit {
+    val empty : PersistentSet[int] = persistentSetEmpty[int]()
+    val a : PersistentSet[int] = empty.insert(1)
+    val b : PersistentSet[int] = a.insert(2)
+    val c : PersistentSet[int] = a.insert(3)
+    val union : PersistentSet[int] = b.union(c)
+    val reverse : PersistentSet[int] = c.union(b)
+    check(union.size() == usize(3))
+    check(union.equals(reverse))
+    val intersection : PersistentSet[int] = b.intersection(c)
+    check(intersection.equals(a))
+    val difference : PersistentSet[int] = b.difference(c)
+    check(difference.size() == usize(1) && difference.contains(2))
+    check(union.fold[int](0, (sum : int, borrow value : int) => sum + value) == 6)
+    val removed : Option[PersistentSet[int]] = b.remove(2)
+    check(isSome[PersistentSet[int]](removed))
+    delete removed
+    delete b.remove(7)
+    val iter : Iterator[Shared[int]] = union.clone().intoIterator()
+    delete iter.next()
+    delete iter
+    val duplicate : PersistentSet[int] = a.insert(1)
+    check(duplicate.equals(a))
+    delete duplicate
+    delete difference
+    delete intersection
+    delete reverse
+    delete union
+    delete c
+    delete b
+    delete a
+    delete empty
+}
+
+def main() : int {
+    corpus(0, 1057)
+    corpus(1, 65)
+    corpus(2, 16)
+    owned()
+    sets()
+    hashContract()
+    setLaws()
+    ownedSet()
+    println("persistent map/set ok")
+    return 0
+}
+
+var hashes : int = 0
+var comparisons : int = 0
+def countedHash(borrow key : int) : usize { hashes = hashes + 1; return usize(0) }
+def countedEquals(borrow a : int, borrow b : int) : bool { comparisons = comparisons + 1; return a == b }
+def hashContract() : Unit {
+    val empty : PersistentMap[int, int] = persistentMapWith[int, int]((borrow key : int) => countedHash(key), (borrow a : int, borrow b : int) => countedEquals(a, b))
+    defer delete empty
+    val one : PersistentMap[int, int] = empty.insert(1, 10)
+    defer delete one
+    val two : PersistentMap[int, int] = one.insert(2, 20)
+    defer delete two
+    hashes = 0; comparisons = 0
+    check(two.containsKey(2))
+    check(hashes == 1 && comparisons == 2)
+    hashes = 0; comparisons = 0
+    delete two.insert(1, 30)
+    check(hashes == 1 && comparisons == 3)
+    hashes = 0; comparisons = 0
+    delete two.remove(2)
+    check(hashes == 1 && comparisons == 4)
+    hashes = 0; comparisons = 0
+    delete two.remove(3)
+    check(hashes == 1 && comparisons == 2)
+    hashes = 0; comparisons = 0
+    val traversal : Iterator[MapEntry[Shared[int], Shared[int]]] = two.iterator()
+    for entry in move traversal { delete entry }
+    check(hashes == 0 && comparisons == 0)
+}
+def maskSet(mask : int) : PersistentSet[int] { return maskSetAt(mask, 0) }
+def maskSetAt(mask : int, key : int) : PersistentSet[int] {
+    if mask == 0 { return persistentSetWith[int]((borrow key : int) => usize(0), (borrow a : int, borrow b : int) => a == b) }
+    val rest : PersistentSet[int] = maskSetAt(mask / 2, key + 1)
+    defer delete rest
+    if mask % 2 == 1 { return rest.insert(key) }
+    return rest.clone()
+}
+def setLaws() : Unit {
+    var i : int = 0
+    while i < 16 {
+        val a : PersistentSet[int] = maskSet(i)
+        defer delete a
+        var j : int = 0
+        while j < 16 {
+            val b : PersistentSet[int] = maskSet(j)
+            defer delete b
+            val union : PersistentSet[int] = a.union(b)
+            defer delete union
+            val reverse : PersistentSet[int] = b.union(a)
+            defer delete reverse
+            check(union.equals(reverse))
+            val intersection : PersistentSet[int] = a.intersection(b)
+            defer delete intersection
+            val difference : PersistentSet[int] = a.difference(b)
+            defer delete difference
+            val rebuilt : PersistentSet[int] = intersection.union(difference)
+            defer delete rebuilt
+            check(rebuilt.equals(a))
+            val disjoint : PersistentSet[int] = intersection.intersection(difference)
+            defer delete disjoint
+            check(disjoint.isEmpty())
+            var key : int = 0
+            while key < 4 {
+                check(union.contains(key) == (a.contains(key) || b.contains(key)))
+                check(intersection.contains(key) == (a.contains(key) && b.contains(key)))
+                check(difference.contains(key) == (a.contains(key) && !b.contains(key)))
+                key = key + 1
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+def ownedSet() : Unit {
+    val baseline : int = destroyed
+    val empty : PersistentSet[Resource] = persistentSetWith[Resource]((borrow key : Resource) => usize(0), (borrow a : Resource, borrow b : Resource) => a.value == b.value)
+    val a : PersistentSet[Resource] = empty.insert(new Resource(1))
+    val b : PersistentSet[Resource] = a.insert(new Resource(2))
+    val duplicate : PersistentSet[Resource] = b.insert(new Resource(1))
+    val union : PersistentSet[Resource] = b.union(duplicate)
+    val intersection : PersistentSet[Resource] = b.intersection(duplicate)
+    val difference : PersistentSet[Resource] = b.difference(duplicate)
+    check(union.equals(b) && intersection.equals(b) && difference.isEmpty())
+    delete union; delete intersection; delete difference
+    val traversal : Iterator[Shared[Resource]] = duplicate.clone().intoIterator()
+    delete duplicate; delete b; delete a; delete empty
+    delete traversal.next()
+    delete traversal
+    check(destroyed == baseline + 3)
+}

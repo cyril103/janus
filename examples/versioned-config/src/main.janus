@@ -1,0 +1,17 @@
+import config
+import std.persistent_map
+
+def main() : int {
+    val config : Configuration = new Configuration(persistentMapEmpty[string, Setting]())
+    defer delete config
+    config.set("theme", "light")
+    val saved : PersistentMap[string, Setting] = config.snapshot()
+    defer delete saved
+    config.set("theme", "dark")
+    val preview : PersistentMap[string, Setting] = config.snapshot()
+    defer delete preview
+    println(setting(saved, "theme"))
+    println(setting(preview, "theme"))
+    config.restore(saved)
+    return 0
+}

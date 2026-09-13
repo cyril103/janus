@@ -1,0 +1,100 @@
+import std.persistent_map
+import std.iterator
+import std.hashmap
+import std.option
+import std.shared
+private extern("vector_arm") def arm(count : usize) : Unit
+private extern("vector_drop") def drop() : Unit
+private extern("vector_verify") def verify() : Unit
+private extern("vector_mode") def mode() : int
+private extern("vector_expect_more") def expectMore() : Unit
+var armed : bool = false
+class Resource(val value : int) { destructor { drop() } }
+def hash(borrow key : Resource) : usize {
+    if armed && mode() == 9 { panic("allocation failed: hash callback\n") }
+    if mode() == 2 || mode() == 18 || mode() == 19 { return usize(0) }
+    if mode() == 17 && key.value == 65 { return usize(1) + usize(1073741824) * usize(1073741824) }
+    return numericCast[usize](key.value)
+}
+def equal(borrow a : Resource, borrow b : Resource) : bool {
+    if armed && mode() == 10 { panic("allocation failed: equality callback\n") }
+    return a.value == b.value
+}
+def project(borrow value : Resource) : Resource {
+    expectMore()
+    return new Resource(value.value)
+}
+def inspect(borrow source : PersistentMap[Resource, Resource]) : Unit {
+    armed = false
+    if source.size() != usize(2) { panic("source changed\n") }
+    val probe : Resource = new Resource(1)
+    expectMore()
+    defer delete probe
+    val found : Option[Shared[Resource]] = source.get(probe)
+    defer delete found
+    if !isSome[Shared[Resource]](found) { panic("source corrupted\n") }
+}
+def exercise() : Unit {
+    val empty : PersistentMap[Resource, Resource] = persistentMapWith[Resource, Resource]((borrow key : Resource) => hash(key), (borrow a : Resource, borrow b : Resource) => equal(a, b))
+    defer delete empty
+    val first : PersistentMap[Resource, Resource] = empty.insert(new Resource(1), new Resource(10))
+    defer delete first
+    val source : PersistentMap[Resource, Resource] = first.insert(new Resource(33), new Resource(20))
+    defer delete source
+    defer inspect(source)
+    arm(usize(4))
+    armed = true
+    if mode() <= 2 || mode() == 9 || mode() == 10 || mode() == 17 || mode() == 18 {
+        expectMore(); expectMore()
+        var key : int = 65
+        if mode() == 1 || mode() == 10 || mode() == 18 { key = 1 }
+        delete source.insert(new Resource(key), new Resource(30))
+    }
+    if mode() == 3 || mode() == 19 {
+        expectMore()
+        val probe : Resource = new Resource(1)
+        defer delete probe
+        delete source.remove(probe)
+    }
+    if mode() == 4 { delete source.mapValues[Resource]((borrow value : Resource) => project(value)) }
+    if mode() == 5 { delete source.filter((borrow key : Resource, borrow value : Resource) => true) }
+    if mode() == 6 {
+        val iterator : Iterator[MapEntry[Shared[Resource], Shared[Resource]]] = source.iterator()
+        defer delete iterator
+        delete iterator.next()
+    }
+    if mode() == 7 || mode() == 11 {
+        expectMore()
+        delete source.alter(new Resource(1), (old : Option[Shared[Resource]]) => {
+            delete old
+            if mode() == 11 { panic("allocation failed: alter callback\n") }
+            expectMore()
+            return Option.Some[Resource](new Resource(90))
+        })
+    }
+    if mode() == 16 {
+        expectMore(); expectMore()
+        delete empty.insert(new Resource(0), new Resource(1))
+    }
+    if mode() == 12 { delete source.mapValues[Resource]((borrow value : Resource) => panicProjection()) }
+    if mode() == 13 { delete source.filter((borrow key : Resource, borrow value : Resource) => panicPredicate()) }
+    if mode() == 14 { source.fold[int](0, (sum : int, borrow key : Resource, borrow value : Resource) => panicFold()) }
+    if mode() == 15 { source.equalsBy(source, (borrow a : Resource, borrow b : Resource) => panicPredicate()) }
+    if mode() == 8 {
+        val a : PersistentSet[int] = persistentSetEmpty[int]()
+        defer delete a
+        val b : PersistentSet[int] = a.insert(1)
+        defer delete b
+        val c : PersistentSet[int] = a.insert(2)
+        defer delete c
+        delete b.union(c)
+        delete b.intersection(c)
+        delete b.difference(c)
+        delete b.remove(1)
+    }
+}
+def main() : int { exercise(); verify(); return 0 }
+
+def panicProjection() : Resource { panic("allocation failed: map callback\n") }
+def panicPredicate() : bool { panic("allocation failed: predicate callback\n") }
+def panicFold() : int { panic("allocation failed: fold callback\n") }
