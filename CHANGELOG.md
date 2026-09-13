@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Paquets
 
+- `janus add --path` et `janus add --git --rev` acceptent désormais une
+  dépendance sans contrainte de version (#364). Le commit Git fourni est
+  conservé sans télécharger le dépôt ; les contraintes explicites restent
+  validées avant toute modification du manifeste initial.
 - chaque contrainte de version est désormais vérifiée pour les dépendances
   partagées, y compris par chemin ou commit Git (#363). Un graphe incompatible
   est rejeté quel que soit l’ordre de déclaration, avec le paquet, sa version

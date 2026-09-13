@@ -32,7 +32,8 @@ void validate_text(std::string_view value, std::string_view description) {
 
 std::string dependency_line(const janus::driver::Dependency &dependency) {
   validate_text(dependency.name, "dependency name");
-  validate_text(dependency.version_requirement, "version requirement");
+  if (dependency.is_registry() || !dependency.version_requirement.empty())
+    validate_text(dependency.version_requirement, "version requirement");
   if (dependency.is_registry()) {
     if (!dependency.registry.empty())
       validate_text(dependency.registry, "registry URL");
