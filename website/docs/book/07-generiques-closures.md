@@ -66,7 +66,7 @@ def describe[T <: Named & Sized](value : T) : string {
 
 ## Fonctions de première classe
 
-Le type `(int) => bool` désigne une fonction prenant un `int` et retournant un `bool` :
+Le type `Fn (int) => bool` désigne une fonction prenant un `int` et retournant un `bool`, appelable sans modifier ses captures. `FnMut` autorise leur mutation et `FnOnce` consomme la callback lors de l’appel :
 
 ```janus
 // doctest: doctest name=function-value
@@ -75,7 +75,7 @@ def apply(value : int, borrow operation : Fn (int) => int) : int {
 }
 
 def main() : int {
-    val doubleIt : FnMut (int) => int =
+    val doubleIt : Fn (int) => int =
         (value : int) => value * 2
     val answer : int = apply(21, doubleIt)
     delete doubleIt
