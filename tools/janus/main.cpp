@@ -18,6 +18,7 @@
 #include "janus/driver/registry.hpp"
 #include "janus/driver/temporary_directory.hpp"
 #include "janus/frontend/module_loader.hpp"
+#include "janus/frontend/unicode_identifier.hpp"
 #include "janus/semantic/analyzer.hpp"
 #include "janus/semantic/compilation_session.hpp"
 #include "commands.hpp"
@@ -1393,23 +1394,33 @@ std::filesystem::path default_output(const Options &options) {
 }
 
 std::filesystem::path snapshot_module_path(const std::filesystem::path &root,
-                                           std::string_view module) {
+                                          std::string_view module) {
+  namespace unicode = janus::frontend::unicode;
   if (module.empty())
     throw std::runtime_error{"cannot snapshot an unnamed imported module"};
   std::filesystem::path relative;
   std::size_t start = 0;
-  while (start < module.size()) {
+  while (true) {
     const std::size_t separator = module.find('.', start);
     const std::string_view segment = module.substr(
         start, separator == std::string_view::npos ? module.size() - start
                                                    : separator - start);
-    if (segment.empty() ||
-        !std::all_of(segment.begin(), segment.end(), [](unsigned char value) {
-          return std::isalnum(value) != 0 || value == '_';
-        }))
+    if (segment.empty())
       throw std::runtime_error{
           "invalid imported module name in build snapshot"};
-    relative /= segment;
+    // Use the frontend's locale-independent identifier rules. They also
+    // exclude path separators and traversal components from every segment.
+    for (std::size_t offset = 0; offset < segment.size();) {
+      const auto scalar = unicode::decode(segment, offset);
+      if (unicode::is_disallowed_identifier_control(scalar.value) ||
+          (scalar.value != '_' &&
+           !(offset == 0 ? unicode::is_xid_start(scalar.value)
+                         : unicode::is_xid_continue(scalar.value))))
+        throw std::runtime_error{
+            "invalid imported module name in build snapshot"};
+      offset += scalar.length;
+    }
+    relative /= unicode::normalize_nfc(segment);
     if (separator == std::string_view::npos)
       break;
     start = separator + 1;

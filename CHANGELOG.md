@@ -14,6 +14,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Compilation
 
+- les imports de modules Unicode fonctionnent désormais avec le cache de
+  compilation, à froid comme à chaud (#362). Les instantanés appliquent les
+  mêmes règles d’identifiants et la même normalisation NFC que le frontend,
+  tout en conservant le confinement des chemins.
 - les syntaxes trop profondément imbriquées et les longues chaînes
   d’expressions sont refusées avec le diagnostic stable `JPAR0005`, au lieu
   de faire tomber le compilateur ou le LSP (#360). Le budget partagé de

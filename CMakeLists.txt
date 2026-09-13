@@ -1320,6 +1320,13 @@ if(BUILD_TESTING)
     )
     add_test(NAME driver.incremental_cache COMMAND incremental_cache_test)
     add_test(
+        NAME cli.incremental_cache_unicode
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_unicode.py"
+                --janus "$<TARGET_FILE:janus>"
+                --work-dir "${PROJECT_BINARY_DIR}/incremental-cache-unicode"
+    )
+    add_test(
         NAME cli.incremental_cache
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
