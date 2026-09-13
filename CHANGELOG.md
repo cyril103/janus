@@ -80,6 +80,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Registre de paquets
 
+- vérification complète de l’intégrité gzip avant publication d’une sauvegarde
+  restaurée, y compris lorsque les entrées tar sont encore lisibles.
+
 - création exclusive du fichier d’authentification curl avec des permissions
   privées dès l’ouverture, rejet des chemins existants et nettoyage automatique
   après succès ou erreur, même avec un `umask` permissif (#307).

@@ -445,7 +445,8 @@ def main() -> None:
     assert backup.is_file()
     corrupt_backup = args.work_dir / "registry-backup-corrupt.tar.gz"
     corrupted = bytearray(backup.read_bytes())
-    corrupted[len(corrupted) // 2] ^= 0x01
+    # Corrupt the gzip CRC deterministically, even if the tar payload is valid.
+    corrupted[-8] ^= 0x01
     corrupt_backup.write_bytes(corrupted)
     corrupt_restore = args.work_dir / "corrupt-restore"
     run(

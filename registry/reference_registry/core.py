@@ -846,6 +846,11 @@ class RegistryStore:
                             output.write(chunk)
                     if calculated.hexdigest() != digest:
                         raise ValueError("backup file checksum mismatch")
+                # Tar iteration stops at its end marker before gzip necessarily
+                # checks the CRC and size trailer. Drain the compressed stream
+                # before publishing the restored directory.
+                while archive.fileobj.read(64 * 1024):
+                    pass
             database = staging / "registry.sqlite3"
             connection = sqlite3.connect(database)
             connection.row_factory = sqlite3.Row
