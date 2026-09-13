@@ -12,11 +12,13 @@ import os
 import pathlib
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from unittest.mock import patch
 
 
 TOKEN = "reference-registry-test-token-000000000000"
@@ -197,6 +199,23 @@ def main() -> None:
         pass
 
     python_path = str(args.source_root / "registry")
+    sys.path.insert(0, python_path)
+    from reference_registry.server import AnonymousDenials
+
+    with patch("reference_registry.server.time.monotonic", return_value=0) as clock:
+        counters = AnonymousDenials()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            list(executor.map(lambda _: counters.record("publish"), range(1000)))
+        assert counters.snapshot()["current"]["publish"] == 1000
+        clock.return_value = 60
+        assert counters.snapshot()["previous"]["publish"] == 1000
+        assert counters.snapshot()["current"]["publish"] == 0
+        counters.record("yank")
+        clock.return_value = 180
+        assert not any(counters.snapshot()["previous"].values())
+        counters._current["yank"] = counters.MAX_COUNT
+        counters.record("yank")
+        assert counters.snapshot()["current"]["yank"] == counters.MAX_COUNT
     env = os.environ.copy()
     env["PYTHONPATH"] = python_path + os.pathsep + env.get("PYTHONPATH", "")
     admin = [sys.executable, "-m", "reference_registry.admin"]
@@ -352,17 +371,51 @@ def main() -> None:
         token=TOKEN,
     )
 
-    request(origin + "/v1/audit", token=BAD_TOKEN, expected=401)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        denied_reads = [
-            executor.submit(
-                request, origin + "/v1/audit", token=BAD_TOKEN, expected=401
+    baseline = json.loads(request(origin + "/v1/audit", token=TOKEN)[0])["events"]
+    # Hold a writer lock: every anonymous response must complete without waiting
+    # for SQLite's write lock, including invalid URLs before authentication.
+    with sqlite3.connect(data / "registry.sqlite3") as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        size_before = sum(path.stat().st_size for path in data.glob("registry.sqlite3*"))
+
+        def hostile_request(index: int) -> None:
+            routes = [
+                ("GET", "/v1/audit", 401),
+                ("PUT", f"/v1/packages/noise/pkg{index}/1.0.0", 401),
+                ("POST", f"/v1/packages/noise/pkg{index}/1.0.0/yank", 401),
+                ("DELETE", f"/v1/packages/noise/pkg{index}/1.0.0/yank", 401),
+                ("PUT", "/v1/packages/noise/%2f/1.0.0", 400),
+                ("PUT", "/v1/packages/noise/pkg/invalid", 400),
+            ]
+            method, path, expected = routes[index % len(routes)]
+            request(
+                origin + path, method=method,
+                token=f"{BAD_TOKEN}-{index}" if index % 2 else None,
+                expected=expected,
             )
-            for _ in range(16)
-        ]
-        for denied_read in denied_reads:
-            denied_read.result()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            for _ in range(3):
+                list(executor.map(hostile_request, range(240)))
+                request(origin + "/healthz")
+                assert json.loads(request(origin + "/v1/audit", token=TOKEN)[0])["events"] == baseline
+                assert sum(path.stat().st_size for path in data.glob("registry.sqlite3*")) == size_before
+        connection.rollback()
+
+    # Legitimate writes and individually signed authorization refusals coexist
+    # with hostile traffic once the deliberate writer lock is released.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        noise = [executor.submit(hostile_request, index) for index in range(120)]
+        request(origin + "/v1/packages/acme/reference/1.2.3/yank", method="DELETE", token=TOKEN)
+        for _ in range(3):
+            request(origin + "/v1/packages/acme/reference/1.2.3", method="PUT", token=AUDIT_TOKEN, expected=403)
+        for future in noise:
+            future.result()
     audit = json.loads(request(origin + "/v1/audit", token=TOKEN)[0])
+    added = audit["events"][len(baseline):]
+    assert len(added) == 4
+    assert sum(event["subject"] == "auditor-ci" and event["result"] == "denied" for event in added) == 3
+    assert "anonymousDenials" in audit
     actions = [(event["action"], event["result"]) for event in audit["events"]]
     assert ("publish", "allowed") in actions
     assert ("publish", "conflict") in actions

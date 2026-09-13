@@ -10,6 +10,8 @@ import pathlib
 import re
 import signal
 import sys
+import threading
+import time
 import urllib.parse
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +27,44 @@ from .core import (
 )
 
 
+class AnonymousDenials:
+    """Two fixed windows, no attacker-controlled keys or durable writes."""
+
+    WINDOW_SECONDS = 60
+    MAX_COUNT = (1 << 63) - 1
+    ACTIONS = ("read-audit", "publish", "yank", "unyank", "invalid-publication")
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._window = int(time.monotonic() // self.WINDOW_SECONDS)
+        self._current = dict.fromkeys(self.ACTIONS, 0)
+        self._previous = dict.fromkeys(self.ACTIONS, 0)
+
+    def _rotate(self) -> None:
+        window = int(time.monotonic() // self.WINDOW_SECONDS)
+        if window != self._window:
+            self._previous = (
+                self._current if window == self._window + 1
+                else dict.fromkeys(self.ACTIONS, 0)
+            )
+            self._current = dict.fromkeys(self.ACTIONS, 0)
+            self._window = window
+
+    def record(self, action: str) -> None:
+        with self._lock:
+            self._rotate()
+            self._current[action] = min(self.MAX_COUNT, self._current[action] + 1)
+
+    def snapshot(self) -> dict:
+        with self._lock:
+            self._rotate()
+            return {
+                "windowSeconds": self.WINDOW_SECONDS,
+                "current": self._current.copy(),
+                "previous": self._previous.copy(),
+            }
+
+
 class RegistryHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -37,6 +77,7 @@ class RegistryHTTPServer(ThreadingHTTPServer):
     ):
         super().__init__(address, RegistryHandler)
         self.store = store
+        self.anonymous_denials = AnonymousDenials()
         self.origin = origin
         self.api_base = origin + "/v1"
 
@@ -50,7 +91,7 @@ class RegistryHandler(BaseHTTPRequestHandler):
         return self.server  # type: ignore[return-value]
 
     def log_message(self, format: str, *args: object) -> None:
-        # Les requêtes sont tracées dans le journal signé sans en-têtes sensibles.
+        # Aucun journal HTTP par requête : voir les compteurs de refus et l’audit signé.
         pass
 
     def _request_id(self) -> str:
@@ -140,15 +181,8 @@ class RegistryHandler(BaseHTTPRequestHandler):
         token = self._bearer()
         identity = self.registry.store.identity(token) if token is not None else None
         if identity is None:
-            self.registry.store.audit(
-                "anonymous",
-                action,
-                "denied",
-                request_id,
-                package,
-                version,
-                "authentication or authorization failed",
-            )
+            self.registry.anonymous_denials.record(action)
+            self.close_connection = True
             self._error(http.HTTPStatus.UNAUTHORIZED, "unauthorized", request_id)
             return None
         subject, scopes = identity
@@ -162,6 +196,7 @@ class RegistryHandler(BaseHTTPRequestHandler):
                 version,
                 "scope is not authorized",
             )
+            self.close_connection = True
             self._error(http.HTTPStatus.FORBIDDEN, "forbidden", request_id)
             return None
         return subject
@@ -271,6 +306,7 @@ class RegistryHandler(BaseHTTPRequestHandler):
                     200,
                     {
                         "events": self.registry.store.audit_records(package),
+                        "anonymousDenials": self.registry.anonymous_denials.snapshot(),
                         "protocolVersion": "1",
                     },
                     request_id,
@@ -412,15 +448,19 @@ class RegistryHandler(BaseHTTPRequestHandler):
             )
             self._error(422, str(error), request_id)
         except (UnicodeError, ValueError) as error:
-            self.registry.store.audit(
-                subject or "authenticated",
-                "publish",
-                "rejected",
-                request_id,
-                package,
-                version,
-                "incoherent publication",
-            )
+            if subject is not None:
+                self.registry.store.audit(
+                    subject,
+                    "publish",
+                    "rejected",
+                    request_id,
+                    package,
+                    version,
+                    "incoherent publication",
+                )
+            else:
+                self.registry.anonymous_denials.record("invalid-publication")
+                self.close_connection = True
             self._error(400, str(error), request_id)
         except Exception:
             self._error(500, "internal registry error", request_id)

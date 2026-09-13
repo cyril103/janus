@@ -94,6 +94,69 @@ redirections et ne jamais journaliser `Authorization`. `/healthz` est la sonde
 de disponibilité. La base, les blobs et les secrets ne doivent pas résider sur
 le même support de sauvegarde.
 
+## Refus anonymes, capacité et limites obligatoires
+
+Les échecs d'authentification (jeton absent, mal formé, invalide ou révoqué) et
+les publications rejetées avant authentification ne sont jamais écrits dans
+SQLite ni signés. Ils alimentent seulement dix compteurs en mémoire : cinq
+catégories fixes (`read-audit`, `publish`, `yank`, `unyank`,
+`invalid-publication`) pour la minute courante et la précédente, mesurées par
+l'horloge monotone. Chaque compteur sature à `2^63 - 1`. Aucune adresse IP,
+URL, identité de paquet, valeur de jeton ou identifiant de requête ne sert de
+clé ; varier ces valeurs ne peut donc pas augmenter la mémoire retenue.
+
+`GET /v1/audit` expose ces agrégats non signés dans `anonymousDenials`, avec
+`windowSeconds: 60`, `current` et `previous`, indépendamment du filtre de
+paquet. Ils expirent après au plus deux minutes et disparaissent au redémarrage.
+Une supervision authentifiée doit les relever toutes les 30 secondes et
+alerter dès 100 refus par minute ; ne pas additionner des fenêtres qui se
+recouvrent. Aucun export automatique vers un journal disque n'est effectué.
+Les refus de portée d'un sujet authentifié restent tous dans la chaîne signée,
+avec son sujet, la cible et l'identifiant de requête, comme les publications,
+conflits et yanks. Les anciens événements anonymes restent vérifiables.
+
+En production, le proxy TLS doit obligatoirement appliquer, avant transmission :
+
+- une limite par IP et catégorie d'endpoint protégé (lecture d'audit,
+  publication, yank/unyank), initialement 2 requêtes/s et une rafale de 10 ;
+- un plafond global de 20 requêtes/s sur ces endpoints et 32 connexions
+  simultanées vers le service, pour borner aussi une attaque distribuée ;
+- une réponse `429` aux dépassements, des délais de lecture de 15 secondes et
+  la limite de corps de 130 Mio ; ajuster le délai des transferts autorisés
+  à la taille des archives et au débit minimal accepté.
+
+Les clés de limitation doivent regrouper les chemins normalisés par catégorie,
+sans créer un quota distinct pour chaque nom de paquet. Inclure les chemins
+invalides et les variantes encodées ; l'adresse client provient de la connexion
+ou d'un proxy explicitement approuvé, jamais d'un en-tête libre du client.
+Valider au déploiement qu'une rafale de 100 requêtes anonymes produit des `429`,
+que changer le nom du paquet ne réinitialise pas le quota et qu'un faux
+`X-Forwarded-For` ne permet pas de l'éviter. Vérifier aussi `/healthz` et une
+opération autorisée depuis une autre IP pendant cette rafale.
+
+Prévoir un volume dédié avec quota (point de départ : 10 Gio, à dimensionner
+selon les archives et l'activité authentifiée). Surveiller chaque minute la
+base, le WAL, les blobs, l'espace libre et la latence des écritures ; alerter
+à 70 % du quota, déclencher une intervention à 85 % ou si la latence dépasse
+le budget de service. Le quota protège le reste de l'hôte mais sa saturation
+peut empêcher des publications : augmenter la capacité avant ce seuil.
+Conserver les sauvegardes quotidiennes chiffrées 90 jours sur un autre volume,
+avec leur propre quota et une alerte sur les échecs de sauvegarde. Borner les
+journaux du proxy par rotation (par exemple 7 jours et 100 Mio au total), sans
+en-têtes sensibles ni paramètres de requête.
+
+La chaîne métier reste conservée intégralement dans la base active : ne pas
+supprimer ses lignes pour appliquer une rétention, ce qui casserait sa
+vérification. Aucun élagage cryptographique n'est implémenté ; prévoir sa
+croissance selon l'activité authentifiée et révoquer les jetons abusifs.
+Le test `registry.reference` envoie 840 requêtes hostiles avec huit clients,
+vérifie une croissance SQLite nulle pendant un verrou d'écriture délibéré,
+puis des écritures légitimes et des refus authentifiés sous bruit concurrent,
+et vérifie la chaîne après sauvegarde/restauration. Ce test borné est une
+régression de stockage et de contention, pas une garantie de débit : mesurer
+la capacité réelle sur le matériel de production. L'application supprime
+l'amplification disque anonyme ; le proxy borne le coût CPU, réseau et threads.
+
 ## Jetons et autorités
 
 Générer un jeton aléatoire, le transmettre au sujet par un canal distinct, puis

@@ -5,6 +5,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Registre de paquets
+
+- suppression de l'amplification SQLite par les refus anonymes : agrégats en
+  mémoire de taille fixe, conservation des refus authentifiés dans l'audit
+  signé et consignes de limitation, rétention et supervision (#305).
+
 ### Outils éditeur
 
 - durcissement du transport stdio de `janus-lsp` : validation stricte de
