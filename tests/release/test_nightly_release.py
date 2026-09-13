@@ -96,7 +96,7 @@ class WorkflowPolicyTests(unittest.TestCase):
             "nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT", workflow)
         self.assertIn("$GITHUB_SHA.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT", workflow)
         self.assertIn("needs: identity", workflow)
-        self.assertIn("JANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'", workflow)
+        self.assertIn("JANUS_PACKAGE_VERSION_OVERRIDE='${{ needs.identity.outputs.version }}'", workflow)
         self.assertIn("EXPECTED_VERSION: ${{ needs.identity.outputs.version }}", workflow)
         self.assertIn("lld: /usr/lib/llvm-18/bin/ld.lld", workflow)
         self.assertIn("cc: /usr/bin/clang", workflow)

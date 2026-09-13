@@ -1,0 +1,15 @@
+# Discard the legacy cached default: only the explicit override is persistent.
+if(DEFINED CACHE{JANUS_PACKAGE_VERSION})
+    message(STATUS "Ignoring legacy JANUS_PACKAGE_VERSION cache entry; use JANUS_PACKAGE_VERSION_OVERRIDE for custom packages")
+    unset(JANUS_PACKAGE_VERSION CACHE)
+endif()
+set(JANUS_PACKAGE_VERSION_OVERRIDE "" CACHE STRING
+    "Explicit package and binary version override (for nightly or custom builds)")
+set(JANUS_PACKAGE_VERSION "${PROJECT_VERSION}")
+if(NOT JANUS_PACKAGE_VERSION_OVERRIDE STREQUAL "")
+    if(NOT JANUS_PACKAGE_VERSION_OVERRIDE MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$")
+        message(FATAL_ERROR "Invalid JANUS_PACKAGE_VERSION_OVERRIDE: ${JANUS_PACKAGE_VERSION_OVERRIDE}")
+    endif()
+    set(JANUS_PACKAGE_VERSION "${JANUS_PACKAGE_VERSION_OVERRIDE}")
+    message(STATUS "Janus package version override active: ${JANUS_PACKAGE_VERSION} (project ${PROJECT_VERSION})")
+endif()

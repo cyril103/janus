@@ -15,8 +15,7 @@ if(JANUS_SOURCE_SHA AND
     message(FATAL_ERROR
             "JANUS_SOURCE_SHA must be a full lowercase 40-character SHA")
 endif()
-set(JANUS_PACKAGE_VERSION "${PROJECT_VERSION}" CACHE STRING
-    "Unique package version (nightly workflows override this)")
+include(cmake/package_version.cmake)
 find_program(JANUS_PYTHON_EXECUTABLE NAMES python3 python REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -39,7 +38,7 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/generated")
 execute_process(
     COMMAND "${JANUS_PYTHON_EXECUTABLE}"
             "${PROJECT_SOURCE_DIR}/scripts/build_identity.py"
-            --version "${PROJECT_VERSION}"
+            --version "${JANUS_PACKAGE_VERSION}"
             --source "${PROJECT_SOURCE_DIR}"
             --source-sha "${JANUS_SOURCE_SHA}"
             --target "${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}"
@@ -51,7 +50,7 @@ execute_process(
 add_custom_target(janus_build_identity ALL
     COMMAND "${JANUS_PYTHON_EXECUTABLE}"
             "${PROJECT_SOURCE_DIR}/scripts/build_identity.py"
-            --version "${PROJECT_VERSION}"
+            --version "${JANUS_PACKAGE_VERSION}"
             --source "${PROJECT_SOURCE_DIR}"
             --source-sha "${JANUS_SOURCE_SHA}"
             --target "${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}"
@@ -4263,6 +4262,7 @@ set(JANUS_PACKAGE_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
 if(JANUS_PACKAGE_ARCH MATCHES "^(aarch64|ARM64)$")
     set(JANUS_PACKAGE_ARCH "arm64")
 endif()
+set(CPACK_PACKAGE_VERSION "${JANUS_PACKAGE_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Janus")
 set(CPACK_PACKAGE_CONTACT "Janus contributors")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
@@ -4288,9 +4288,17 @@ elseif(JANUS_CPACK_GENERATOR STREQUAL "ZIP")
 endif()
 add_custom_target(dist
     COMMAND "${CMAKE_CPACK_COMMAND}" --config "${PROJECT_BINARY_DIR}/CPackConfig.cmake"
+    COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/validate_package_identity.py"
+            --archive "${JANUS_PACKAGE_ARCHIVE}"
+            --version "${JANUS_PACKAGE_VERSION}"
+            --platform "${CMAKE_SYSTEM_NAME}-${JANUS_PACKAGE_ARCH}"
+            --bindir "${CMAKE_INSTALL_BINDIR}"
+            --datadir "${CMAKE_INSTALL_DATADIR}"
     COMMAND "${CMAKE_COMMAND}"
             -DARCHIVE=${JANUS_PACKAGE_ARCHIVE}
             -P "${PROJECT_SOURCE_DIR}/cmake/write_checksum.cmake"
     DEPENDS janus janusc janusup janus-lsp janus_runtime
-    COMMENT "Building the Janus distribution and SHA-256 checksum"
+    COMMENT "Building and validating the Janus distribution and SHA-256 checksum"
+    VERBATIM
 )

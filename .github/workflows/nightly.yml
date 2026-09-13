@@ -107,11 +107,11 @@ jobs:
       - name: Configure
         if: runner.os != 'Windows'
         shell: bash
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER='${{ matrix.cc }}' -DCMAKE_CXX_COMPILER='${{ matrix.cxx }}' -DLLVM_DIR='${{ matrix.llvm }}' -DJANUS_LLD_EXECUTABLE='${{ matrix.lld }}' -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER='${{ matrix.cc }}' -DCMAKE_CXX_COMPILER='${{ matrix.cxx }}' -DLLVM_DIR='${{ matrix.llvm }}' -DJANUS_LLD_EXECUTABLE='${{ matrix.lld }}' -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION_OVERRIDE='${{ needs.identity.outputs.version }}'
       - name: Configure Windows
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/clang64/bin/clang.exe -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe -DLLVM_DIR=/clang64/lib/cmake/llvm -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/clang64/bin/clang.exe -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe -DLLVM_DIR=/clang64/lib/cmake/llvm -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION_OVERRIDE='${{ needs.identity.outputs.version }}'
       - run: cmake --build build --parallel
       - name: Safety test gate
         if: runner.os != 'Windows'

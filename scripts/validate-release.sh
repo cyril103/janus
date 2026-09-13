@@ -20,12 +20,12 @@ expected_version="$(
     python3 "$root_dir/scripts/nightly_release.py" project-version \
         --source "$root_dir/CMakeLists.txt"
 )"
-configured_version="$(
-    sed -n 's/^JANUS_PACKAGE_VERSION:STRING=//p' "$build_dir/CMakeCache.txt"
+configured_override="$(
+    sed -n 's/^JANUS_PACKAGE_VERSION_OVERRIDE:STRING=//p' "$build_dir/CMakeCache.txt"
 )"
-if [[ "$configured_version" != "$expected_version" ]]; then
-    echo "Build directory packages Janus $configured_version; expected $expected_version" >&2
-    echo "Reconfigure it with -DJANUS_PACKAGE_VERSION=$expected_version" >&2
+if [[ -n "$configured_override" && "$configured_override" != "$expected_version" ]]; then
+    echo "Build directory overrides Janus version with $configured_override; expected $expected_version" >&2
+    echo "Reconfigure it with -DJANUS_PACKAGE_VERSION_OVERRIDE=" >&2
     exit 1
 fi
 
