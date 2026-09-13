@@ -4,6 +4,10 @@ Statut : accepté pour la version en développement. Ce document est normatif
 pour le vérificateur d'effets ; aucune optimisation ne peut supposer davantage
 que les règles décrites ici.
 
+La [RFC d’évaluation des effets statiques](static-effects.md) étudie les
+contrats au-delà de `pure` et recommande de différer leur implémentation.
+Elle ne modifie pas le présent contrat.
+
 ## But et syntaxe
 
 `pure def` décrit une fonction exécutable dont le résultat et la terminaison ne

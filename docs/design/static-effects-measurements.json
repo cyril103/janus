@@ -1,0 +1,127 @@
+{
+  "corpus": {
+    "api_bytes": 1481,
+    "baseline_api_bytes": 641,
+    "digest_bytes": 672,
+    "display_bytes": 663,
+    "edges": 15,
+    "effect_api_delta_bytes": 840,
+    "nodes": 21,
+    "solve_median_ms": 0.0249,
+    "tooling_ms": 0.1453,
+    "worklist_visits": 24
+  },
+  "invalidated_after_identity_adds_io": [
+    "identity[int]",
+    "pipeline[int]/apply<identity[int]>",
+    "pipeline[int]/relay<identity[int]>"
+  ],
+  "io_witness": [
+    "pipeline[int]/relay<fs.readFile>",
+    "pipeline[int]/apply<fs.readFile>",
+    "fs.readFile",
+    "fs.nativeRead"
+  ],
+  "migration_lexical_inventory": {
+    "stdlib/std/fs.janus": {
+      "declarations": 33,
+      "pure_declarations": 1
+    },
+    "stdlib/std/math.janus": {
+      "declarations": 98,
+      "pure_declarations": 97
+    },
+    "stdlib/std/random.janus": {
+      "declarations": 8,
+      "pure_declarations": 0
+    },
+    "stdlib/std/time.janus": {
+      "declarations": 13,
+      "pure_declarations": 10
+    }
+  },
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "python": "3.14.4",
+  "repeats": 21,
+  "summaries": {
+    "capability.read": [
+      "ffi",
+      "io",
+      "panic"
+    ],
+    "cleanup": [
+      "ffi",
+      "io"
+    ],
+    "cycle.a": [
+      "clock",
+      "ffi"
+    ],
+    "cycle.b": [
+      "clock",
+      "ffi"
+    ],
+    "fs.nativeRead": [
+      "ffi",
+      "io"
+    ],
+    "fs.readFile": [
+      "ffi",
+      "io",
+      "panic"
+    ],
+    "identity[int]": [],
+    "math.fabs": [],
+    "pipeline[int]/apply<fs.readFile>": [
+      "ffi",
+      "io",
+      "panic"
+    ],
+    "pipeline[int]/apply<identity[int]>": [],
+    "pipeline[int]/apply<time.durationSince>": [
+      "panic"
+    ],
+    "pipeline[int]/relay<fs.readFile>": [
+      "ffi",
+      "io",
+      "panic"
+    ],
+    "pipeline[int]/relay<identity[int]>": [],
+    "pipeline[int]/relay<time.durationSince>": [
+      "panic"
+    ],
+    "pureCycle.a": [],
+    "pureCycle.b": [],
+    "random.automaticRandom": [
+      "ffi",
+      "random"
+    ],
+    "random.nextUSize": [
+      "ffi",
+      "state"
+    ],
+    "scope.exit": [
+      "ffi",
+      "io"
+    ],
+    "time.durationSince": [
+      "panic"
+    ],
+    "time.now": [
+      "clock",
+      "ffi"
+    ]
+  },
+  "synthetic_100_copies": {
+    "api_bytes": 154091,
+    "baseline_api_bytes": 70091,
+    "digest_bytes": 67200,
+    "display_bytes": 72291,
+    "edges": 1500,
+    "effect_api_delta_bytes": 84000,
+    "nodes": 2100,
+    "solve_median_ms": 3.0923,
+    "tooling_ms": 11.133899,
+    "worklist_visits": 2400
+  }
+}
