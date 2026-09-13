@@ -1246,6 +1246,25 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(array_formatting.front().find("        1,") !=
                 std::string::npos);
 
+  const auto map_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///map-literal.janus","text":"import std.hashmap\nimport std.hashing\ndef main() : int {\nval values : HashMap[int, int, IntHashing] = [\n1: 2,\n3: 4,\n]\ndefer delete values\nreturn 0\n}\n"}}})");
+  JANUS_REQUIRE(map_diagnostics.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const auto map_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":2761,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///map-literal.janus"},"position":{"line":7,"character":14}}})");
+  JANUS_REQUIRE(map_hover.front().find("HashMap[int, int, IntHashing]") !=
+                std::string::npos);
+  const auto map_formatting = server.handle(
+      R"({"jsonrpc":"2.0","id":2762,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///map-literal.janus"},"options":{"tabSize":4,"insertSpaces":true}}})");
+  JANUS_REQUIRE(map_formatting.front().find("        1: 2,") !=
+                std::string::npos);
+  const auto map_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":2763,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///map-literal.janus"},"position":{"line":4,"character":0}}})");
+  JANUS_REQUIRE(map_completion.front().find("values") != std::string::npos);
+  const auto invalid_map = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///map-literal.janus"},"contentChanges":[{"text":"import std.hashmap\nimport std.hashing\ndef main() : int { val values : HashMap[int, int, IntHashing] = [1: 2, 1: 3] delete values return 0 }"}]}})");
+  JANUS_REQUIRE(invalid_map.front().find("JANA0042") != std::string::npos);
+
   // Regression matrix for every advertised request that operates on source.
   TemporaryWorkspace temporary_workspace;
   const std::filesystem::path &workspace = temporary_workspace.path();

@@ -991,7 +991,12 @@ Value evaluate_impl(const janus::ast::Expression &expression,
         else if constexpr (std::is_same_v<Node,
                                           janus::ast::StringLiteralExpression>)
           return Value{&Type::string_type(), node.value};
-        else if constexpr (std::is_same_v<Node,
+        else if constexpr (std::is_same_v<Node, janus::ast::MapLiteralExpression>) {
+          throw janus::CompileError{
+              janus::DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
+              "map literals are not supported in global constants; HashMap "
+              "requires runtime-owned storage"};
+        } else if constexpr (std::is_same_v<Node,
                                           janus::ast::ArrayLiteralExpression>) {
           throw janus::CompileError{
               janus::DiagnosticCode::AnalyzerInvalidArrayLiteral, node.location,

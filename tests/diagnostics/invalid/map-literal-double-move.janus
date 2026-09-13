@@ -1,0 +1,4 @@
+import std.hashmap
+import std.hashing
+class Resource() {}
+def main() : int { val value : Resource = new Resource() val values : HashMap[int, Resource, IntHashing] = [1: move value, 2: move value] delete values return 0 }

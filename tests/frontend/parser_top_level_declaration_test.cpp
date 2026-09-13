@@ -139,6 +139,36 @@ def main() : int { return answer }
   expect(empty_literal != nullptr && empty_literal->elements.empty(),
          "empty array literals are represented explicitly");
 
+  janus::frontend::Parser map_parser{
+      "def literals() : int { val values : HashMap[int, int, IntHashing] = [1: "
+      "2, 3: 4,] "
+      "val empty : HashMap[int, int, IntHashing] = [:] return 0 }"};
+  const auto maps = map_parser.parse_program();
+  const auto &map_body = maps.functions.front().body;
+  const auto &map_value = std::get<janus::ast::ValueDeclaration>(map_body[0]);
+  const auto &map_literal =
+      std::get<janus::ast::MapLiteralExpression>(map_value.initializer->value);
+  expect(map_literal.elements.size() == 4,
+         "map keys and values retain source order");
+  const auto &empty_map = std::get<janus::ast::ValueDeclaration>(map_body[1]);
+  expect(
+      std::get<janus::ast::MapLiteralExpression>(empty_map.initializer->value)
+          .elements.empty(),
+      "empty map has a distinct AST node");
+  for (const auto source :
+       {"[1: 2, 3]", "[1, 2: 3]", "[: 1]", "[1: 2 3: 4]", "[1:]"}) {
+    bool rejected = false;
+    try {
+      const std::string program_source =
+          std::string{"def bad() : int { val value = "} + source + " return 0 }";
+      janus::frontend::Parser parser{program_source};
+      static_cast<void>(parser.parse_program());
+    } catch (const janus::CompileError &) {
+      rejected = true;
+    }
+    expect(rejected, "mixed or malformed map separators are rejected");
+  }
+
   bool missing_close_rejected = false;
   try {
     janus::frontend::Parser malformed{

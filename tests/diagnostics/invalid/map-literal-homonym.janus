@@ -1,0 +1,3 @@
+import std.hashing
+class HashMap[K, V, H]() {}
+def main() : int { val values : HashMap[int, int, IntHashing] = [:] delete values return 0 }

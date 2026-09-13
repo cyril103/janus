@@ -1,0 +1,22 @@
+import std.hashmap
+import std.hashing
+private extern("map_created") def created(id : int) : int
+private extern("map_dropped") def dropped(id : int) : Unit
+private extern("map_verify") def verify() : Unit
+class Resource(val id : int) { destructor { dropped(id) } }
+class ResourceHashing() extends Hashing[Resource] {
+    def hash(borrow key : Resource) : usize { return usize(key.id) }
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
+        return left.id == right.id
+    }
+}
+def main() : int {
+    val values : HashMap[Resource, Resource, ResourceHashing] = [
+        new Resource(created(1)): new Resource(created(2)),
+        new Resource(created(3)): new Resource(created(4)),
+        new Resource(created(5)): new Resource(created(6)),
+    ]
+    delete values
+    verify()
+    return 0
+}

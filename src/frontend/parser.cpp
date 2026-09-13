@@ -1967,20 +1967,42 @@ ast::Expression Parser::parse_primary() {
   if (current_.kind == TokenKind::LeftBracket) {
     const Token opening = expect(TokenKind::LeftBracket);
     std::vector<std::unique_ptr<ast::Expression>> elements;
-    if (current_.kind != TokenKind::RightBracket) {
+    bool is_map = current_.kind == TokenKind::Colon;
+    if (is_map) {
+      advance();
+      if (current_.kind != TokenKind::RightBracket)
+        throw CompileError{DiagnosticCode::ParserLegacy, current_.location,
+                           "expected ']' after empty map literal '[:'"};
+    } else if (current_.kind != TokenKind::RightBracket) {
+      elements.push_back(std::make_unique<ast::Expression>(parse_expression()));
+      is_map = current_.kind == TokenKind::Colon;
       while (true) {
-        elements.push_back(
-            std::make_unique<ast::Expression>(parse_expression()));
+        if (is_map) {
+          if (current_.kind != TokenKind::Colon)
+            throw CompileError{DiagnosticCode::ParserLegacy, current_.location,
+                               "expected ':' between map key and value"};
+          advance();
+          elements.push_back(
+              std::make_unique<ast::Expression>(parse_expression()));
+        }
         if (current_.kind != TokenKind::Comma)
           break;
         advance();
         if (current_.kind == TokenKind::RightBracket)
           break;
+        elements.push_back(
+            std::make_unique<ast::Expression>(parse_expression()));
       }
     }
     if (current_.kind != TokenKind::RightBracket)
-      throw CompileError{current_.location, "expected ']' after array literal"};
+      throw CompileError{
+          DiagnosticCode::ParserLegacy, current_.location,
+          is_map
+              ? "expected ',' or ']' after map entry"
+              : "expected ']' after array literal (or ',' between elements)"};
     advance();
+    if (is_map)
+      return ast::MapLiteralExpression{std::move(elements), opening.location};
     return ast::ArrayLiteralExpression{std::move(elements), opening.location};
   }
 

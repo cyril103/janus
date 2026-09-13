@@ -1,0 +1,52 @@
+import std.hashmap.{HashMap as Table}
+import std.hashing.{IntHashing as Numbers, StringHashing, USizeHashing, DerivedHashing}
+import std.option
+
+var sequence : int = 0
+
+def next(expected : int) : int {
+    sequence = sequence + 1
+    if sequence != expected { panic("map evaluation order changed\n") }
+    return expected
+}
+
+class Resource(val id : int) {
+    destructor { println(id) }
+}
+
+def make() : Table[string, int, StringHashing] {
+    return ["http": 80, "https": 443,]
+}
+
+def consumeMap(values : Table[int, int, Numbers]) : Unit { delete values }
+
+def main() : int {
+    consumeMap([1: 2])
+    val ports : Table[string, int, StringHashing] = make()
+    defer delete ports
+    println(ports.size())
+    println(match ports.getOption("https") { Some(value) => value, None => 0 })
+    val empty : Table[int, int, Numbers] = [:]
+    defer delete empty
+    println(empty.size())
+    val ordered : Table[int, int, Numbers] = [next(1): next(2), next(3): next(4)]
+    defer delete ordered
+    println(sequence)
+    val nested : Table[int, Table[int, int, Numbers], Numbers] = [1: [2: 3]]
+    delete nested
+    val converted : Table[usize, ubyte, USizeHashing] = [1: 255]
+    if !converted.containsKey(usize(1)) { panic("map key conversion failed\n") }
+    delete converted
+    val derived : Table[string, int, DerivedHashing[string]] = ["key": 1]
+    delete derived
+    val capturedKey : int = 6
+    val callback : Fn () => Table[int, int, Numbers] = () => [capturedKey: 5]
+    val captured : Table[int, int, Numbers] = callback()
+    if !captured.containsKey(capturedKey) { panic("map lambda capture failed\n") }
+    delete captured
+    delete callback
+    val resource : Resource = new Resource(7)
+    val owners : Table[int, Resource, Numbers] = [1: move resource, 2: new Resource(8)]
+    delete owners
+    return 0
+}

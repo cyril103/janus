@@ -144,3 +144,4 @@ reproduire.
 | `JANA0039` | callback requires exclusive access |
 | `JANA0040` | affine callback in a loop |
 | `JANA0041` | function resolution failed |
+| `JANA0042` | invalid map literal: complete target type, strategy or duplicate key |

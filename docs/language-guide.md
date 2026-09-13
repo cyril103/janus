@@ -1447,6 +1447,43 @@ val doubled : Array[int] =
 defer delete doubled
 ```
 
+### Littéraux de maps
+
+`[clé: valeur, ...]` construit une `HashMap[K, V, H]` possédée. `[:]` est
+une map vide, distincte du tableau `[]`. Le contexte doit fournir les trois
+types, y compris la stratégie de hachage : aucune stratégie n’est choisie
+implicitement. Les alias de types et d’imports sont acceptés.
+
+```janus
+import std.hashmap
+import std.hashing
+
+val ports : HashMap[string, int, StringHashing] = [
+    "http": 80,
+    "https": 443,
+]
+defer delete ports
+val empty : HashMap[string, int, StringHashing] = [:]
+defer delete empty
+```
+
+La stratégie doit avoir un constructeur accessible sans argument. Le littéral
+crée et possède cette stratégie pendant toute la durée de vie de la map.
+Pour une stratégie nécessitant des arguments, utilisez le constructeur explicite
+`new HashMap(capacité, stratégie)`, qui continue d’emprunter la stratégie.
+
+Les entrées sont évaluées une seule fois, de gauche à droite, clé puis valeur.
+Les valeurs propriétaires demandent les transferts `move` ordinaires. Une panic
+nettoie les temporaires actifs et le préfixe déjà construit. Les doublons
+constants comparables sont rejetés à la compilation ; les autres déclenchent
+`duplicate key in map literal` au premier doublon, sans remplacement.
+L’ordre d’itération reste celui des cases internes de `HashMap`.
+
+La virgule finale est acceptée, y compris en forme compacte. Le formatter
+préserve cette virgule et indente les entrées multilignes de façon idempotente.
+Les constantes globales sont interdites : le stockage et la destruction restent
+dynamiques. `JANA0042` explique les erreurs propres aux littéraux de maps.
+
 ### Littéraux de tableaux
 
 La syntaxe `[e1, e2]` construit directement un `Array[T]`. Pour un littéral

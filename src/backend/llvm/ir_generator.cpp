@@ -3044,9 +3044,9 @@ private:
             if constexpr (std::is_same_v<Node,
                                          janus::ast::IdentifierExpression>) {
               capture(node.name);
-            } else if constexpr (std::is_same_v<
-                                     Node,
-                                     janus::ast::ArrayLiteralExpression>) {
+            } else if constexpr (
+                std::is_same_v<Node, janus::ast::ArrayLiteralExpression> ||
+                std::is_same_v<Node, janus::ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 visit(*element, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -3079,8 +3079,8 @@ private:
               visit(*node.object, active_bound);
               for (const auto &argument : node.arguments)
                 visit(*argument, active_bound);
-            } else if constexpr (std::is_same_v<
-                                     Node, janus::ast::IndexExpression>) {
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::IndexExpression>) {
               visit(*node.container, active_bound);
               visit(*node.index, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -3420,14 +3420,18 @@ private:
                                    Node, janus::ast::StringLiteralExpression>) {
             return janus::Type::string_type();
           } else if constexpr (std::is_same_v<
-                                   Node, janus::ast::ArrayLiteralExpression>) {
+                                   Node, janus::ast::ArrayLiteralExpression> ||
+                               std::is_same_v<
+                                   Node, janus::ast::MapLiteralExpression>) {
             const auto inferred =
                 analysis_.inferred_generic_arguments.find(&expression);
             std::vector<const janus::Type *> arguments;
-            arguments.push_back(
-                &resolve(inferred->second.front(), substitutions));
-            const auto declaration =
-                find_type_in_active_module(classes_, "Array");
+            for (const auto &argument : inferred->second)
+              arguments.push_back(&resolve(argument, substitutions));
+            const auto declaration = classes_.find(
+                std::is_same_v<Node, janus::ast::MapLiteralExpression>
+                    ? "std.hashmap.HashMap"
+                    : "std.array.Array");
             return ensure_class(declaration->first, arguments);
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
@@ -4496,6 +4500,24 @@ private:
                   const Substitutions &substitutions,
                   const std::unordered_map<std::string, Local> &locals,
                   ::llvm::IRBuilder<> &builder) {
+    // Global initializers also need a temporary ownership scope while a
+    // constructor or collection literal is only partially initialized.
+    if (active_cleanup_scopes_.empty()) {
+      std::vector<const janus::ast::DeferStatement *> actions;
+      std::vector<std::pair<::llvm::Value *, const janus::Type *>> pending;
+      auto initializer_locals = locals;
+      active_cleanup_scopes_.push_back(CleanupScope{
+          &actions, &pending, &initializer_locals, &substitutions});
+      try {
+        auto *value = emit_expression(expression, expected_type, substitutions,
+                                      initializer_locals, builder);
+        active_cleanup_scopes_.pop_back();
+        return value;
+      } catch (...) {
+        active_cleanup_scopes_.pop_back();
+        throw;
+      }
+    }
     if (const auto lowered = analysis_.lowered_expressions.find(&expression);
         lowered != analysis_.lowered_expressions.end())
       return emit_expression(*lowered->second, expected_type, substitutions,
@@ -4542,6 +4564,113 @@ private:
                                             : node.magnitude;
             return ::llvm::ConstantInt::get(llvm_type, value,
                                             expected_type.is_signed());
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::MapLiteralExpression>) {
+            const auto &specialization =
+                class_specializations_.at(std::string{expected_type.name()});
+            const auto &declaration = *specialization.declaration;
+            const auto &bindings = specialization.substitutions;
+            const auto &key_type = *bindings.at(declaration.type_parameters[0]);
+            const auto &value_type =
+                *bindings.at(declaration.type_parameters[1]);
+            const auto &hash_type =
+                *bindings.at(declaration.type_parameters[2]);
+            const auto &hash_specialization =
+                class_specializations_.at(std::string{hash_type.name()});
+            janus::ast::NewExpression hash_new{
+                source_global_key(hash_specialization.declaration->module_name,
+                                  hash_specialization.declaration->name),
+                {},
+                {},
+                node.location};
+            for (const auto &parameter :
+                 hash_specialization.declaration->type_parameters)
+              hash_new.type_arguments.push_back({parameter, node.location});
+            auto *hash = emit_expression(
+                janus::ast::Expression{std::move(hash_new)}, hash_type,
+                hash_specialization.substitutions, locals, builder);
+            auto &pending = *active_cleanup_scopes_.back().owned_values;
+            pending.push_back({hash, &hash_type});
+            auto literal_locals = locals;
+            auto *hash_storage = create_entry_alloca(
+                builder, lower_type(hash_type, context_), "map.literal.hash");
+            builder.CreateStore(hash, hash_storage);
+            literal_locals.insert_or_assign("__literal_hash",
+                                            Local{hash_storage, &hash_type});
+            janus::ast::NewExpression map_new{
+                "std.hashmap.HashMap", {}, {}, node.location};
+            for (const auto &parameter : declaration.type_parameters)
+              map_new.type_arguments.push_back({parameter, node.location});
+            map_new.arguments.push_back(
+                std::make_unique<janus::ast::Expression>(
+                    janus::ast::IntegerLiteralExpression{0, false,
+                                                         node.location}));
+            map_new.arguments.push_back(
+                std::make_unique<janus::ast::Expression>(
+                    janus::ast::IdentifierExpression{"__literal_hash",
+                                                     node.location}));
+            auto *object = emit_expression(
+                janus::ast::Expression{std::move(map_new)}, expected_type,
+                bindings, literal_locals, builder);
+            // Adopt the generated strategy into the map's optional owner.
+            const auto [owner_index, owner_type] =
+                find_field(expected_type.name(), "literalHashing");
+            janus::ast::MethodCallExpression some{
+                std::make_unique<janus::ast::Expression>(
+                    janus::ast::IdentifierExpression{"std.option.Option",
+                                                     node.location}),
+                "Some",
+                {{declaration.type_parameters[2], node.location}},
+                {},
+                node.location};
+            some.arguments.push_back(std::make_unique<janus::ast::Expression>(
+                janus::ast::IdentifierExpression{"__literal_hash",
+                                                 node.location}));
+            auto *owner =
+                emit_expression(janus::ast::Expression{std::move(some)},
+                                *owner_type, bindings, literal_locals, builder);
+            builder.CreateStore(
+                owner, builder.CreateStructGEP(llvm_class_types_.at(std::string{
+                                                   expected_type.name()}),
+                                               object, owner_index));
+            pending.pop_back();
+            pending.push_back({object, &expected_type});
+            const auto method = [&](std::string_view name) {
+              for (const auto &candidate : declaration.methods)
+                if (candidate.name == name)
+                  return emit_function(candidate, {}, &declaration, &bindings,
+                                       expected_type.name());
+              throw janus::CompileError{janus::DiagnosticCode::BackendLegacy,
+                                        node.location,
+                                        "missing stdlib map literal support"};
+            };
+            emit_protected_call(
+                method("reserve"),
+                {object, builder.getInt64(node.elements.size() / 2)}, builder);
+            auto *probe = method("literalIndex");
+            auto *commit = method("commitLiteral");
+            for (std::size_t index = 0; index < node.elements.size();
+                 index += 2) {
+              auto *key = emit_expression(*node.elements[index], key_type,
+                                          substitutions, locals, builder);
+              if (owns_value(key_type))
+                pending.push_back({key, &key_type});
+              auto *value =
+                  emit_expression(*node.elements[index + 1], value_type,
+                                  substitutions, locals, builder);
+              if (owns_value(value_type))
+                pending.push_back({value, &value_type});
+              auto *destination =
+                  emit_protected_call(probe, {object, key}, builder);
+              if (owns_value(value_type))
+                pending.pop_back();
+              if (owns_value(key_type))
+                pending.pop_back();
+              emit_protected_call(commit, {object, destination, key, value},
+                                  builder);
+            }
+            pending.pop_back();
+            return object;
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::ArrayLiteralExpression>) {
             const ClassSpecialization &specialization =
@@ -4989,7 +5118,8 @@ private:
                         "janus_alloc",
                         ::llvm::FunctionType::get(
                             builder.getPtrTy(), {builder.getInt64Ty()}, false));
-                return builder.CreateCall(malloc_function, {bytes}, "alloc");
+                return emit_protected_call(malloc_function, {bytes}, builder,
+                                           "alloc");
               }
               ::llvm::Value *pointer =
                   emit_expression(*node.arguments[0], pointer_type,
@@ -5234,9 +5364,25 @@ private:
                     "janus_alloc",
                     ::llvm::FunctionType::get(builder.getPtrTy(),
                                               {builder.getInt64Ty()}, false));
-            ::llvm::Value *object = builder.CreateCall(
+            ::llvm::Value *object = emit_protected_call(
                 malloc_function, {::llvm::ConstantExpr::getSizeOf(class_type)},
-                node.class_name + ".new");
+                builder, node.class_name + ".new");
+            auto *allocation_function = builder.GetInsertBlock()->getParent();
+            auto *allocation_failed = ::llvm::BasicBlock::Create(
+                context_, "constructor.allocation.failed", allocation_function);
+            auto *allocation_ready = ::llvm::BasicBlock::Create(
+                context_, "constructor.allocation.ready", allocation_function);
+            builder.CreateCondBr(builder.CreateIsNull(object),
+                                 allocation_failed, allocation_ready);
+            builder.SetInsertPoint(allocation_failed);
+            emit_integer_panic("class allocation failed\n", node.location,
+                               builder);
+            builder.SetInsertPoint(allocation_ready);
+            auto &construction_pending =
+                *active_cleanup_scopes_.back().owned_values;
+            const auto construction_depth = construction_pending.size();
+            construction_pending.push_back(
+                {object, &ensure_pointer(janus::Type::byte_type())});
             auto initializer_locals = locals;
             const std::size_t parameter_count =
                 class_declaration.constructor_parameters.size();
@@ -5265,10 +5411,12 @@ private:
                           specialization.substitutions);
               ::llvm::Value *field =
                   builder.CreateStructGEP(class_type, object, field_index++);
-              builder.CreateStore(
+              auto *field_value =
                   emit_expression(*node.arguments[parameter_count + index],
-                                  field_type, substitutions, locals, builder),
-                  field);
+                                  field_type, substitutions, locals, builder);
+              builder.CreateStore(field_value, field);
+              if (owns_value(field_type) && !field_declaration.is_borrowed)
+                construction_pending.push_back({field_value, &field_type});
               initializer_locals.insert_or_assign(field_declaration.name,
                                                   Local{field, &field_type});
             }
@@ -5279,15 +5427,17 @@ private:
                   resolve(field_declaration.declared_type,
                           specialization.substitutions);
               if (field_declaration.initializer.has_value()) {
-                builder.CreateStore(
-                    emit_expression(*field_declaration.initializer, field_type,
-                                    specialization.substitutions,
-                                    initializer_locals, builder),
-                    field);
+                auto *field_value = emit_expression(
+                    *field_declaration.initializer, field_type,
+                    specialization.substitutions, initializer_locals, builder);
+                builder.CreateStore(field_value, field);
+                if (owns_value(field_type) && !field_declaration.is_borrowed)
+                  construction_pending.push_back({field_value, &field_type});
               }
               initializer_locals.insert_or_assign(field_declaration.name,
                                                   Local{field, &field_type});
             }
+            construction_pending.resize(construction_depth);
             return object;
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MemberAccessExpression>) {

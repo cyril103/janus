@@ -1,0 +1,3 @@
+import std.hashmap
+import std.hashing
+def main() : int { const key : int = 1 val values : HashMap[int, int, IntHashing] = [key: 2, 1: 3] delete values return 0 }

@@ -1,0 +1,14 @@
+import std.hashmap
+import std.hashing
+
+class Resource(val id : int) {
+    destructor { println(id) }
+}
+def key() : int { return 1 }
+def main() : int {
+    val values : HashMap[int, Resource, IntHashing] = [
+        key(): new Resource(1), key(): new Resource(2),
+    ]
+    defer delete values
+    return 0
+}

@@ -49,6 +49,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerPotentialOwnershipCycle,
     DiagnosticCode::AnalyzerUnannotatedExternReturn,
     DiagnosticCode::AnalyzerInvalidArrayLiteral,
+    DiagnosticCode::AnalyzerInvalidMapLiteral,
     DiagnosticCode::AnalyzerBorrowConflict,
     DiagnosticCode::AnalyzerBorrowInvalidation,
     DiagnosticCode::AnalyzerBorrowEscape,
@@ -85,6 +86,12 @@ diagnostic_code_from_name(std::string_view name) noexcept {
 [[nodiscard]] inline DiagnosticExplanation
 explain_diagnostic(DiagnosticCode code) noexcept {
   switch (code) {
+  case DiagnosticCode::AnalyzerInvalidMapLiteral:
+    return {code, "invalid map literal",
+            "Map literals require a complete canonical HashMap[K, V, H] target "
+            "and unique keys.",
+            "Import std.hashmap, annotate K, V and a zero-argument hashing "
+            "strategy H, and remove duplicate keys."};
   case DiagnosticCode::GeneralInternalFailure:
     return {code, "internal compiler or tool failure",
             "A tool operation failed outside a more specific compiler diagnostic.",

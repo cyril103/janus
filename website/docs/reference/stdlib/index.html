@@ -5220,7 +5220,7 @@ garantir que deux valeurs égales ont le même hachage; elles ne doivent pas<br>
 supposer que deux hachages égaux impliquent l’égalité.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val hashing : Hashing[int] = new IntHashing()<br>
 val same : bool = hashing.equals(7, 7)<br>
 val bucketHash : usize = hashing.hash(7)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">21</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">24</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashing-boolhashing" data-symbol data-search="std.hashing.BoolHashing class class BoolHashing() Stratégie sans état pour les booléens.
 
@@ -5364,6 +5364,24 @@ l’égalité est l’égalité dérivée des entiers. La stratégie est sans é
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>int</code></td><td>Entier à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
 <div class="qualified">std.hashing.IntHashing.hash</div></div><a class="permalink" href="#std-hashing-inthashing-hash" aria-label="Permanent link to std.hashing.IntHashing.hash">#</a></article>
+<article class="symbol-card kind-class" id="std-hashing-stringhashing" data-symbol data-search="std.hashing.StringHashing class class StringHashing() Stratégie sans état comparant et hachant le contenu UTF-8 des chaînes."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class StringHashing()</code></h3>
+<p class="doc-summary">Stratégie sans état comparant et hachant le contenu UTF-8 des chaînes.</p>
+<div class="qualified">std.hashing.StringHashing</div></div><a class="permalink" href="#std-hashing-stringhashing" aria-label="Permanent link to std.hashing.StringHashing">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashing-stringhashing-equals" data-symbol data-search="std.hashing.StringHashing.equals method def equals(borrow left : string, borrow right : string) : bool Compare les contenus des deux chaînes.
+@param left Première chaîne observée.
+@param right Seconde chaîne observée.
+@return `true` si les contenus sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.StringHashing</div><h3><code>def equals(borrow left : string, borrow right : string) : bool</code></h3>
+<p class="doc-summary">Compare les contenus des deux chaînes.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>string</code></td><td>Première chaîne observée.</td></tr><tr><td><code>right</code></td><td><code>string</code></td><td>Seconde chaîne observée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les contenus sont égaux.</p></section>
+<div class="qualified">std.hashing.StringHashing.equals</div></div><a class="permalink" href="#std-hashing-stringhashing-equals" aria-label="Permanent link to std.hashing.StringHashing.equals">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashing-stringhashing-hash" data-symbol data-search="std.hashing.StringHashing.hash method def hash(borrow value : string) : usize Hache les octets de la chaîne.
+@param value Chaîne observée.
+@return Hachage du contenu."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.StringHashing</div><h3><code>def hash(borrow value : string) : usize</code></h3>
+<p class="doc-summary">Hache les octets de la chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>string</code></td><td>Chaîne observée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage du contenu.</p></section>
+<div class="qualified">std.hashing.StringHashing.hash</div></div><a class="permalink" href="#std-hashing-stringhashing-hash" aria-label="Permanent link to std.hashing.StringHashing.hash">#</a></article>
 <article class="symbol-card kind-class" id="std-hashing-usizehashing" data-symbol data-search="std.hashing.USizeHashing class class USizeHashing() Stratégie sans état pour les entiers non signés `usize`.
 
 Elle applique le même mélange affine que les autres stratégies scalaires et
@@ -5396,24 +5414,21 @@ recherche sont amorties constantes lorsque les hachages sont bien répartis;
 l’itération suit l’ordre interne des cases et non l’ordre d’insertion.
 @example
 ```janus
-val scores : HashMap[int, int, IntHashing] =
-    new HashMap(8, new IntHashing())
-delete scores.put(7, 42)
+val scores : HashMap[int, int, IntHashing] = [7: 42]
 val score : Option[int] = scores.getOption(7)
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.hashmap</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit une table associative propriétaire fondée sur le hachage.</p><div class="doc-details"><p><a href="#std-hashmap-hashmap"><code>HashMap</code></a> associe des clés à des valeurs selon une stratégie <a href="#std-hashing-hashing"><code>Hashing</code></a>,<br>
 avec sondage linéaire et redimensionnement automatique. Les opérations de<br>
 recherche sont amorties constantes lorsque les hachages sont bien répartis;<br>
-l’itération suit l’ordre interne des cases et non l’ordre d’insertion.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val scores : HashMap[int, int, IntHashing] =<br>
-    new HashMap(8, new IntHashing())<br>
-delete scores.put(7, 42)<br>
+l’itération suit l’ordre interne des cases et non l’ordre d’insertion.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val scores : HashMap[int, int, IntHashing] = [7: 42]<br>
 val score : Option[int] = scores.getOption(7)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">30</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
 
-La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé
+La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`.
+Un littéral de map crée et possède sa propre stratégie. Une clé
 existante est reconnue par [[Hashing.equals]] au sein de sa chaîne de sondage.
 La capacité minimale est 8 et la table se réorganise lorsque valeurs et
 tombstones approchent 75 % des cases. Les méthodes d’observation copient les
@@ -5422,7 +5437,8 @@ contenu sans copie.
 @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
 @param hashing Stratégie d’égalité et de hachage empruntée par la table; elle doit rester vivante aussi longtemps qu’elle."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H)</code></h3>
 <p class="doc-summary">Table associative propriétaire à adressage ouvert et sondage linéaire.</p>
-<div class="doc-details"><p>La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé<br>
+<div class="doc-details"><p>La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`.<br>
+Un littéral de map crée et possède sa propre stratégie. Une clé<br>
 existante est reconnue par <a href="#std-hashing-hashing-equals"><code>Hashing.equals</code></a> au sein de sa chaîne de sondage.<br>
 La capacité minimale est 8 et la table se réorganise lorsque valeurs et<br>
 tombstones approchent 75 % des cases. Les méthodes d’observation copient les<br>

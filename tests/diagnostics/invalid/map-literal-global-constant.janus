@@ -1,0 +1,4 @@
+import std.hashmap
+import std.hashing
+const values : HashMap[int, int, IntHashing] = [1: 2]
+def main() : int { return 0 }

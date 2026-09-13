@@ -58,6 +58,7 @@ enum class DiagnosticCode {
   AnalyzerPotentialOwnershipCycle,
   AnalyzerUnannotatedExternReturn,
   AnalyzerInvalidArrayLiteral,
+  AnalyzerInvalidMapLiteral,
   AnalyzerBorrowConflict,
   AnalyzerBorrowInvalidation,
   AnalyzerBorrowEscape,
@@ -150,6 +151,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0021";
   case DiagnosticCode::AnalyzerUnannotatedExternReturn:
     return "JANA0022";
+  case DiagnosticCode::AnalyzerInvalidMapLiteral:
+    return "JANA0042";
   case DiagnosticCode::AnalyzerInvalidArrayLiteral:
     return "JANA0023";
   case DiagnosticCode::AnalyzerBorrowConflict:

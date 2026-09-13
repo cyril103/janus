@@ -225,6 +225,25 @@ int main() {
     std::cerr << "array literal formatting is not stable and idempotent\n";
     return 1;
   }
+  const std::string maps =
+      "def ports() : HashMap[string, int, StringHashing] {\nreturn "
+      "[\n\"http\": 80,\n\"https\": 443,\n]\n}\n";
+  const std::string formatted_maps =
+      "def ports() : HashMap[string, int, StringHashing] {\n    return [\n     "
+      "   \"http\": 80,\n        \"https\": 443,\n    ]\n}\n";
+  if (janus::driver::format_source(maps) != formatted_maps ||
+      janus::driver::format_source(formatted_maps) != formatted_maps) {
+    std::cerr << "map literal formatting is not idempotent\n";
+    return 1;
+  }
+  for (const auto literal : {"[:]", "[1: 2, 3: 4,]"}) {
+    const std::string compact =
+        std::string{"def values() : HashMap[int, int, IntHashing] => "} +
+        literal + "\n";
+    const auto formatted = janus::driver::format_source(compact);
+    if (janus::driver::format_source(formatted) != formatted)
+      return 1;
+  }
   const std::string multiline_calls =
       "def check() : bool {\nreturn assertTrue(checkFile(\n"
       "\"tests/compiler.janus\",\noutput\n))\n}\n";

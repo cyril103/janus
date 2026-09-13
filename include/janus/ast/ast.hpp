@@ -167,6 +167,12 @@ struct ArrayLiteralExpression {
   SourceLocation location;
 };
 
+// Map elements alternate key, value in source evaluation order.
+struct MapLiteralExpression {
+  std::vector<std::unique_ptr<Expression>> elements;
+  SourceLocation location;
+};
+
 struct LambdaExpression {
   struct Parameter {
     std::string name;
@@ -312,15 +318,14 @@ struct BinaryExpression {
 };
 
 struct Expression {
-  using Value =
-      std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
-                   CharacterLiteralExpression, BooleanLiteralExpression,
-                   StringLiteralExpression, IdentifierExpression,
-                   ArrayLiteralExpression, LambdaExpression, CallExpression,
-                   NewExpression, MemberAccessExpression, MethodCallExpression,
-                   IndexExpression,
-                   IfExpression, MatchExpression, MoveExpression, TryExpression,
-                   UnaryExpression, BinaryExpression>;
+  using Value = std::variant<
+      IntegerLiteralExpression, DoubleLiteralExpression,
+      CharacterLiteralExpression, BooleanLiteralExpression,
+      StringLiteralExpression, IdentifierExpression, ArrayLiteralExpression,
+      MapLiteralExpression, LambdaExpression, CallExpression, NewExpression,
+      MemberAccessExpression, MethodCallExpression, IndexExpression,
+      IfExpression, MatchExpression, MoveExpression, TryExpression,
+      UnaryExpression, BinaryExpression>;
 
   template <typename T>
     requires std::constructible_from<Value, T>

@@ -6,9 +6,7 @@
 /// l’itération suit l’ordre interne des cases et non l’ordre d’insertion.
 /// @example
 /// ```janus
-/// val scores : HashMap[int, int, IntHashing] =
-///     new HashMap(8, new IntHashing())
-/// delete scores.put(7, 42)
+/// val scores : HashMap[int, int, IntHashing] = [7: 42]
 /// val score : Option[int] = scores.getOption(7)
 /// ```
 module std.hashmap
@@ -166,7 +164,8 @@ private var index : usize
 
 /// Table associative propriétaire à adressage ouvert et sondage linéaire.
 ///
-/// La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé
+/// La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`.
+/// Un littéral de map crée et possède sa propre stratégie. Une clé
 /// existante est reconnue par [[Hashing.equals]] au sein de sa chaîne de sondage.
 /// La capacité minimale est 8 et la table se réorganise lorsque valeurs et
 /// tombstones approchent 75 % des cases. Les méthodes d’observation copient les
@@ -182,6 +181,8 @@ private borrow val hashing : H
     normalizedHashCapacity(initialCapacity)
     private var slots : Array[MapSlot[K, V]] =
     new Array[MapSlot[K, V]](slotCapacity)
+    // Set only by map literal construction; ordinary constructors borrow H.
+    private var literalHashing : Option[H] = Option.None[H]()
     private var length : usize = usize(0)
     private var deletedCount : usize = usize(0)
 
@@ -604,6 +605,28 @@ private borrow val hashing : H
         }
     }
 
+    // The backend retains key/value until this borrowing insertion commits.
+    // Capacity is reserved before evaluating the first literal entry.
+    internal def literalIndex(borrow key : K) : usize {
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
+            if this.matchesAt(index, key) {
+                panic("duplicate key in map literal\n")
+            }
+            if this.isEmptyAt(index) {
+                // Ownership transfer is performed by the compiler after probing.
+                return index
+            }
+        }
+        panic("map literal capacity exhausted\n")
+    }
+
+    internal def commitLiteral(index : usize, key : K, value : V) : Unit {
+        slots.set(index, MapSlot.Occupied[K, V](move key, move value))
+        length = length + usize(1)
+    }
+
     /// Insère une association ou remplace la valeur d’une clé existante.
     ///
     /// La table prend possession de `key` et `value`. Lors d’un remplacement, la
@@ -851,6 +874,7 @@ private borrow val hashing : H
 
     destructor {
         delete slots
+        delete literalHashing
     }
 }
 

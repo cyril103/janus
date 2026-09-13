@@ -755,7 +755,8 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
               visit_expression(*node.operand, false, pending_defer,
                                pending_owner);
             } else if constexpr (std::is_same_v<T,
-                                                ast::ArrayLiteralExpression>) {
+                                                ast::ArrayLiteralExpression> ||
+                                 std::is_same_v<T, ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 visit_expression(*element, false, pending_defer, pending_owner);
             } else if constexpr (std::is_same_v<T, ast::IndexExpression>) {
@@ -2276,7 +2277,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "' cannot observe mutable global '" + key +
                                      "'");
             } else if constexpr (std::is_same_v<Node,
-                                                ast::ArrayLiteralExpression>) {
+                                                ast::ArrayLiteralExpression> ||
+                                 std::is_same_v<Node,
+                                                ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 check_expression(*element, scope, arguments);
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
@@ -2678,7 +2681,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        "' cannot observe mutable global '" +
                                        key + "'"};
             } else if constexpr (std::is_same_v<Node,
-                                                ast::ArrayLiteralExpression>) {
+                                                ast::ArrayLiteralExpression> ||
+                                 std::is_same_v<Node,
+                                                ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 check_expression(*element, scope);
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
@@ -4253,12 +4258,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       std::visit(
           [&](const auto &node) {
             using Node = std::decay_t<decltype(node)>;
-            if constexpr (std::is_same_v<Node,
-                                         ast::ArrayLiteralExpression>) {
+            if constexpr (std::is_same_v<Node, ast::ArrayLiteralExpression> ||
+                          std::is_same_v<Node, ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 validate_expression_types(*element);
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::LambdaExpression>) {
+            } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
               for (const ast::LambdaExpression::Parameter &parameter :
                    node.parameters)
                 if (parameter.type.has_value())
@@ -4270,10 +4274,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 validate_statement_types(
                     (*std::get<std::shared_ptr<ast::LambdaBlock>>(node.body))
                         .statements);
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::CallExpression> ||
-                                 std::is_same_v<Node,
-                                                ast::NewExpression>) {
+            } else if constexpr (std::is_same_v<Node, ast::CallExpression> ||
+                                 std::is_same_v<Node, ast::NewExpression>) {
               for (const ast::TypeReference &argument : node.type_arguments)
                 validate_type(argument);
               for (const auto &argument : node.arguments)
@@ -4288,16 +4290,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
               validate_expression_types(*node.object);
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::IndexExpression>) {
+            } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
               validate_expression_types(*node.container);
               validate_expression_types(*node.index);
             } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
               validate_expression_types(*node.condition);
               validate_expression_types(*node.then_expression);
               validate_expression_types(*node.else_expression);
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::MatchExpression>) {
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
               validate_expression_types(*node.scrutinee);
               for (const ast::MatchExpression::Arm &arm : node.arms) {
                 for (const ast::MatchPattern &pattern : arm.patterns)
@@ -4310,14 +4310,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   validate_expression_types(*arm.guard);
                 validate_expression_types(*arm.expression);
               }
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::MoveExpression> ||
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
                                  std::is_same_v<Node, ast::TryExpression> ||
-                                 std::is_same_v<Node,
-                                                ast::UnaryExpression>) {
+                                 std::is_same_v<Node, ast::UnaryExpression>) {
               validate_expression_types(*node.operand);
-            } else if constexpr (std::is_same_v<Node,
-                                                ast::BinaryExpression>) {
+            } else if constexpr (std::is_same_v<Node, ast::BinaryExpression>) {
               validate_expression_types(*node.left);
               validate_expression_types(*node.right);
             }
@@ -4822,6 +4819,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return visit(visit, candidate);
     };
     SymbolTable *active_symbols = &symbols;
+    std::unordered_map<std::string, constant::Value> local_constants;
     const auto find_global =
         [&](const std::optional<std::string> &module,
             std::string_view name) -> const ResolvedGlobal * {
@@ -6750,6 +6748,113 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                 ast::StringLiteralExpression>) {
               return SemanticType{&Type::string_type(), {}};
             } else if constexpr (std::is_same_v<Node,
+                                                ast::MapLiteralExpression>) {
+              const auto canonical = classes.find("std.hashmap.HashMap");
+              const auto target =
+                  contextual_expected_type == nullptr
+                      ? classes.end()
+                      : classes.find(contextual_expected_type->parameter);
+              if (contextual_expression != &expression ||
+                  contextual_expected_type == nullptr ||
+                  !contextual_expected_type->is_class() ||
+                  canonical == classes.end() || target == classes.end() ||
+                  target->second != canonical->second ||
+                  contextual_expected_type->type_arguments.size() != 3)
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
+                    "map literal requires a complete HashMap[K, V, H] type; "
+                    "help: import std.hashmap and add an annotation specifying "
+                    "the hashing strategy"};
+              const SemanticType map_type = *contextual_expected_type;
+              const auto &strategy_type = map_type.type_arguments[2];
+              const auto strategy = classes.find(strategy_type.parameter);
+              if (!strategy_type.is_class() || strategy == classes.end() ||
+                  (strategy->second->is_private &&
+                   strategy->second->module_name != context_module) ||
+                  !strategy->second->constructor_parameters.empty() ||
+                  !strategy->second->constructor_fields.empty() ||
+                  strategy_type.type_arguments.size() !=
+                      strategy->second->type_parameters.size())
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
+                    "map literal requires a concrete hashing strategy with an "
+                    "accessible zero-argument constructor; help: construct "
+                    "HashMap explicitly for a stateful strategy"};
+              const auto &strategy_declaration = *strategy->second;
+              const bool known_equality =
+                  strategy_declaration.module_name ==
+                      std::optional<std::string>{"std.hashing"} &&
+                  (strategy_declaration.name == "IntHashing" ||
+                   strategy_declaration.name == "USizeHashing" ||
+                   strategy_declaration.name == "ByteHashing" ||
+                   strategy_declaration.name == "CharHashing" ||
+                   strategy_declaration.name == "BoolHashing" ||
+                   strategy_declaration.name == "StringHashing" ||
+                   strategy_declaration.name == "DerivedHashing");
+              if (inside_pure_context || inside_pure_lambda)
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidMapLiteral, node.location,
+                    "map literal construction calls hashing methods and is not "
+                    "allowed in a pure function"};
+              std::unordered_set<std::string> constant_keys;
+              for (std::size_t index = 0; index < node.elements.size();
+                   ++index) {
+                const auto &element = *node.elements[index];
+                const auto &element_type = map_type.type_arguments[index % 2];
+                reject_non_escaping_value(element, expression_location(element),
+                                          "a map literal");
+                require_explicit_ownership_transfer(
+                    element, element_type, expression_location(element),
+                    "inserting into a map literal");
+                const bool previous_lambda_escape = contextual_lambda_may_escape;
+                contextual_lambda_may_escape = element_type.is_function();
+                try {
+                  validate_expression(element, element_type, node.location);
+                } catch (...) {
+                  contextual_lambda_may_escape = previous_lambda_escape;
+                  throw;
+                }
+                contextual_lambda_may_escape = previous_lambda_escape;
+                if (known_equality && index % 2 == 0 &&
+                    element_type.is_concrete()) {
+                  std::optional<std::string> key;
+                  try {
+                    const auto value = constant::evaluate(
+                        element, element_type.concrete,
+                        [&](const std::optional<std::string> &module,
+                            std::string_view name,
+                            SourceLocation) -> std::optional<constant::Value> {
+                          if (!module &&
+                              active_symbols->contains(std::string{name})) {
+                            const auto local =
+                                local_constants.find(std::string{name});
+                            return local == local_constants.end()
+                                       ? std::nullopt
+                                       : std::optional<constant::Value>{
+                                             local->second};
+                          }
+                          const auto found = constant_values.find(global_key(
+                              module ? module : context_module, name));
+                          return found == constant_values.end()
+                                     ? std::nullopt
+                                     : std::optional<constant::Value>{
+                                           found->second};
+                        });
+                    key = constant::canonical_match_key(value);
+                  } catch (const CompileError &) {
+                    // Nonconstant keys are checked by literalIndex at runtime.
+                  }
+                  if (key && !constant_keys.insert(*key).second)
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidMapLiteral,
+                        expression_location(element),
+                        "duplicate constant key in map literal"};
+                }
+              }
+              result.inferred_generic_arguments.insert_or_assign(
+                  &expression, map_type.type_arguments);
+              return map_type;
+            } else if constexpr (std::is_same_v<Node,
                                                 ast::ArrayLiteralExpression>) {
               const auto array_class = classes.find("std.array.Array");
               if (array_class == classes.end())
@@ -7043,7 +7148,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (const auto *body =
                         std::get_if<std::unique_ptr<ast::Expression>>(
                             &node.body)) {
-                  signature.push_back(expression_type(**body));
+                  if (contextual_expression == &expression &&
+                      contextual_expected_type != nullptr &&
+                      contextual_expected_type->is_function() &&
+                      std::holds_alternative<ast::MapLiteralExpression>((**body).value)) {
+                    const auto expected_result = contextual_expected_type->type_arguments.back();
+                    validate_expression(**body, expected_result, node.location);
+                    signature.push_back(expected_result);
+                  } else {
+                    signature.push_back(expression_type(**body));
+                  }
                 } else {
                   std::optional<SemanticType> inferred_return;
                   if (contextual_expected_type != nullptr &&
@@ -10556,7 +10670,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if constexpr (std::is_same_v<Node, ast::IdentifierExpression>) {
               record_borrow_use(uses, node.name, node.location);
             } else if constexpr (std::is_same_v<Node,
-                                                ast::ArrayLiteralExpression>) {
+                                                ast::ArrayLiteralExpression> ||
+                                 std::is_same_v<Node,
+                                                ast::MapLiteralExpression>) {
               for (const auto &element : node.elements)
                 collect_expression_uses(*element, uses);
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
@@ -10680,7 +10796,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return call != nullptr && call->callee == "panic";
     };
 
-    std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
@@ -11986,10 +12101,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         SemanticType statement_return_type = return_type;
         std::optional<SemanticType> inferred_actual;
         if (active_lambda_return_type != nullptr) {
-          const SemanticType actual =
-              return_statement.expression.has_value()
-                  ? expression_type(*return_statement.expression)
-                  : SemanticType{&Type::unit_type()};
+          SemanticType actual{&Type::unit_type()};
+          if (return_statement.expression.has_value()) {
+            if (active_lambda_return_type->has_value() &&
+                std::holds_alternative<ast::MapLiteralExpression>(return_statement.expression->value)) {
+              actual = **active_lambda_return_type;
+              validate_expression(*return_statement.expression, actual, return_statement.location);
+            } else {
+              actual = expression_type(*return_statement.expression);
+            }
+          }
           inferred_actual = actual;
           if (!active_lambda_return_type->has_value())
             active_lambda_return_type->emplace(actual);

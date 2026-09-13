@@ -909,3 +909,49 @@ def main() : int {
     return if empty.isEmpty() && same.equals(one) && same.contains(7) { 0 } else { 1 }
 }
 ```
+
+## Littéraux de maps
+
+Le type attendu choisit explicitement la stratégie. Les clés et les valeurs
+appartiennent à la map, y compris lorsque celle-ci est vide.
+
+```janus
+// doctest: doctest name=map-literal-ports
+import std.hashmap
+import std.hashing
+import std.option
+def main() : int {
+    val ports : HashMap[string, int, StringHashing] = ["http": 80, "https": 443,]
+    defer delete ports
+    val empty : HashMap[string, int, StringHashing] = [:]
+    defer delete empty
+    return match ports.getOption("https") {
+        Some(port) => if port == 443 && empty.isEmpty() { 0 } else { 1 },
+        None => 1
+    }
+}
+```
+
+Un doublon constant et une stratégie manquante sont des erreurs de compilation.
+
+```janus
+// doctest: compile_fail=JANA0042 name=map-literal-duplicate
+import std.hashmap
+import std.hashing
+def main() : int {
+    val ports : HashMap[string, int, StringHashing] = ["http": 80, "http": 81]
+    delete ports
+    return 0
+}
+```
+
+```janus
+// doctest: compile_fail=JANA0042 name=map-literal-annotation
+import std.hashmap
+import std.hashing
+def main() : int {
+    val ports = ["http": 80]
+    delete ports
+    return 0
+}
+```

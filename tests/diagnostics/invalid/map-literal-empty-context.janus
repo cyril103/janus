@@ -1,0 +1,3 @@
+import std.hashmap
+import std.hashing
+def main() : int { val values = [:] delete values return 0 }

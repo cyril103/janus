@@ -145,8 +145,8 @@
       "source": "stdlib/std/hashing.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "d6522430a22a873ea499fb74160f62508331e0aab7645e6c597673416dd39113",
-      "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "DerivedHashing", "DerivedHashing.hash", "DerivedHashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals"]
+      "signature_digest": "f71cb69d426ed55e89dd99fe10d5631782ed453e232ec7e1339b58a7285050cf",
+      "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "DerivedHashing", "DerivedHashing.hash", "DerivedHashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals", "StringHashing", "StringHashing.hash", "StringHashing.equals"]
     },
     {
       "name": "std.hashmap",

@@ -24,3 +24,14 @@ tailrec-non-terminal.janus	JANA0031	not in terminal position
 tailrec-main-incompatible.janus	JANA0032	entry ABI
 validated-invalid-array-migration.janus	JANA0999	type 'ValidatedErrors[string]' is required
 validated-errors-constructor-internal.janus	JANA0999	constructor 'ValidatedErrors' is internal to namespace 'std'
+map-literal-no-context.janus	JANA0042	map literal requires a complete HashMap[K, V, H] type
+map-literal-constant-duplicate.janus	JANA0042	duplicate constant key in map literal
+map-literal-global-constant.janus	JANA0042	map literals are not supported in global constants
+map-literal-homonym.janus	JANA0042	map literal requires a complete HashMap[K, V, H] type
+map-literal-owned-move.janus	JANA0035	requires an explicit move
+map-literal-empty-context.janus	JANA0042	map literal requires a complete HashMap[K, V, H] type
+map-literal-stateful-strategy.janus	JANA0042	accessible zero-argument constructor
+map-literal-local-constant-duplicate.janus	JANA0042	duplicate constant key in map literal
+map-literal-string-duplicate.janus	JANA0042	duplicate constant key in map literal
+map-literal-incompatible-value.janus	JANA0999	where type 'int' is required
+map-literal-double-move.janus	JANA0999	variable 'value' is used before initialization

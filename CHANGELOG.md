@@ -13,6 +13,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Collections
 
+- Littéraux de maps possédées `[clé: valeur]` et `[:]` (#276), avec type
+  contextuel `HashMap[K, V, H]`, rejet des doublons et nettoyage sur panic.
+
 - `PersistentMap[K, V]` et `PersistentSet[T]` immutables (#315), moteur HAMT
   partagé, collisions complètes, callbacks scoped et parcours de handles Shared.
 - validation des anciennes versions et des paniques sous ASan/UBSan, benchmarks

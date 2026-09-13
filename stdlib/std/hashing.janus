@@ -159,3 +159,21 @@ class BoolHashing() extends Hashing[bool] {
         return __derivedEquals[bool](left, right)
     }
 }
+
+/// Stratégie sans état comparant et hachant le contenu UTF-8 des chaînes.
+class StringHashing() extends Hashing[string] {
+    /// Hache les octets de la chaîne.
+    /// @param value Chaîne observée.
+    /// @return Hachage du contenu.
+    def hash(borrow value : string) : usize {
+        return __derivedHash[string](value)
+    }
+
+    /// Compare les contenus des deux chaînes.
+    /// @param left Première chaîne observée.
+    /// @param right Seconde chaîne observée.
+    /// @return `true` si les contenus sont égaux.
+    def equals(borrow left : string, borrow right : string) : bool {
+        return __derivedEquals[string](left, right)
+    }
+}

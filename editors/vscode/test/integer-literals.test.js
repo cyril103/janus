@@ -165,3 +165,15 @@ test("TextMate includes Unicode identifiers without consuming punctuation", () =
   assert.match(identifier.match, /\\p\{N\}/);
   assert.doesNotMatch(identifier.match, /\\p\{C\}/);
 });
+
+test("TextMate scopes map key/value separators and empty map delimiters", () => {
+  const separator = grammar.patterns.find(
+    (pattern) => pattern.name === "punctuation.separator.key-value.janus",
+  );
+  const brackets = grammar.patterns.find(
+    (pattern) => pattern.name === "punctuation.definition.array.janus",
+  );
+  assert.match(":", new RegExp(`^(?:${separator.match})$`));
+  assert.equal("[:]".match(new RegExp(brackets.match, "g")).join(""), "[]");
+  assert.equal('["http": 80, "https": 443,]'.match(new RegExp(separator.match, "g")).length, 2);
+});

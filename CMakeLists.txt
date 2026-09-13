@@ -1398,6 +1398,14 @@ if(BUILD_TESTING)
                 -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_stdlib_documentation_cli.cmake"
     )
     add_test(
+        NAME docs.map_literal_doctests
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUS=$<TARGET_FILE:janus>"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBUILD_DIR=${PROJECT_BINARY_DIR}"
+            -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_map_literal_doctests.cmake"
+    )
+    add_test(
         NAME cli.doctest
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
@@ -2415,6 +2423,65 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
     add_test(
+        NAME runtime.map_literal_hash_panic
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_hash_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literal_hash_panic_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_hash_panic.expected.txt"
+            "-DEXPECTED_ERROR=map hash panic"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.map_literal_equality_panic
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_equality_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literal_equality_panic_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_equality_panic.expected.txt"
+            "-DEXPECTED_ERROR=map equality panic"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.map_literals
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literals.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literals_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literals.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.map_literal_panic_cleanup
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literal_panic_cleanup_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_panic_cleanup.expected.txt"
+            "-DEXPECTED_ERROR=integer division by zero"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.map_literal_duplicate
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_duplicate.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/map_literal_duplicate_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_duplicate.expected.txt"
+            "-DEXPECTED_ERROR=duplicate key in map literal"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
         NAME runtime.array_literals
         COMMAND
             ${CMAKE_COMMAND}
@@ -3294,6 +3361,16 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     if(UNIX AND NOT APPLE)
+        add_test(
+            NAME runtime.map_literal_allocation_panics
+            COMMAND ${Python3_EXECUTABLE}
+                "${PROJECT_SOURCE_DIR}/tests/runtime/run_map_literal_allocations.py"
+                --janusc "$<TARGET_FILE:janusc>" --clang "${CLANG_EXECUTABLE}"
+                --source "${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/map_literal_allocations.janus"
+                --runtime "$<TARGET_FILE:janus_runtime>"
+                --shim "${PROJECT_SOURCE_DIR}/tests/runtime/map_literal_allocations.c"
+                --output "${PROJECT_BINARY_DIR}/map_literal_allocations"
+        )
         add_test(
             NAME runtime.persistent_vector_allocation_panics
             COMMAND ${Python3_EXECUTABLE}

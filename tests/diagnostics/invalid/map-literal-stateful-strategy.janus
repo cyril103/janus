@@ -1,0 +1,4 @@
+import std.hashmap
+import std.hashing
+class Stateful(val seed : int) extends Hashing[int] { def hash(borrow key : int) : usize { return usize(seed) } def equals(borrow a : int, borrow b : int) : bool { return a == b } }
+def main() : int { val values : HashMap[int, int, Stateful] = [:] delete values return 0 }

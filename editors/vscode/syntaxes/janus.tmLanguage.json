@@ -60,6 +60,10 @@
       "match": ","
     },
     {
+      "name": "punctuation.separator.key-value.janus",
+      "match": ":(?!:)"
+    },
+    {
       "name": "string.quoted.double.janus",
       "begin": "\"",
       "end": "\"",

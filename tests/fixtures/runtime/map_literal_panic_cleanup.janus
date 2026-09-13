@@ -1,0 +1,22 @@
+import std.hashmap
+import std.hashing
+
+class Resource(val id : int) {
+    destructor { println(id) }
+}
+class ResourceHashing() extends Hashing[Resource] {
+    def hash(borrow key : Resource) : usize { return usize(key.id) }
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
+        return left.id == right.id
+    }
+    destructor { println(99) }
+}
+
+def main() : int {
+    val values : HashMap[Resource, Resource, ResourceHashing] = [
+        new Resource(1): new Resource(2),
+        new Resource(3): new Resource(1 / 0),
+    ]
+    defer delete values
+    return 0
+}
