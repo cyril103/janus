@@ -66,6 +66,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerConsumedCallback,
     DiagnosticCode::AnalyzerExclusiveCallback,
     DiagnosticCode::AnalyzerAffineCallbackLoop,
+    DiagnosticCode::AnalyzerFunctionResolution,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::ConstantLegacy,
     DiagnosticCode::BackendLegacy,
@@ -120,6 +121,11 @@ explain_diagnostic(DiagnosticCode code) noexcept {
             "digits and denote a Unicode scalar value.",
             "Add the braces and use a value outside the surrogate range and "
             "no greater than U+10FFFF."};
+  case DiagnosticCode::AnalyzerFunctionResolution:
+    return {code, "function resolution failed",
+            "A function reference or call has no unique usable declaration.",
+            "Check imports and argument types; wrap a generic or overloaded "
+            "function in an explicit lambda when using it as a value."};
   case DiagnosticCode::AnalyzerIncompatibleCallCapability:
     return {code, "incompatible call capability",
             "The closure requires more access than its declared function type "

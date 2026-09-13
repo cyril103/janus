@@ -129,8 +129,8 @@
       "source": "stdlib/std/functional.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/functional-pipeline.md"],
       "status": "experimental",
-      "signature_digest": "1a0a5415925ad3b70d48217d5f5ad3765006daf66919dc01aec39b061ed2d3ea",
-      "symbols": ["identity", "constant", "compose", "andThen", "flip", "tap"]
+      "signature_digest": "b128180a7b220dcb1e00ab87a10d537b6f01c57a1f7c2298cf6a9c43fdbe0077",
+      "symbols": ["identity", "constant", "compose", "andThen", "partialFirst2", "curry2", "uncurry2", "flip", "tap"]
     },
     {
       "name": "std.hash_probe",

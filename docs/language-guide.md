@@ -184,6 +184,29 @@ Les parenthèses rendent explicite un postfixe appliqué au résultat complet :
 [spécification du pipeline](design/functional-pipeline.md) détaille la
 précédence, l'ordre d'évaluation et la propriété des closures composées.
 
+Les formes `compose(outer, inner)` et `andThen(first, after)` retournent une
+closure propriétaire. `partialFirst2(function, first)` fixe le premier argument,
+`curry2(function)` produit deux applications explicites, et `uncurry2(function)`
+consomme une `OptionPair`. Les fonctions nommées peuvent être fournies comme
+valeurs ; une callback déjà possédée doit être transférée avec `move`.
+La capacité et la pureté apparaissent dans le type retourné. Une application
+partielle sur une valeur `Copy` reste réutilisable si sa callback le permet ;
+sur une ressource consommée, elle devient `FnOnce`.
+
+```janus
+import std.functional
+
+pure def add(a : int, b : int) : int { return a + b }
+
+def main() : int {
+    val addTen = partialFirst2(add, 10)
+    defer delete addTen
+    println(addTen(32))
+    return 0
+}
+```
+
+
 ```janus
 val configuration : Configuration = loadConfiguration()
 private val callback : FnMut () => int = () => configuration.status()

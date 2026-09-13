@@ -1,0 +1,12 @@
+import std.functional
+import std.option.{OptionPair}
+class Marker(val id : int) { destructor { println(id) } }
+def first(left : Marker) : FnOnce (Marker) => int {
+    defer delete left
+    panic("functional factory uncurried_first panic")
+}
+def main() : int {
+    val callback = uncurry2(first)
+    defer delete callback
+    return callback(new OptionPair(new Marker(1), new Marker(2)))
+}

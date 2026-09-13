@@ -27,11 +27,11 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `docs/design/container-ownership.md` | 189:19 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/lexical-borrowing.md` | 492:41 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/stdlib-reference.md` | 37:41 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 378:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 523:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 550:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 678:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 690:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 397:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 542:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 569:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 697:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 709:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/array.janus` | 29:41 | cast littéral | `usize(10)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/casts.janus` | 11:38 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (casts) |
 | `examples/casts.janus` | 12:16 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (casts) |

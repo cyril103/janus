@@ -56,6 +56,22 @@ class InvalidNamed(val text : string) extends Named {
                       }),
          "an internal trait implementation is never published in the API "
          "index");
+  {
+    janus::frontend::Parser constrained{
+        "module bounded def adapt[T](value : T) : T { return move value } "
+        "def adapt[T <: Copy](value : T) : T { return value }"};
+    std::vector<janus::ast::Program> sources;
+    sources.push_back(constrained.parse_program());
+    const auto overloads =
+        janus::driver::build_api_index(sources, {"fixture", "1.0.0"});
+    expect(overloads.symbols.size() == 2 &&
+               overloads.symbols[0].signature != overloads.symbols[1].signature,
+           "generic constraints distinguish overload signatures");
+    const auto merged =
+        janus::driver::merge_api_indexes({overloads, overloads});
+    expect(merged.symbols.size() == 2,
+           "overload groups round-trip without identity conflicts");
+  }
   janus::frontend::Parser constant_parser{
       "module sample\nconst answer : int = 6 * 7\n"};
   std::vector<janus::ast::Program> constant_programs;

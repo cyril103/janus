@@ -259,6 +259,40 @@ public:
           (!dependencies_only_ || is_dependency(function->module_name)))
         static_cast<void>(emit_function(*function, {}));
     }
+    // Overload groups share their source lookup name, but each exported
+    // non-generic declaration also needs a body in dependency object files.
+    for (const auto &[function, index] : analysis_.function_overload_indices) {
+      static_cast<void>(index);
+      if (function->type_parameters.empty() &&
+          (!dependencies_only_ || is_dependency(function->module_name)))
+        static_cast<void>(emit_function(*function, {}));
+    }
+    // Runtime allocation shims have exactly malloc/free semantics. Expose that
+    // contract so LLVM can eliminate environments that disappear after
+    // inlining.
+    if (analysis_.target.pointer_width == 64) {
+      if (auto *allocate = module_->getFunction("janus_alloc");
+          allocate != nullptr && allocate->isDeclaration()) {
+        allocate->addFnAttr("alloc-family", "malloc");
+        allocate->addFnAttr(::llvm::Attribute::getWithAllocKind(
+            context_,
+            ::llvm::AllocFnKind::Alloc | ::llvm::AllocFnKind::Uninitialized));
+        allocate->addFnAttr(
+            ::llvm::Attribute::getWithAllocSizeArgs(context_, 0, std::nullopt));
+        allocate->addRetAttr(::llvm::Attribute::NoAlias);
+        allocate->addFnAttr(::llvm::Attribute::NoUnwind);
+        allocate->addFnAttr(::llvm::Attribute::WillReturn);
+      }
+      if (auto *release = module_->getFunction("janus_free");
+          release != nullptr && release->isDeclaration()) {
+        release->addFnAttr("alloc-family", "malloc");
+        release->addFnAttr(::llvm::Attribute::getWithAllocKind(
+            context_, ::llvm::AllocFnKind::Free));
+        release->addParamAttr(0, ::llvm::Attribute::AllocatedPointer);
+        release->addFnAttr(::llvm::Attribute::NoUnwind);
+        release->addFnAttr(::llvm::Attribute::WillReturn);
+      }
+    }
     return std::move(module_);
   }
 
@@ -1832,9 +1866,11 @@ private:
 
   std::string mangle(const janus::ast::FunctionDeclaration &function,
                      const std::vector<const janus::Type *> &type_arguments) {
-    if (type_arguments.empty())
-      return function.name;
     std::string name = function.name;
+    if (const auto overload =
+            analysis_.function_overload_indices.find(&function);
+        overload != analysis_.function_overload_indices.end())
+      name += "__overload_" + std::to_string(overload->second);
     for (const janus::Type *type : type_arguments)
       name += "__" + std::string{type->name()};
     return name;
@@ -2550,7 +2586,8 @@ private:
           const janus::Type &type =
               declaration->declared_type
                   ? resolve(*declaration->declared_type, substitutions)
-                  : resolve(analysis_.local_types.at(declaration));
+                  : resolve(analysis_.local_types.at(declaration),
+                            substitutions);
           if (declaration->is_constant) {
             const auto value =
                 analysis_.local_constant_values.find(declaration);
@@ -3276,7 +3313,7 @@ private:
       body_function.return_ownership = signature.return_ownership;
       body_types.push_back(signature.return_type);
       ::llvm::Function *lowered_body =
-          emit_function(body_function, body_types, nullptr, nullptr, {},
+          emit_function(body_function, body_types, nullptr, &substitutions, {},
                         &block.statements);
       std::vector<::llvm::Value *> arguments;
       arguments.reserve(capture_names.size() + lambda.parameters.size());
@@ -3358,6 +3395,9 @@ private:
   expression_type(const janus::ast::Expression &expression,
                   const Substitutions &substitutions,
                   const std::unordered_map<std::string, Local> &locals) {
+    if (const auto lowered = analysis_.lowered_expressions.find(&expression);
+        lowered != analysis_.lowered_expressions.end())
+      return expression_type(*lowered->second, substitutions, locals);
     return std::visit(
         [&](const auto &node) -> const janus::Type & {
           using Node = std::decay_t<decltype(node)>;
@@ -3461,7 +3501,9 @@ private:
             if (is_explicit_cast(node))
               return cast_destination(node, substitutions);
             const auto &callee =
-                *find_in_active_module(functions_, node.callee)->second;
+                *(analysis_.resolved_functions.contains(&expression)
+                      ? analysis_.resolved_functions.at(&expression)
+                      : find_in_active_module(functions_, node.callee)->second);
             Substitutions callee_substitutions;
             const std::vector<const janus::Type *> type_arguments =
                 effective_type_arguments(
@@ -3516,7 +3558,10 @@ private:
               if (const auto function =
                       find_in_active_module(functions_, qualified);
                   function != functions_.end()) {
-                const auto &callee = *function->second;
+                const auto &callee =
+                    *(analysis_.resolved_functions.contains(&expression)
+                          ? analysis_.resolved_functions.at(&expression)
+                          : function->second);
                 Substitutions callee_substitutions;
                 const std::vector<const janus::Type *> type_arguments =
                     effective_type_arguments(
@@ -4451,6 +4496,10 @@ private:
                   const Substitutions &substitutions,
                   const std::unordered_map<std::string, Local> &locals,
                   ::llvm::IRBuilder<> &builder) {
+    if (const auto lowered = analysis_.lowered_expressions.find(&expression);
+        lowered != analysis_.lowered_expressions.end())
+      return emit_expression(*lowered->second, expected_type, substitutions,
+                             locals, builder);
     ::llvm::Value *value = std::visit(
         [&](const auto &node) -> ::llvm::Value * {
           using Node = std::decay_t<decltype(node)>;
@@ -5087,7 +5136,9 @@ private:
                                            node.callee + ".conversion");
             }
             const janus::ast::FunctionDeclaration &callee =
-                *find_in_active_module(functions_, node.callee)->second;
+                *(analysis_.resolved_functions.contains(&expression)
+                      ? analysis_.resolved_functions.at(&expression)
+                      : find_in_active_module(functions_, node.callee)->second);
             const std::vector<const janus::Type *> type_arguments =
                 effective_type_arguments(
                     callee.type_parameters, node.type_arguments, &expression,
@@ -5316,8 +5367,11 @@ private:
                       find_in_active_module(functions_, qualified);
                   function != functions_.end())
                 return emit_declared_call(
-                    *function->second, node.type_arguments, node.arguments,
-                    &expression, qualified, substitutions, locals, builder);
+                    *(analysis_.resolved_functions.contains(&expression)
+                          ? analysis_.resolved_functions.at(&expression)
+                          : function->second),
+                    node.type_arguments, node.arguments, &expression, qualified,
+                    substitutions, locals, builder);
             }
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(

@@ -138,7 +138,11 @@ def parse_module(path: Path) -> ParsedModule:
         signature = normalize_signature(declaration.lines)
         public = declaration.visibility is None
         if public:
-            signatures[declaration.symbol] = signature
+            previous = signatures.get(declaration.symbol)
+            signatures[declaration.symbol] = (
+                " || ".join(sorted(set(previous.split(" || ") + [signature])))
+                if previous is not None else signature
+            )
             if declaration.kind == "type":
                 for field in FIELD_RE.finditer(signature):
                     visibility, field_kind, name, field_type = field.groups()

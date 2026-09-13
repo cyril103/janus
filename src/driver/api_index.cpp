@@ -158,6 +158,11 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
   else if (fn.return_ownership == ast::ReturnOwnership::Owned)
     result += "owned ";
   result += type_name(fn.return_type);
+  for (std::size_t index = 0; index < fn.type_constraints.size(); ++index) {
+    const auto &constraint = fn.type_constraints[index];
+    result += (index == 0 ? " where " : ", ") + constraint.parameter +
+              " <: " + type_name(constraint.trait);
+  }
   return result;
 }
 

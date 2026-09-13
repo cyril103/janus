@@ -167,7 +167,7 @@ La référence complète est produite par le compilateur livré :
 build/janus doc --stdlib --offline -o build/stdlib-reference
 ```
 
-`docs.stdlib_reference` exige 28 modules et 637 symboles documentés, vérifie
+`docs.stdlib_reference` exige 42 modules et 1402 symboles documentés, vérifie
 l’absence de surface privée ou interne, puis compare le HTML et l’index JSON
 avec les fichiers publiés sous `website/docs/reference/stdlib/`. Le workflow
 Pages et les smoke tests des archives relancent la même commande hors ligne et

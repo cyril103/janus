@@ -1,0 +1,25 @@
+import std.functional
+
+pure def increment(value : int) : int { return value + 1 }
+pure def twice(value : int) : int { return value * 2 }
+
+def main() : int {
+    val composed = compose(increment, twice)
+    defer delete composed
+    val manual : pure Fn (int) => int = (value : int) => increment(twice(value))
+    defer delete manual
+    var helperTotal = 0
+    var manualTotal = 0
+    var expandedTotal = 0
+    var index = 0
+    while index < 10000 {
+        helperTotal = helperTotal + composed(index)
+        manualTotal = manualTotal + manual(index)
+        expandedTotal = expandedTotal + increment(twice(index))
+        index = index + 1
+    }
+    println(helperTotal)
+    println(manualTotal)
+    println(expandedTotal)
+    return 0
+}

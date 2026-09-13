@@ -100,6 +100,12 @@ struct AnalysisResult {
   std::unordered_map<const ast::LambdaExpression *, SemanticType> lambda_types;
   std::unordered_map<const ast::LambdaExpression *, std::string>
       owned_lambda_captures;
+  std::unordered_map<const ast::Expression *, const ast::FunctionDeclaration *>
+      resolved_functions;
+  std::unordered_map<const ast::FunctionDeclaration *, std::size_t>
+      function_overload_indices;
+  std::unordered_map<const ast::Expression *, std::shared_ptr<ast::Expression>>
+      lowered_expressions;
   Target target;
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;

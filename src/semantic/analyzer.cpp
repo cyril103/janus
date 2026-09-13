@@ -454,6 +454,30 @@ substitute(janus::semantic::SemanticType type,
   return type;
 }
 
+// A callback parameter F also constrains the inputs and output appearing in
+// its function bound. Iterate because one bound can discover the callback
+// type needed by another (for example a function returning a function).
+template <typename Resolve, typename Infer>
+void infer_function_bound_arguments(
+    const std::vector<janus::ast::TypeConstraint> &constraints,
+    std::unordered_map<std::string, janus::semantic::SemanticType> &arguments,
+    Resolve resolve, Infer infer) {
+  std::size_t previous_size;
+  do {
+    previous_size = arguments.size();
+    for (const auto &constraint : constraints) {
+      if (constraint.trait.name != "Function")
+        continue;
+      const auto found = arguments.find(constraint.parameter);
+      if (found == arguments.end() || !found->second.is_function())
+        continue;
+      // Inference may insert into arguments and invalidate its iterators.
+      const auto candidate = found->second;
+      infer(resolve(constraint.trait), candidate);
+    }
+  } while (arguments.size() != previous_size);
+}
+
 janus::SourceLocation expression_location(const janus::ast::Expression &expr) {
   return std::visit([](const auto &node) { return node.location; }, expr.value);
 }
@@ -1090,6 +1114,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         ++type_name_counts[std::string{name}];
         return identity;
       };
+  const auto register_scoped_alias = [&](const std::string &alias,
+                                         const std::string &name) {
+    const auto matches = [&](const auto &declaration) {
+      return declaration.name == name;
+    };
+    const auto count =
+        std::count_if(program.enums.begin(), program.enums.end(), matches) +
+        std::count_if(program.classes.begin(), program.classes.end(), matches) +
+        std::count_if(program.traits.begin(), program.traits.end(), matches);
+    const bool unrenamed = std::any_of(
+        program.imports.begin(), program.imports.end(),
+        [&](const ast::ImportDeclaration &import) {
+          return alias == global_key(import.importing_module, name) &&
+                 std::any_of(import.symbols.begin(), import.symbols.end(),
+                             [&](const auto &symbol) {
+                               return symbol.name == name &&
+                                      (!symbol.alias || *symbol.alias == name);
+                             });
+        });
+    if (count != 1 || !unrenamed)
+      scoped_type_aliases.insert(alias);
+  };
   for (const ast::EnumDeclaration &declaration : program.enums) {
     const std::string identity = register_type_identity(
         declaration.module_name, declaration.name, declaration.location);
@@ -1098,7 +1144,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                         declaration.type_parameters.size());
     for (const std::string &alias :
          imported_names(declaration.module_name, declaration.name)) {
-      scoped_type_aliases.insert(alias);
+      register_scoped_alias(alias, declaration.name);
       enums.emplace(alias, &declaration);
       class_arities.emplace(alias, enum_arity_marker +
                                        declaration.type_parameters.size());
@@ -1110,7 +1156,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     traits.emplace(identity, &declaration);
     for (const std::string &alias :
          imported_names(declaration.module_name, declaration.name)) {
-      scoped_type_aliases.insert(alias);
+      register_scoped_alias(alias, declaration.name);
       traits.emplace(alias, &declaration);
     }
   }
@@ -1121,7 +1167,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     class_arities.emplace(identity, declaration.type_parameters.size());
     for (const std::string &alias :
          imported_names(declaration.module_name, declaration.name)) {
-      scoped_type_aliases.insert(alias);
+      register_scoped_alias(alias, declaration.name);
       classes.emplace(alias, &declaration);
       class_arities.emplace(alias, declaration.type_parameters.size());
     }
@@ -2045,7 +2091,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       parameters.insert(parameter.name);
       locals.insert(parameter.name);
       local_types.insert_or_assign(parameter.name, parameter.type);
-      if (parameter.ownership == ast::ParameterOwnership::BorrowMutable)
+      if (parameter.ownership == ast::ParameterOwnership::BorrowMutable &&
+          !(parameter.type.name == "Function" &&
+            parameter.type.is_pure_function))
         throw pure_error(parameter.location,
                          "pure def '" + function.name +
                              "' cannot accept a mutable borrow parameter");
@@ -2262,6 +2310,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (parameter != function.parameters.end() &&
                     parameter->type.name == "Function" &&
                     parameter->type.is_pure_function)
+                  return;
+                if (const auto local = local_types.find(node.callee);
+                    local != local_types.end() &&
+                    local->second.name == "Function" &&
+                    local->second.is_pure_function)
                   return;
                 throw pure_error(node.location,
                                  "pure def '" + function.name +
@@ -3719,6 +3772,43 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const ast::GlobalDeclaration *global;
   };
   std::vector<FunctionContext> contexts;
+  std::unordered_map<std::string, std::vector<const ast::FunctionDeclaration *>>
+      overloads;
+  const auto overload_key = [&](const ast::FunctionDeclaration &function) {
+    const auto type_key = [&](const auto &self,
+                              const ast::TypeReference &type) -> std::string {
+      const auto parameter =
+          std::find(function.type_parameters.begin(),
+                    function.type_parameters.end(), type.name);
+      std::string key =
+          parameter == function.type_parameters.end()
+              ? type.name
+              : "$" + std::to_string(parameter -
+                                     function.type_parameters.begin());
+      key += ":" + std::to_string(type.is_pure_function) + ":" +
+             std::to_string(static_cast<int>(type.call_capability)) + ":" +
+             std::to_string(static_cast<int>(type.function_return_ownership));
+      for (const auto mode : type.function_parameter_ownership)
+        key += ":" + std::to_string(static_cast<int>(mode));
+      for (const auto &argument : type.type_arguments)
+        key += "[" + self(self, argument) + "]";
+      return key;
+    };
+    std::string key = std::to_string(function.type_parameters.size());
+    for (const auto &parameter : function.parameters)
+      key += "(" + std::to_string(static_cast<int>(parameter.ownership)) + ":" +
+             std::to_string(parameter.is_scoped) + ":" +
+             type_key(type_key, parameter.type) + ")";
+    std::vector<std::string> constraints;
+    for (const auto &constraint : function.type_constraints)
+      constraints.push_back(
+          type_key(type_key, ast::TypeReference{constraint.parameter, {}}) +
+          "<:" + type_key(type_key, constraint.trait));
+    std::sort(constraints.begin(), constraints.end());
+    for (const auto &constraint : constraints)
+      key += "{" + constraint + "}";
+    return key;
+  };
   std::unordered_map<std::string, std::size_t> function_name_counts;
   for (const ast::FunctionDeclaration &function : program.functions) {
     contexts.push_back(FunctionContext{&function, nullptr, nullptr,
@@ -3726,10 +3816,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        nullptr, nullptr});
     const std::string identity =
         global_key(function.module_name, function.name);
-    if (!functions.emplace(identity, &function).second)
-      throw CompileError{function.location,
-                         "function '" + identity + "' is already declared"};
-    ++function_name_counts[function.name];
+    auto &group = overloads[identity];
+    for (const auto *previous : group)
+      if (overload_key(*previous) == overload_key(function))
+        throw CompileError{function.location,
+                           "function '" + identity + "' is already declared"};
+    group.push_back(&function);
+    if (functions.emplace(identity, &function).second)
+      ++function_name_counts[function.name];
     for (const std::string &alias :
          imported_names(function.module_name, function.name))
       functions.emplace(alias, &function);
@@ -3740,6 +3834,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       functions.emplace(function.name, &function);
     else
       ambiguous_functions.insert(function.name);
+  const auto find_visible_function =
+      [&](const std::optional<std::string> &module, const std::string &name) {
+        auto found = find_in_context(functions, module, name);
+        if (found != functions.end() || !ambiguous_functions.contains(name))
+          return found;
+        for (const auto &[identity, group] : overloads) {
+          const auto &candidate = *group.front();
+          if (candidate.name != name ||
+              (candidate.is_private && candidate.module_name != module) ||
+              !import_allows(module, candidate.module_name, candidate.name,
+                             name))
+            continue;
+          if (found != functions.end())
+            return functions.end();
+          found = functions.find(identity);
+        }
+        return found;
+      };
   std::vector<ast::FunctionDeclaration> global_initializer_functions;
   global_initializer_functions.reserve(initialization_plan.dynamic.size());
   for (const ast::GlobalDeclaration *global_pointer :
@@ -4055,7 +4167,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const FunctionContext &context : contexts) {
     const bool is_destructor = context.destructor != nullptr;
     const bool is_global_initializer = context.global != nullptr;
-    const bool inside_pure_context =
+    bool inside_pure_context =
         !is_destructor && !is_global_initializer && context.function->is_pure;
     const ast::ClassDeclaration *owner = context.owner;
     const ast::ExtensionDeclaration *extension = context.extension;
@@ -4577,6 +4689,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto to_reference =
           [&](const auto &self,
               const SemanticType &candidate) -> ast::TypeReference {
+        if (active_copy_constraints.contains(candidate.parameter) &&
+            !candidate.is_class() && !candidate.is_enum() &&
+            !candidate.is_function() && !candidate.is_pointer())
+          return ast::TypeReference{"Unit", location};
         ast::TypeReference reference{
             candidate.is_concrete() ? std::string{candidate.concrete->name()}
                                     : candidate.parameter,
@@ -4601,6 +4717,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           // Raw pointers are explicitly unmanaged and may intentionally be
           // aliased. Every other non-Copy value has one language-level owner.
           if (borrowed_context || contextual_explicit_ownership_transfer ||
+              result.lowered_expressions.contains(&expression) ||
               type.is_pointer() || !potentially_owns_value(type))
             return;
           if (const auto *identifier =
@@ -5492,7 +5609,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         validate_expression;
     const ast::Expression *contextual_expression = nullptr;
     const SemanticType *contextual_expected_type = nullptr;
-    const auto speculative_expression_type = [&](const ast::Expression &value) {
+    const auto speculate_type = [&](auto action) {
       SymbolTable *const active_symbols_before = active_symbols;
       const SymbolTable symbols_before = *active_symbols_before;
       const auto *const active_type_parameters_before = active_type_parameters;
@@ -5594,13 +5711,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           *active_lambda_mutations_before = *active_mutations_before;
       };
       try {
-        SemanticType candidate = expression_type(value);
+        SemanticType candidate = action();
         restore();
         return candidate;
       } catch (...) {
         restore();
         throw;
       }
+    };
+    const auto speculative_expression_type = [&](const ast::Expression &value) {
+      return speculate_type([&] { return expression_type(value); });
     };
     const auto is_borrowed_pointer_expression =
         [&](const ast::Expression &expression) {
@@ -5908,6 +6028,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           infer_from_type(infer_from_type, return_pattern,
                           *contextual_expected_type);
         }
+        infer_function_bound_arguments(
+            callee.type_constraints, substitutions,
+            [&](const ast::TypeReference &reference) {
+              return resolve_type(reference, callee_parameters, &class_arities);
+            },
+            [&](const SemanticType &pattern, const SemanticType &candidate) {
+              infer_from_type(infer_from_type, pattern, candidate);
+            });
         for (const std::string &parameter : callee.type_parameters)
           if (!substitutions.contains(parameter))
             throw CompileError{location,
@@ -6110,6 +6238,78 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       resolved_calls.insert_or_assign(expression_key, &callee);
       return call_return;
     };
+    const auto overloaded_call_type =
+        [&](const ast::FunctionDeclaration &primary,
+            const std::vector<ast::TypeReference> &type_arguments,
+            const std::vector<std::unique_ptr<ast::Expression>> &arguments,
+            SourceLocation location, std::string_view display_name,
+            const ast::Expression *expression_key) {
+          const auto &group =
+              overloads.at(global_key(primary.module_name, primary.name));
+          if (group.size() == 1)
+            return declared_call_type(primary, type_arguments, arguments,
+                                      location, display_name, expression_key);
+          const ast::FunctionDeclaration *selected = nullptr;
+          int best_score = std::numeric_limits<int>::max();
+          bool ambiguous = false;
+          std::optional<CompileError> failure;
+          for (const auto *candidate : group) {
+            if (candidate->is_private &&
+                candidate->module_name != context_module)
+              continue;
+            if ((!candidate->is_variadic &&
+                 candidate->parameters.size() != arguments.size()) ||
+                (candidate->is_variadic &&
+                 candidate->parameters.size() > arguments.size()))
+              continue;
+            try {
+              speculate_type([&] {
+                return declared_call_type(*candidate, type_arguments, arguments,
+                                          location, display_name,
+                                          expression_key);
+              });
+            } catch (const CompileError &error) {
+              if (!failure)
+                failure = error;
+              continue;
+            }
+            int score = -static_cast<int>(candidate->type_constraints.size());
+            const auto type_score = [&](const auto &self,
+                                        const ast::TypeReference &type) -> int {
+              int value = 0;
+              if (type.name == "Function")
+                value = 4 * static_cast<int>(type.call_capability) +
+                        (type.is_pure_function ? 0 : 1);
+              for (const auto &argument : type.type_arguments)
+                value += self(self, argument);
+              return value;
+            };
+            for (const auto &parameter : candidate->parameters)
+              score += type_score(type_score, parameter.type);
+            if (score < best_score) {
+              selected = candidate;
+              best_score = score;
+              ambiguous = false;
+            } else if (score == best_score) {
+              ambiguous = true;
+            }
+          }
+          if (selected == nullptr) {
+            if (failure)
+              throw *failure;
+            throw CompileError{DiagnosticCode::AnalyzerFunctionResolution,
+                               location,
+                               "no matching overload for function '" +
+                                   std::string{display_name} + "'"};
+          }
+          if (ambiguous)
+            throw CompileError{DiagnosticCode::AnalyzerFunctionResolution,
+                               location,
+                               "ambiguous overload for function '" +
+                                   std::string{display_name} + "'"};
+          return declared_call_type(*selected, type_arguments, arguments,
+                                    location, display_name, expression_key);
+        };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
            const SemanticType &instance) {
@@ -6268,7 +6468,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 expression.value) &&
             !std::holds_alternative<ast::LambdaExpression>(expression.value) &&
             !std::holds_alternative<ast::IdentifierExpression>(
-                expression.value))
+                expression.value) &&
+            !static_field_place(expression, static_field_place).has_value())
           throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
                              location,
                              "borrowing an owning value of type '" +
@@ -6368,6 +6569,100 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  actual.name() + "'"};
         };
 
+    const auto named_function_value =
+        [&](const ast::Expression &expression, const std::string &name,
+            SourceLocation location) -> std::optional<SemanticType> {
+      const auto found = find_visible_function(context_module, name);
+      if (found == functions.end())
+        return std::nullopt;
+      const auto &function = *found->second;
+      if (function.is_private && function.module_name != context_module)
+        throw CompileError{DiagnosticCode::AnalyzerFunctionResolution, location,
+                           "function '" + name + "' is private"};
+      if (!import_allows(context_module, function.module_name, function.name,
+                         name))
+        throw CompileError{DiagnosticCode::AnalyzerFunctionResolution, location,
+                           "function '" + name +
+                               "' is not imported in this module"};
+      if (!function.type_parameters.empty() ||
+          overloads.at(global_key(function.module_name, function.name))
+                  .size() != 1)
+        throw CompileError{
+            DiagnosticCode::AnalyzerFunctionResolution, location,
+            "generic or overloaded function value requires an explicit lambda"};
+      if (function.name == "main" &&
+          function.module_name == program.module_name)
+        throw CompileError{DiagnosticCode::AnalyzerFunctionResolution, location,
+                           "entry point cannot be used as a function value"};
+      if (function.is_variadic)
+        throw CompileError{
+            DiagnosticCode::AnalyzerFunctionResolution, location,
+            "variadic function value requires an explicit lambda"};
+      auto &lowered = result.lowered_expressions[&expression];
+      if (!lowered) {
+        ast::LambdaExpression lambda;
+        lambda.location = location;
+        ast::CallExpression call{
+            global_key(function.module_name, function.name), {}, {}, location};
+        for (std::size_t index = 0; index < function.parameters.size();
+             ++index) {
+          const auto &parameter = function.parameters[index];
+          const std::string local =
+              "__function_argument_" + std::to_string(index);
+          lambda.parameters.push_back(
+              {local, parameter.type, location, parameter.ownership});
+          auto argument = std::make_unique<ast::Expression>(
+              ast::IdentifierExpression{local, location});
+          const auto parameter_type =
+              resolve_type(parameter.type, {}, &class_arities,
+                           function.module_name, &scoped_type_aliases);
+          if (parameter.ownership != ast::ParameterOwnership::Borrow &&
+              parameter.ownership != ast::ParameterOwnership::BorrowMutable &&
+              (potentially_owns_value(parameter_type) ||
+               parameter_type.is_pointer()))
+            argument = std::make_unique<ast::Expression>(
+                ast::MoveExpression{std::move(argument), location});
+          call.arguments.push_back(std::move(argument));
+        }
+        lambda.body = std::make_unique<ast::Expression>(std::move(call));
+        lowered = std::make_shared<ast::Expression>(std::move(lambda));
+      }
+      ast::TypeReference reference{"Function", location, {}};
+      for (const auto &parameter : function.parameters) {
+        reference.type_arguments.push_back(parameter.type);
+        reference.function_parameter_ownership.push_back(parameter.ownership);
+      }
+      reference.type_arguments.push_back(function.return_type);
+      reference.function_return_ownership = function.return_ownership;
+      reference.is_pure_function = function.is_pure || function.is_constant;
+      const auto expected =
+          resolve_type(reference, {}, &class_arities, function.module_name,
+                       &scoped_type_aliases);
+      const auto previous_expression = contextual_expression;
+      const auto previous_expected = contextual_expected_type;
+      const auto previous_module = context_module;
+      const bool previous_pure_context = inside_pure_context;
+      // Creating a function value does not execute its body. The wrapper
+      // is checked against the referenced function’s own effect contract.
+      inside_pure_context = false;
+      contextual_expression = lowered.get();
+      contextual_expected_type = &expected;
+      context_module = function.module_name;
+      try {
+        const auto type = expression_type(*lowered);
+        contextual_expression = previous_expression;
+        contextual_expected_type = previous_expected;
+        context_module = previous_module;
+        inside_pure_context = previous_pure_context;
+        return type;
+      } catch (...) {
+        contextual_expression = previous_expression;
+        contextual_expected_type = previous_expected;
+        context_module = previous_module;
+        inside_pure_context = previous_pure_context;
+        throw;
+      }
+    };
     receiver_capability = [&](const ast::Expression &expression) {
       if (const auto *identifier =
               std::get_if<ast::IdentifierExpression>(&expression.value)) {
@@ -6541,6 +6836,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            node.name + "'"};
                   return global->type;
                 }
+                if (const auto function = named_function_value(
+                        expression, node.name, node.location))
+                  return *function;
                 throw CompileError{DiagnosticCode::AnalyzerUnknownValue,
                                    node.location,
                                    "unknown value '" + node.name + "'"};
@@ -6775,7 +7073,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   for (const std::string &capture : captures)
                     if (const auto symbol = previous_symbols->find(capture);
                         symbol != previous_symbols->end() &&
-                        symbol->second.is_mutable)
+                        symbol->second.is_mutable && owned_capture != capture)
                       throw CompileError{
                           node.location,
                           "pure lambda cannot observe mutable capture '" +
@@ -7731,7 +8029,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 return destination_type;
               }
               const auto callee_iterator =
-                  find_in_context(functions, context_module, node.callee);
+                  find_visible_function(context_module, node.callee);
               if (callee_iterator == functions.end()) {
                 if (ambiguous_functions.contains(node.callee))
                   throw CompileError{
@@ -7761,9 +8059,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  ? std::vector<std::string>{}
                                  : std::vector<std::string>{
                                        "use '" + *replacement + "' instead"});
-              return declared_call_type(callee, node.type_arguments,
-                                        node.arguments, node.location,
-                                        node.callee, &expression);
+              return overloaded_call_type(callee, node.type_arguments,
+                                          node.arguments, node.location,
+                                          node.callee, &expression);
             } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
               const auto iterator =
                   find_in_context(classes, context_module, node.class_name);
@@ -7884,6 +8182,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     contextual_expected_type != nullptr)
                   infer_from_type(infer_from_type, instance_pattern,
                                   *contextual_expected_type);
+                infer_function_bound_arguments(
+                    class_declaration.type_constraints, inferred,
+                    [&](const ast::TypeReference &reference) {
+                      return resolve_type(reference, class_parameters,
+                                          &class_arities);
+                    },
+                    [&](const SemanticType &pattern,
+                        const SemanticType &candidate) {
+                      infer_from_type(infer_from_type, pattern, candidate);
+                    });
                 std::vector<SemanticType> ordered_arguments;
                 ordered_arguments.reserve(
                     class_declaration.type_parameters.size());
@@ -8092,6 +8400,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
+              if (const auto qualified = qualified_expression_name(expression);
+                  qualified && !active_symbols->contains(qualified->substr(
+                                   0, qualified->find('.')))) {
+                if (const auto function = named_function_value(
+                        expression, *qualified, node.location))
+                  return *function;
+              }
               const auto enum_name = qualified_expression_name(*node.object);
               const auto enum_iterator =
                   enum_name.has_value()
@@ -8262,7 +8577,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             ? std::vector<std::string>{}
                             : std::vector<std::string>{"use '" + *replacement +
                                                        "' instead"});
-                  return declared_call_type(
+                  return overloaded_call_type(
                       *function->second, node.type_arguments, node.arguments,
                       node.location, qualified, &expression);
                 }
@@ -8852,6 +9167,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   infer_from_type(infer_from_type, return_pattern,
                                   *contextual_expected_type);
                 }
+                infer_function_bound_arguments(
+                    method->type_constraints, substitutions,
+                    [&](const ast::TypeReference &reference) {
+                      return resolve_type(reference, method_parameters,
+                                          &class_arities);
+                    },
+                    [&](const SemanticType &pattern,
+                        const SemanticType &candidate) {
+                      infer_from_type(infer_from_type, pattern, candidate);
+                    });
                 std::vector<SemanticType> inferred;
                 inferred.reserve(method->type_parameters.size());
                 for (const std::string &parameter : method->type_parameters) {
@@ -10837,6 +11162,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     declaration->location,
                     "borrowed field projection requires a local root"};
               if (declaration->is_mutable) {
+                if (active_lambda_mutations != nullptr)
+                  active_lambda_mutations->insert(source_root);
                 if (shared_borrow_values.contains(source_root))
                   throw CompileError{
                       DiagnosticCode::AnalyzerBorrowConflict,
@@ -12080,9 +12407,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   result.tailrec_edges = validate_tailrec_contract(
       program, class_arities, classes, scoped_type_aliases, resolved_calls,
       returns_with_live_owners);
-  for (const auto &[expression, function] : resolved_calls)
+  for (const auto &[expression, function] : resolved_calls) {
     result.call_return_ownership.insert_or_assign(expression,
                                                   function->return_ownership);
+    result.resolved_functions.insert_or_assign(expression, function);
+  }
+  for (const auto &[name, group] : overloads) {
+    if (group.size() < 2)
+      continue;
+    for (std::size_t index = 0; index < group.size(); ++index)
+      result.function_overload_indices.emplace(group[index], index);
+  }
   return result;
 }
 

@@ -329,6 +329,11 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   else if (value.return_ownership == janus::ast::ReturnOwnership::Owned)
     signature += "owned ";
   signature += type_name(value.return_type);
+  for (std::size_t index = 0; index < value.type_constraints.size(); ++index) {
+    const auto &constraint = value.type_constraints[index];
+    signature += (index == 0 ? " where " : ", ") + constraint.parameter +
+                 " <: " + type_name(constraint.trait);
+  }
   return signature;
 }
 

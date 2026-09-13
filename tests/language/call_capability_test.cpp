@@ -179,5 +179,101 @@ def main() : int { return forward[Fn () => int](() => 42) }
               " () => Unit = () => change(n) f() delete f delete change return "
               "0 }",
           cap == "FnMut");
+  check(R"(
+def apply[A, B, F <: FnOnce (A) => B](f : F, value : A) : B {
+ return f(move value)
+}
+def main() : int {
+ val f : Fn (int) => int = (n : int) => n + 1
+ val result = apply(move f, 41)
+ return result
+})",
+        true);
+  check(R"(
+class Apply() {
+ def run[A, B, F <: FnOnce (A) => B](f : F, value : A) : B {
+  return f(move value)
+ }
+}
+def main() : int {
+ val apply = new Apply()
+ defer delete apply
+ val f : Fn (int) => int = (n : int) => n + 1
+ val result = apply.run(move f, 41)
+ return result
+})",
+        true);
+  check(R"(
+class Apply[A, B, F <: FnOnce (A) => B](private val callback : F) {
+ consume def run(value : A) : B {
+  defer delete this
+  return callback(move value)
+ }
+ destructor { delete callback }
+}
+def main() : int {
+ val f : Fn (int) => int = (n : int) => n + 1
+ val apply = new Apply(move f)
+ return apply.run(41)
+})",
+        true);
+  check(R"(
+def increment(value : int) : int { return value + 1 }
+def main() : int {
+ val callback = increment
+ val first = callback(20)
+ val second = callback(21)
+ delete callback
+ return first + second
+})",
+        true);
+  check(R"(
+pure def increment(value : int) : int { return value + 1 }
+def main() : int {
+ val callback : pure Fn (int) => int = increment
+ val result = callback(41)
+ delete callback
+ return result
+})",
+        true);
+  check(R"(
+def choose(value : int) : int { return value }
+def choose(left : int, right : int) : int { return left + right }
+def main() : int { return choose(choose(20), 22) }
+)",
+        true);
+  check(R"(
+def choose(callback : Fn () => int) : int { defer delete callback return callback() }
+def choose(callback : FnOnce () => int) : int { return callback() }
+def main() : int {
+ val callback : FnOnce () => int = () => 42
+ return choose(move callback)
+}
+)",
+        true);
+  check(R"(
+pure def apply(borrow var callback : pure FnMut () => int) : int {
+ return callback()
+}
+def main() : int { return 0 }
+)",
+        true);
+  check(R"(
+struct Holder(var callback : FnMut () => int) {}
+def main() : int {
+ var holder = new Holder(() => 42)
+ val callback : Fn () => int = owningCapture[Holder](holder, () => {
+  borrow var action : FnMut () => int = holder.callback
+  return action()
+ })
+ delete callback
+ return 0
+}
+)",
+        false);
+  check("def repeat[A](value : A) : A { return move value } "
+        "def repeat[B](other : B) : B { return move other } "
+        "def main() : int { return 0 }",
+        false, "already declared");
   return failures ? 1 : 0;
 }

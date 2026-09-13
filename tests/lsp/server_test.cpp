@@ -1249,6 +1249,24 @@ int main(int argc, char **argv) {
   // Regression matrix for every advertised request that operates on source.
   TemporaryWorkspace temporary_workspace;
   const std::filesystem::path &workspace = temporary_workspace.path();
+  {
+    janus::lsp::Server factory_server{
+        {std::filesystem::path{JANUS_STDLIB_DIR}},
+        {std::filesystem::path{JANUS_STDLIB_API_INDEX}}};
+    static_cast<void>(factory_server.handle(
+        R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus","text":"import std.functional\npure def add(a : int, b : int) : int { return a + b }\ndef main() : int {\n    val callback = partialFirst2(add, 10)\n    println(callback(32))\n    delete callback\n    return 0\n}"}}})"));
+    const auto hover = factory_server.handle(
+        R"({"jsonrpc":"2.0","id":9001,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus"},"position":{"line":4,"character":16}}})");
+    JANUS_REQUIRE(hover.size() == 1);
+    JANUS_REQUIRE(hover.front().find("pure Fn (int) => int") !=
+                  std::string::npos);
+    const auto signature = factory_server.handle(
+        R"({"jsonrpc":"2.0","id":9002,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus"},"position":{"line":3,"character":36}}})");
+    JANUS_REQUIRE(signature.size() == 1);
+    JANUS_REQUIRE(signature.front().find(") : pure Fn (B) => C") !=
+                  std::string::npos);
+  }
+
   janus::lsp::Server source_server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
   const std::string indexed_uri = file_uri(workspace / "src/main.janus");
   const std::string unknown_uri = file_uri(workspace / "src/unknown.janus");

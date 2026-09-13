@@ -1,0 +1,18 @@
+import std.functional
+class Marker(val id : int) { destructor { println(id) } }
+def main() : int {
+    val first = new Marker(1)
+    val second = new Marker(2)
+    val inner : FnOnce (int) => Marker = owningCapture[Marker](first, (value : int) => {
+        delete first
+        return new Marker(value)
+    })
+    val outer : FnOnce (Marker) => int = owningCapture[Marker](second, (value : Marker) => {
+        defer delete value
+        delete second
+        panic("functional factory outer panic")
+    })
+    val pipeline = compose(move outer, move inner)
+    defer delete pipeline
+    return pipeline(3)
+}

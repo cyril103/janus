@@ -2039,6 +2039,15 @@ if(BUILD_TESTING)
     target_link_libraries(call_capability_test PRIVATE janus_semantic janus_llvm_backend)
     target_compile_options(call_capability_test PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME language.call_capabilities COMMAND call_capability_test)
+    add_executable(functional_factory_test tests/language/functional_factory_test.cpp)
+    target_link_libraries(functional_factory_test PRIVATE janus_semantic janus_llvm_backend)
+    target_compile_definitions(functional_factory_test PRIVATE JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib")
+    target_compile_options(functional_factory_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME language.functional_factories COMMAND functional_factory_test)
+    add_test(NAME docs.functional_factories_generated
+        COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/generate_functional_factories.py" --check)
+
+
 
     add_executable(first_class_function_test
         tests/language/first_class_function_test.cpp
@@ -2790,6 +2799,46 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/functional_pipeline_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_pipeline.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    foreach(stage inner outer uncurried_first uncurried_second)
+        add_test(
+            NAME runtime.functional_factories_panic_${stage}
+            COMMAND ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_factories_panic_${stage}.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/functional_factories_panic_${stage}"
+                "-DEXPECTED_ERROR=functional factory ${stage} panic"
+                "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_factories_panic_${stage}.expected.txt"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+        )
+    endforeach()
+    add_test(
+        NAME runtime.functional_factories
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_factories.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/functional_factories_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_factories.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME benchmarks.functional_factories_smoke
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/benchmarks/functional_factories.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/functional_factories_benchmark"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/functional_factories.expected.txt"
             "-DENABLE_UNDEFINED_SANITIZER=ON"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )

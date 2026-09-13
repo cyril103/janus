@@ -651,7 +651,14 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
     result += "borrow var ";
   else if (function.return_ownership == janus::ast::ReturnOwnership::Owned)
     result += "owned ";
-  return result + type_reference(function.return_type);
+  result += type_reference(function.return_type);
+  for (std::size_t index = 0; index < function.type_constraints.size();
+       ++index) {
+    const auto &constraint = function.type_constraints[index];
+    result += (index == 0 ? " where " : ", ") + constraint.parameter +
+              " <: " + type_reference(constraint.trait);
+  }
+  return result;
 }
 
 struct CallSite {

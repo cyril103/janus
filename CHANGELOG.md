@@ -5,6 +5,15 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Programmation fonctionnelle
+
+- factories propriétaires `compose`, `andThen`, `partialFirst2`, `curry2` et
+  `uncurry2` dans `std.functional` (#313), avec surcharges conservant les
+  capacités d'appel et les effets ; `uncurry2` utilise `OptionPair`.
+- fonctions nommées utilisables comme valeurs sans allocation d'environnement,
+  inférence depuis les bornes de callbacks et correction des substitutions
+  dans les closures génériques ; contrats d'allocation exposés à LLVM.
+
 ### Types et ownership
 
 - capacités d'appel explicites `Fn`, `FnMut` et `FnOnce` (#312), inférées sur

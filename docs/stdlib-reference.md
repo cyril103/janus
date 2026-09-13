@@ -87,9 +87,17 @@ def main() : int {
 ### `std.functional`
 
 Le module regroupe les helpers fonctionnels explicites `identity`, `constant`,
-`compose`, `andThen`, `flip` et `tap`. Ils sont synchrones, leurs callbacks
-sont `scoped` et aucun helper n'alloue d'état. Voir la
+`compose`, `andThen`, `flip` et `tap`. Leurs formes immédiatement appliquées
+reçoivent des callbacks `scoped` et n'allouent pas d'état propre. Voir la
 [matrice d'ownership](design/functional-pipeline.md).
+
+Les surcharges à deux callbacks de `compose` et `andThen` retournent une
+closure ; `partialFirst2` fixe le premier argument, `curry2` transfère une
+fonction binaire vers deux applications et `uncurry2` reçoit une `OptionPair`.
+Pour conserver `pure`, `uncurry2` exige un second argument `Copy` ; sinon,
+une garde protège cet argument pendant la première étape et son nettoyage
+peut avoir un effet observable.
+Les signatures conservent capacité et pureté, sans transfert implicite.
 
 ```janus
 // doctest: doctest name=stdlib-std-functional
@@ -100,6 +108,17 @@ def main() : int {
         (value : int) => value * 2
     )
     return result - 41
+}
+```
+
+```janus
+// doctest: doctest name=stdlib-functional-factories
+import std.functional
+pure def add(a : int, b : int) : int { return a + b }
+def main() : int {
+    val addTen = partialFirst2(add, 10)
+    defer delete addTen
+    return addTen(32) - 42
 }
 ```
 

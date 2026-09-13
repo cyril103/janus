@@ -6,6 +6,16 @@ Wall-clock times are informational only and are not CI gates. See
 [`docs/compiler-performance.md`](../docs/compiler-performance.md) for the
 compiler timing workflow and its non-blocking trend dashboard.
 
+## `functional_factories.janus`
+
+Compare 10 000 appels d'une composition construite avec `compose`, d'une
+lambda manuelle et des appels développés. Les trois checksums attendus sont
+`100000000`. La factory est construite une fois et réutilisée ; son coût de
+construction est donc distinct du coût de chaque appel. Compiler avec
+`build/janus build benchmarks/functional_factories.janus --release` et mesurer
+avec la procédure ci-dessous. Le guide `docs/design/functional-pipeline.md`
+décrit les environnements possédés et les possibilités d'élision.
+
 ## `shared_clone.janus`
 
 Ce microbenchmark crée une valeur `Shared[int]`, clone puis détruit 100 000

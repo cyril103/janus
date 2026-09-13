@@ -1,0 +1,122 @@
+import std.functional
+import std.option
+
+pure def add(left : int, right : int) : int { return left + right }
+pure def increment(value : int) : int { return value + 1 }
+pure def twice(value : int) : int { return value * 2 }
+def ordinaryIncrement(value : int) : int { return value + 1 }
+
+class Resource(val marker : int) {
+    destructor { println(marker) }
+}
+
+def consumeResource(value : Resource, amount : int) : int {
+    val result = value.marker + amount
+    delete value
+    return result
+}
+
+class Counter(var value : int) {
+    def step(input : int) : int {
+        value = value + 1
+        return input + value
+    }
+}
+
+def earlyReturn() : int {
+    val callback = partialFirst2(consumeResource, new Resource(300))
+    defer delete callback
+    return 0
+}
+
+def propagate() : Option[int] {
+    val callback = partialFirst2(consumeResource, new Resource(400))
+    defer delete callback
+    val source = Option.None[int]()
+    val value = source?
+    return Option.Some[int](value)
+}
+
+var trace : int = 0
+
+def traced(marker : int) : Fn (int) => int {
+    trace = trace * 10 + marker
+    return (value : int) => {
+        trace = trace * 10 + marker
+        return value + 1
+    }
+}
+
+def fixed() : int {
+    trace = trace * 10 + 3
+    return 10
+}
+
+pure def same(value : int) : int { return value }
+
+def main() : int {
+    val pipeline = compose(increment, twice)
+    println(pipeline(20))
+    println(pipeline(21))
+    delete pipeline
+
+    val mixed = std.functional.andThen(twice, ordinaryIncrement)
+    println(mixed(20))
+    delete mixed
+
+    val addTen = partialFirst2(add, 10)
+    println(addTen(1))
+    println(addTen(2))
+    delete addTen
+
+    val curried = curry2(add)
+    val addTwenty = curried(20)
+    println(addTwenty(1))
+    println(addTwenty(2))
+    delete addTwenty
+
+    val uncurried = uncurry2(curry2(add))
+    println(uncurried(new OptionPair[int, int](20, 22)))
+
+    val resource = new Resource(100)
+    val consumeFixed = partialFirst2(consumeResource, move resource)
+    println(consumeFixed(1))
+
+    val discarded = partialFirst2(consumeResource, new Resource(200))
+    delete discarded
+
+    val counter = new Counter(0)
+    val next : FnMut (int) => int = owningCapture[Counter](counter,
+        (value : int) => counter.step(value))
+    val counted = compose(ordinaryIncrement, move next)
+    println(counted(10))
+    println(counted(10))
+    delete counted
+    println(earlyReturn())
+    val result = propagate()
+    println(match result { Some(value) => value, None => 0 })
+
+    val ordered = compose(traced(1), traced(2))
+    println(trace)
+    println(ordered(40))
+    println(trace)
+    delete ordered
+    trace = 0
+    val fixedOnce = partialFirst2(add, fixed())
+    println(trace)
+    println(fixedOnce(1) + fixedOnce(2))
+    println(trace)
+    delete fixedOnce
+
+    val leftGrouped = compose(increment, compose(twice, increment))
+    val rightGrouped = compose(compose(increment, twice), increment)
+    println(leftGrouped(10) == rightGrouped(10))
+    delete leftGrouped
+    delete rightGrouped
+    val leftIdentity = compose(same, increment)
+    val rightIdentity = compose(increment, same)
+    println(leftIdentity(10) == rightIdentity(10))
+    delete leftIdentity
+    delete rightIdentity
+    return 0
+}
