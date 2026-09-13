@@ -3,7 +3,9 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/prototype_total_functions.py'
 spec = importlib.util.spec_from_file_location('total_functions_prototype', SCRIPT)
@@ -98,6 +100,18 @@ class TotalFunctionsTests(unittest.TestCase):
         saved = json.loads((SCRIPT.parents[1] / 'docs/design/total-functions-measurements.json').read_text())
         self.assertEqual(saved['source_sha256'], report['source_sha256'])
         self.assertEqual(saved['stdlib_manual_sample'], sample)
+
+    def test_source_fingerprints_ignore_checkout_line_endings(self):
+        expected = p.report(1)['source_sha256']
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in expected:
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                text = (SCRIPT.parents[1] / relative).read_text(encoding='utf-8')
+                target.write_bytes(text.replace('\n', '\r\n').encode('utf-8'))
+            with patch.object(p, '__file__', str(root / 'scripts/prototype_total_functions.py')):
+                self.assertEqual(expected, p.report(1)['source_sha256'])
 
 
 if __name__ == '__main__':

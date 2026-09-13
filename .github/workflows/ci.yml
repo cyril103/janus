@@ -283,7 +283,7 @@ jobs:
         shell: msys2 {0}
         run: >
           ctest --test-dir build --output-on-failure
-          --stop-on-failure --timeout 60
+          --timeout 60
 
       - name: Euler 1..20 gate
         if: runner.os == 'Linux'

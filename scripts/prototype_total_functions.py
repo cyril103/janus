@@ -231,7 +231,7 @@ def report(repeats):
     root = Path(__file__).resolve().parents[1]
     sources = ('option', 'result', 'persistent_list', 'math')
     snapshots = {f'stdlib/std/{name}.janus': hashlib.sha256(
-        (root / f'stdlib/std/{name}.janus').read_bytes()).hexdigest() for name in sources}
+        (root / f'stdlib/std/{name}.janus').read_text(encoding='utf-8').encode('utf-8')).hexdigest() for name in sources}
     # Manual oracle from the selected source bodies, under RFC machine model.
     # fabs is mathematically total but excluded by the uncertified FFI rule.
     total_oracle = {'option.isSome', 'option.isNone', 'result.isOk', 'result.isError',
