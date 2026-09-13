@@ -5,6 +5,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Conception du langage
+
+- RFC d’évaluation de `total def` (#317), prototype conservateur isolé et
+  mesures sur un échantillon stdlib ; intégration différée, sans changement
+  de `pure def`, du langage ou de l’ABI.
+
 ### Collections
 
 - `PersistentMap[K, V]` et `PersistentSet[T]` immutables (#315), moteur HAMT

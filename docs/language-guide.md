@@ -512,6 +512,9 @@ la compilation. Un callback appelable depuis ce contexte s'écrit
 `pure Fn (T) => U`. Le contrat complet, y compris les règles des méthodes et de la
 FFI, est défini dans
 [Contrat `pure def`](design/pure-functions.md).
+La pureté ne garantit ni absence de panique ni terminaison ; `tailrec` ne
+prouve pas non plus la terminaison. La [RFC `total def`](design/total-functions.md)
+évalue un contrat supplémentaire, sans introduire de nouvelle syntaxe.
 
 Dans une `const def`, une déclaration locale `const` peut dépendre des
 paramètres et des constantes locales précédentes. Son annotation peut être

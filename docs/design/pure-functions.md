@@ -8,6 +8,10 @@ La [RFC d’évaluation des effets statiques](static-effects.md) étudie les
 contrats au-delà de `pure` et recommande de différer leur implémentation.
 Elle ne modifie pas le présent contrat.
 
+La pureté ne garantit ni absence de panique ni terminaison. La
+[RFC `total def`](total-functions.md) évalue ces garanties séparément et
+recommande de différer leur intégration, sans changer le sens de `pure`.
+
 ## But et syntaxe
 
 `pure def` décrit une fonction exécutable dont le résultat et la terminaison ne

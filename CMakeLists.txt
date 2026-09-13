@@ -1815,6 +1815,16 @@ if(BUILD_TESTING)
             -v
     )
     add_test(
+        NAME docs.total_functions_prototype
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            -m unittest
+            discover
+            -s "${PROJECT_SOURCE_DIR}/tests/documentation"
+            -p "test_total_functions_prototype.py"
+            -v
+    )
+    add_test(
         NAME docs.static_effects_prototype
         COMMAND
             "${Python3_EXECUTABLE}"

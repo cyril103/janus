@@ -1,0 +1,329 @@
+{
+  "contracts": {
+    "no_panic": {
+      "accepted": [
+        "apply[int,identity]",
+        "apply[string,identity]",
+        "bounded",
+        "choose",
+        "countdown",
+        "identity",
+        "infinite",
+        "list.walk",
+        "mutual.a",
+        "mutual.b",
+        "option.isNone",
+        "option.isSome",
+        "persistent_list.isEmpty",
+        "persistent_list.size",
+        "result.isError",
+        "result.isOk",
+        "safe.cast",
+        "safe.divide",
+        "safe.get",
+        "same.list"
+      ],
+      "diagnostics": {
+        "apply[int,panic.leaf]": [
+          "apply[int,panic.leaf]:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "apply[string,panic.leaf]": [
+          "apply[string,panic.leaf]:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "cleanup.wrapper": [
+          "cleanup.wrapper:return.seq[1] -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "dead.panic": [
+          "dead.panic:return.if[1]: unproved operation panic"
+        ],
+        "ffi": [
+          "ffi:return: unproved operation ffi"
+        ],
+        "math.fabs": [
+          "math.fabs:return: unproved operation ffi"
+        ],
+        "math.gcd": [
+          "math.gcd:return: unproved operation unsupported_euclidean_loop"
+        ],
+        "math.lcm": [
+          "math.lcm:return.seq[1]: unproved operation panic"
+        ],
+        "missing.return": [
+          "missing.return:return: unknown or missing return expression"
+        ],
+        "panic.leaf": [
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "panic.wrapper": [
+          "panic.wrapper:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "unguarded": [
+          "unguarded:return.argument: unproved operation dec"
+        ],
+        "unknown.call": [
+          "unknown.call:return: unverified callee not_present"
+        ],
+        "unsafe.index": [
+          "unsafe.index:return: unproved operation index"
+        ],
+        "zero.divide": [
+          "zero.divide:return: unproved operation div"
+        ]
+      },
+      "edges": 14,
+      "median_ms": 0.1339,
+      "nodes": 35,
+      "recursive_components": [
+        [
+          "countdown"
+        ],
+        [
+          "list.walk"
+        ],
+        [
+          "mutual.a",
+          "mutual.b"
+        ],
+        [
+          "same.list"
+        ],
+        [
+          "unguarded"
+        ]
+      ]
+    },
+    "total": {
+      "accepted": [
+        "apply[int,identity]",
+        "apply[string,identity]",
+        "bounded",
+        "choose",
+        "countdown",
+        "identity",
+        "list.walk",
+        "option.isNone",
+        "option.isSome",
+        "persistent_list.isEmpty",
+        "persistent_list.size",
+        "result.isError",
+        "result.isOk",
+        "safe.cast",
+        "safe.divide",
+        "safe.get"
+      ],
+      "diagnostics": {
+        "apply[int,panic.leaf]": [
+          "apply[int,panic.leaf]:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "apply[string,panic.leaf]": [
+          "apply[string,panic.leaf]:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "cleanup.wrapper": [
+          "cleanup.wrapper:return.seq[1] -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "dead.panic": [
+          "dead.panic:return.if[1]: unproved operation panic"
+        ],
+        "ffi": [
+          "ffi:return: unproved operation ffi"
+        ],
+        "infinite": [
+          "infinite:return: loop has no proven finite bound"
+        ],
+        "math.fabs": [
+          "math.fabs:return: unproved operation ffi"
+        ],
+        "math.gcd": [
+          "math.gcd:return: unproved operation unsupported_euclidean_loop"
+        ],
+        "math.lcm": [
+          "math.lcm:return.seq[1]: unproved operation panic"
+        ],
+        "missing.return": [
+          "missing.return:return: unknown or missing return expression"
+        ],
+        "mutual.a": [
+          "mutual.a:return: recursive edge mutual.a -> mutual.b has no proven decrease"
+        ],
+        "mutual.b": [
+          "mutual.b:return: recursive edge mutual.b -> mutual.a has no proven decrease"
+        ],
+        "panic.leaf": [
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "panic.wrapper": [
+          "panic.wrapper:return -> panic.leaf",
+          "panic.leaf:return: unproved operation panic"
+        ],
+        "same.list": [
+          "same.list:return.Cons: recursive edge same.list -> same.list has no proven decrease"
+        ],
+        "unguarded": [
+          "unguarded:return.argument: unproved operation dec"
+        ],
+        "unknown.call": [
+          "unknown.call:return: unverified callee not_present"
+        ],
+        "unsafe.index": [
+          "unsafe.index:return: unproved operation index"
+        ],
+        "zero.divide": [
+          "zero.divide:return: unproved operation div"
+        ]
+      },
+      "edges": 14,
+      "median_ms": 0.1439,
+      "nodes": 35,
+      "recursive_components": [
+        [
+          "countdown"
+        ],
+        [
+          "list.walk"
+        ],
+        [
+          "mutual.a",
+          "mutual.b"
+        ],
+        [
+          "same.list"
+        ],
+        [
+          "unguarded"
+        ]
+      ]
+    }
+  },
+  "generic_specializations": {
+    "accepted": [
+      "apply[int,identity]",
+      "apply[string,identity]",
+      "identity"
+    ],
+    "diagnostics": {
+      "apply[int,panic.leaf]": [
+        "apply[int,panic.leaf]:return -> panic.leaf",
+        "panic.leaf:return: unproved operation panic"
+      ],
+      "apply[string,panic.leaf]": [
+        "apply[string,panic.leaf]:return -> panic.leaf",
+        "panic.leaf:return: unproved operation panic"
+      ],
+      "panic.leaf": [
+        "panic.leaf:return: unproved operation panic"
+      ]
+    },
+    "edges": 4,
+    "median_ms": 0.0244,
+    "nodes": 6,
+    "recursive_components": []
+  },
+  "limitations": [
+    "Hand-lowered typed IR; no source inference or compiler timing.",
+    "Manual oracle; no downstream project evaluated."
+  ],
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "python": "3.14.4",
+  "repeats": 21,
+  "source_sha256": {
+    "stdlib/std/math.janus": "4eb3f993cb9960d22ed0a752a546c3d572e6daac16dbce16647a33dfe6bc57ad",
+    "stdlib/std/option.janus": "8b2b776ca13ccbd5f5bb59682973821b406b535554bccc2c458f9065068ed4a2",
+    "stdlib/std/persistent_list.janus": "2c81348abaeae074134f976a58b144aebb227d492c9ab71f14b2c7d3cc3b5c3a",
+    "stdlib/std/result.janus": "c9f8b281b29446f6a38c97cf1a31de68801335aa4ecebeea4cfd06bfee1c0181"
+  },
+  "stdlib_manual_sample": {
+    "accepted": [
+      "option.isNone",
+      "option.isSome",
+      "persistent_list.isEmpty",
+      "persistent_list.size",
+      "result.isError",
+      "result.isOk"
+    ],
+    "false_negatives": [
+      "math.fabs",
+      "math.gcd"
+    ],
+    "false_positives": [],
+    "functions": [
+      "math.fabs",
+      "math.gcd",
+      "math.lcm",
+      "option.isNone",
+      "option.isSome",
+      "persistent_list.isEmpty",
+      "persistent_list.size",
+      "result.isError",
+      "result.isOk"
+    ],
+    "known_total": [
+      "math.fabs",
+      "math.gcd",
+      "option.isNone",
+      "option.isSome",
+      "persistent_list.isEmpty",
+      "persistent_list.size",
+      "result.isError",
+      "result.isOk"
+    ]
+  },
+  "stdlib_timing": {
+    "no_panic": {
+      "accepted": [
+        "option.isNone",
+        "option.isSome",
+        "persistent_list.isEmpty",
+        "persistent_list.size",
+        "result.isError",
+        "result.isOk"
+      ],
+      "diagnostics": {
+        "math.fabs": [
+          "math.fabs:return: unproved operation ffi"
+        ],
+        "math.gcd": [
+          "math.gcd:return: unproved operation unsupported_euclidean_loop"
+        ],
+        "math.lcm": [
+          "math.lcm:return.seq[1]: unproved operation panic"
+        ]
+      },
+      "edges": 1,
+      "median_ms": 0.0385,
+      "nodes": 9,
+      "recursive_components": []
+    },
+    "total": {
+      "accepted": [
+        "option.isNone",
+        "option.isSome",
+        "persistent_list.isEmpty",
+        "persistent_list.size",
+        "result.isError",
+        "result.isOk"
+      ],
+      "diagnostics": {
+        "math.fabs": [
+          "math.fabs:return: unproved operation ffi"
+        ],
+        "math.gcd": [
+          "math.gcd:return: unproved operation unsupported_euclidean_loop"
+        ],
+        "math.lcm": [
+          "math.lcm:return.seq[1]: unproved operation panic"
+        ]
+      },
+      "edges": 1,
+      "median_ms": 0.0387,
+      "nodes": 9,
+      "recursive_components": []
+    }
+  }
+}
