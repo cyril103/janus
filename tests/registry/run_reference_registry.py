@@ -388,11 +388,22 @@ def main() -> None:
                 ("PUT", "/v1/packages/noise/pkg/invalid", 400),
             ]
             method, path, expected = routes[index % len(routes)]
-            request(
-                origin + path, method=method,
-                token=f"{BAD_TOKEN}-{index}" if index % 2 else None,
-                expected=expected,
-            )
+            for attempt in range(3):
+                try:
+                    request(
+                        origin + path, method=method,
+                        token=f"{BAD_TOKEN}-{index}" if index % 2 else None,
+                        expected=expected,
+                    )
+                    break
+                except (ConnectionResetError, urllib.error.URLError) as error:
+                    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+                    if not isinstance(reason, ConnectionResetError) or attempt == 2:
+                        raise
+                    # A full loopback accept queue can reset connections on
+                    # macOS. Retry only these unauthenticated, rejected writes;
+                    # every request must still reach its expected HTTP status.
+                    time.sleep(0.05 * (attempt + 1))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             for _ in range(3):
