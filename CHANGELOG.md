@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Paquets
+
+- chaque contrainte de version est désormais vérifiée pour les dépendances
+  partagées, y compris par chemin ou commit Git (#363). Un graphe incompatible
+  est rejeté quel que soit l’ordre de déclaration, avec le paquet, sa version
+  et le consommateur dans le diagnostic ; aucun verrou n’est créé ou modifié
+  en cas d’échec, y compris avec `--locked`.
+
 ### Runtime
 
 - sur POSIX, détruire un `ChildProcess` immédiatement après `terminate()` ne

@@ -1391,6 +1391,13 @@ if(BUILD_TESTING)
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_project_creation.cmake"
     )
     add_test(
+        NAME cli.dependency_constraints
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_dependency_constraints.py"
+                --janus $<TARGET_FILE:janus>
+    )
+    set_tests_properties(cli.dependency_constraints PROPERTIES TIMEOUT 120)
+    add_test(
         NAME cli.remote_registry
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/tests/driver/run_remote_registry.py"
