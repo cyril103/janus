@@ -177,3 +177,13 @@ test("TextMate scopes map key/value separators and empty map delimiters", () => 
   assert.equal("[:]".match(new RegExp(brackets.match, "g")).join(""), "[]");
   assert.equal('["http": 80, "https": 443,]'.match(new RegExp(separator.match, "g")).length, 2);
 });
+
+
+test("TextMate recognizes using as a complete resource keyword", () => {
+  const control = grammar.patterns.find(
+    (pattern) => pattern.name === "keyword.control.janus",
+  );
+  const keyword = new RegExp(control.match);
+  assert.match("using val resource", keyword);
+  assert.doesNotMatch("usingResource", keyword);
+});

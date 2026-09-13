@@ -7,6 +7,16 @@
 #include <string>
 
 int main() {
+  const std::string using_source =
+      "def f() : Unit {\nusing val r = new Resource()\n}\n";
+  const std::string using_expected =
+      "def f() : Unit {\n    using val r = new Resource()\n}\n";
+  if (janus::driver::format_source(using_source) != using_expected ||
+      janus::driver::format_source(using_expected) != using_expected) {
+    std::cerr << "using val formatting must be canonical and idempotent\n";
+    return 1;
+  }
+
   const std::string source = "def main() : int {  \n"
                              " val text : string = \"{ unchanged }\"\n"
                              "if true {\n"

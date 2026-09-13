@@ -4853,6 +4853,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> closure_transfer_protected_values;
     std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
+    std::unordered_set<std::string> automatic_values;
     std::unordered_set<std::string> deferred_callback_deletes;
     std::unordered_set<std::string> borrowed_values;
     std::unordered_set<std::string> shared_borrow_values;
@@ -5020,6 +5021,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                         std::string{action});
         return;
       }
+      // An automatic cleanup can be disarmed, but explicit deferred reads
+      // still keep the resource live until their action has executed.
+      if (action != "mutated" &&
+          automatic_values.contains(std::string{owner_name}))
+        for (const DeferredEffect &effect : deferred_effects)
+          for (const std::string &read : effect.reads)
+            if (places_overlap(read, owner_name))
+              throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowInvalidation, location,
+                  "owning value '" + std::string{owner_name} +
+                      "' cannot be released before its deferred use"};
       const auto depends_on =
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
@@ -6956,6 +6968,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "callback '" + node.name +
                         "' is exclusively borrowed by its active call"};
               if (!iterator->second.is_initialized) {
+                if (automatic_values.contains(node.name))
+                  throw CompileError{DiagnosticCode::AnalyzerDisarmedUsingValue,
+                                     node.location,
+                                     "using value '" + node.name +
+                                         "' is used after move or delete"};
                 throw CompileError{node.location,
                                    "variable '" + node.name +
                                        "' is used before initialization"};
@@ -10203,7 +10220,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "owning value '" + identifier->name +
                         "' cannot be moved from a loop, branch expression, "
                         "or closure"};
-              if (deferred_values.contains(identifier->name))
+              if (deferred_values.contains(identifier->name) &&
+                  !automatic_values.contains(identifier->name))
                 throw CompileError{node.location,
                                    "owning value '" + identifier->name +
                                        "' is scheduled for deferred cleanup"};
@@ -10807,6 +10825,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const BorrowUseMap *previous_borrow_continue_continuation =
           borrow_continue_continuation;
       const auto previous_local_constants = local_constants;
+      const auto previous_automatic_values = automatic_values;
       const auto previous_deferred_values = deferred_values;
       const auto previous_deferred_callback_deletes = deferred_callback_deletes;
       const std::size_t previous_deferred_effect_count =
@@ -11691,7 +11710,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "' contains a live borrow and cannot be overwritten"};
           require_no_live_borrow(assignment->name, assignment->location,
                                  "overwritten");
-          if (deferred_values.contains(assignment->name))
+          if (deferred_values.contains(assignment->name) &&
+              !automatic_values.contains(assignment->name))
             throw CompileError{assignment->location,
                                "owning value '" + assignment->name +
                                    "' is scheduled for deferred cleanup"};
@@ -11866,7 +11886,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
               identifier != nullptr &&
-              deferred_values.contains(identifier->name))
+              deferred_values.contains(identifier->name) &&
+              !automatic_values.contains(identifier->name))
             throw CompileError{deletion->location,
                                "owning value '" + identifier->name +
                                    "' is scheduled for deferred cleanup"};
@@ -11887,6 +11908,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 deletion->location, "deleting this requires a consume method"};
           require_closure_delete_allowed(deletion->expression,
                                          deletion->location);
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
+              identifier != nullptr &&
+              automatic_values.contains(identifier->name) &&
+              transfer_protected_values.contains(identifier->name))
+            throw CompileError{deletion->location,
+                               "using value '" + identifier->name +
+                                   "' cannot be deleted from a loop, branch "
+                                   "expression, or closure"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             require_no_live_borrow(identifier->name, deletion->location);
@@ -11955,6 +11985,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             const bool is_struct =
                 deleted_type.is_class() &&
                 classes.at(deleted_type.parameter)->is_value_type;
+            if (deferred->is_automatic &&
+                ((is_struct && !aggregate_owns_value(deleted_type)) ||
+                 (!deleted_type.is_class() && !deleted_type.is_function() &&
+                  !potentially_owns_value(deleted_type) &&
+                  !(deleted_type.is_enum() &&
+                    aggregate_owns_value(deleted_type)))))
+              throw CompileError{DiagnosticCode::AnalyzerInvalidUsingType,
+                                 deletion->location,
+                                 "using val requires a destructible owning "
+                                 "type; use val for Copy values"};
             if (is_struct && !aggregate_owns_value(deleted_type))
               throw CompileError{deletion->location,
                                  "struct values do not require delete"};
@@ -11966,6 +12006,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "deferred delete requires an object or a function value"};
             effect.invalidations.insert_or_assign(identifier->name, "destroy");
             deferred_values.insert(identifier->name);
+            if (deferred->is_automatic)
+              automatic_values.insert(identifier->name);
             if (deleted_type.is_function())
               deferred_callback_deletes.insert(identifier->name);
           } else {
@@ -12466,6 +12508,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       borrow_break_continuation = previous_borrow_break_continuation;
       borrow_continue_continuation = previous_borrow_continue_continuation;
       local_constants = previous_local_constants;
+      automatic_values = previous_automatic_values;
       deferred_values = previous_deferred_values;
       deferred_callback_deletes = previous_deferred_callback_deletes;
       deferred_effects.resize(previous_deferred_effect_count);

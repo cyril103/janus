@@ -303,6 +303,7 @@ private:
     ::llvm::Value *storage;
     const janus::Type *type;
     bool is_constant{};
+    ::llvm::Value *cleanup_armed{};
   };
 
   struct ClassSpecialization {
@@ -1691,6 +1692,8 @@ private:
     if (const auto *identifier =
             std::get_if<janus::ast::IdentifierExpression>(&expression.value)) {
       const Local &local = resolve_storage(identifier->name, locals);
+      if (local.cleanup_armed != nullptr)
+        builder.CreateStore(builder.getFalse(), local.cleanup_armed);
       if (owns_value(*local.type))
         builder.CreateStore(
             ::llvm::Constant::getNullValue(lower_type(*local.type, context_)),
@@ -1883,6 +1886,20 @@ private:
                       ::llvm::IRBuilder<> &builder) {
     if (const auto *deletion =
             std::get_if<janus::ast::DeleteStatement>(&deferred.action)) {
+      ::llvm::BasicBlock *done = nullptr;
+      if (deferred.is_automatic) {
+        const auto &identifier = std::get<janus::ast::IdentifierExpression>(
+            deletion->expression.value);
+        const Local &local = cleanup_locals.at(identifier.name);
+        auto *function = builder.GetInsertBlock()->getParent();
+        auto *cleanup =
+            ::llvm::BasicBlock::Create(context_, "using.cleanup", function);
+        done = ::llvm::BasicBlock::Create(context_, "using.done", function);
+        builder.CreateCondBr(
+            builder.CreateLoad(builder.getInt1Ty(), local.cleanup_armed),
+            cleanup, done);
+        builder.SetInsertPoint(cleanup);
+      }
       const janus::Type &deleted_type =
           expression_type(deletion->expression, substitutions, cleanup_locals);
       ::llvm::Value *deleted_value =
@@ -1890,6 +1907,10 @@ private:
                           cleanup_locals, builder);
       disarm_owner(deletion->expression, cleanup_locals, builder);
       emit_owned_value_cleanup(deleted_value, deleted_type, builder);
+      if (done != nullptr) {
+        builder.CreateBr(done);
+        builder.SetInsertPoint(done);
+      }
       return;
     }
     const auto &action =
@@ -1982,6 +2003,8 @@ private:
         static_cast<void>(name);
         if (local.storage != nullptr)
           context_fields.push_back(builder.getPtrTy());
+        if (local.cleanup_armed != nullptr)
+          context_fields.push_back(builder.getPtrTy());
       }
       for (const auto &[value, type] : *scope.owned_values) {
         static_cast<void>(value);
@@ -2004,6 +2027,11 @@ private:
         builder.CreateStore(local.storage,
                             builder.CreateStructGEP(
                                 context_type, context_storage, field_index++));
+        if (local.cleanup_armed != nullptr)
+          builder.CreateStore(local.cleanup_armed,
+                              builder.CreateStructGEP(context_type,
+                                                      context_storage,
+                                                      field_index++));
       }
       for (const auto &[value, type] : *scope.owned_values) {
         builder.CreateStore(value, builder.CreateStructGEP(context_type,
@@ -2053,8 +2081,15 @@ private:
               context_type, context, cleanup_field_index++);
           ::llvm::Value *storage = cleanup_builder.CreateLoad(
               cleanup_builder.getPtrTy(), field, name + ".cleanup.storage");
+          ::llvm::Value *armed = nullptr;
+          if (local.cleanup_armed != nullptr) {
+            auto *armed_field = cleanup_builder.CreateStructGEP(
+                context_type, context, cleanup_field_index++);
+            armed = cleanup_builder.CreateLoad(cleanup_builder.getPtrTy(),
+                                               armed_field);
+          }
           cleanup_locals.back().emplace(
-              name, Local{storage, local.type, local.is_constant});
+              name, Local{storage, local.type, local.is_constant, armed});
         }
         cleanup_owned_values.emplace_back();
         for (const auto &[value, type] : *scope.owned_values) {
@@ -2643,7 +2678,14 @@ private:
                                 block_locals, builder);
             builder.CreateStore(initializer, storage);
           }
-          block_locals.emplace(declaration->name, Local{storage, &type});
+          ::llvm::Value *armed = nullptr;
+          if (declaration->is_using) {
+            armed = create_entry_alloca(builder, builder.getInt1Ty(),
+                                        "using.armed");
+            builder.CreateStore(builder.getTrue(), armed);
+          }
+          block_locals.emplace(declaration->name,
+                               Local{storage, &type, false, armed});
           continue;
         }
 

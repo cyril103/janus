@@ -1,0 +1,25 @@
+class Resource(val id : int, val panics : bool) {
+    destructor {
+        println(id)
+        if panics { panic("using destructor panic\n") }
+    }
+}
+
+def fail() : Resource {
+    using val temporary = new Resource(4, false)
+    panic("using initialization panic\n")
+}
+
+def inner() : Unit {
+    using val first = new Resource(1, false)
+    defer println(2)
+    using val second = new Resource(3, true)
+    using val moved = move second
+    using val absent = fail()
+}
+
+def main() : int {
+    using val outer = new Resource(0, false)
+    inner()
+    return 0
+}

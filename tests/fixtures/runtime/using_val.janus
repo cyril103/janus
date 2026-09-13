@@ -1,0 +1,53 @@
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor { releases += 1 println(id) }
+}
+
+def normal() : Unit {
+    using val first = new Resource(1)
+    defer println(2)
+    using val last = new Resource(3)
+    if true {
+        using val nested = new Resource(4)
+        defer println(5)
+    }
+}
+
+def early() : int {
+    using val r = new Resource(6)
+    return 7
+}
+
+def transfer() : Resource {
+    using val r = new Resource(8)
+    return move r
+}
+
+def branch(flag : bool) : Unit {
+    using val r = new Resource(9)
+    if flag { delete r }
+    println(10)
+}
+
+def main() : int {
+    normal()
+    println(early())
+    using val moved = transfer()
+    delete moved
+    branch(true)
+    branch(false)
+    var i = 0
+    while i < 3 {
+        using val iteration = new Resource(11 + i)
+        i += 1
+        if i == 1 { continue }
+        if i == 2 { break }
+    }
+    using val callback : Fn () => Unit = () => {
+        using val r = new Resource(14)
+    }
+    callback()
+    println(releases)
+    return 0
+}

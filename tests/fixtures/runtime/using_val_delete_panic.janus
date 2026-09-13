@@ -1,0 +1,12 @@
+class Resource(val id : int, val panics : bool) {
+    destructor {
+        println(id)
+        if panics { panic("using explicit deletion panic") }
+    }
+}
+def main() : int {
+    using val first = new Resource(1, false)
+    using val last = new Resource(2, true)
+    delete last
+    return 0
+}

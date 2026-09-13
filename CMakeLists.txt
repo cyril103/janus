@@ -1406,6 +1406,14 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_map_literal_doctests.cmake"
     )
     add_test(
+        NAME docs.using_val_doctests
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUS=$<TARGET_FILE:janus>"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBUILD_DIR=${PROJECT_BINARY_DIR}"
+            -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_using_val_doctests.cmake"
+    )
+    add_test(
         NAME cli.doctest
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
@@ -1524,6 +1532,30 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.borrow_invalidation COMMAND borrow_invalidation_test)
+    add_executable(using_val_test tests/language/using_val_test.cpp)
+    target_link_libraries(using_val_test PRIVATE janus_semantic)
+    add_test(NAME language.using_val COMMAND using_val_test)
+    foreach(using_case using_val using_val_try using_val_panic
+                       using_val_partial_panic using_val_delete_panic)
+        if(using_case MATCHES "panic$")
+            set(using_runner run_janus_trap)
+        else()
+            set(using_runner run_janus_example)
+        endif()
+        add_test(
+            NAME runtime.${using_case}
+            COMMAND ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${using_case}.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/${using_case}_runtime"
+                "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${using_case}.expected.txt"
+                "-DENABLE_UNDEFINED_SANITIZER=ON"
+                "-DEXPECTED_ERROR=using .*panic"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/${using_runner}.cmake"
+        )
+    endforeach()
     add_test(
         NAME runtime.defer_borrow_lifo
         COMMAND

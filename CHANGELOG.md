@@ -38,6 +38,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Types et ownership
 
+- Liaisons locales `using val` (#277) : destruction automatique dans la pile
+  LIFO de `defer`, y compris sur sorties anticipées et panic ; `move` et
+  `delete` désarment le nettoyage. Diagnostics, éditeur et tests synchronisés.
+
 - capacités d'appel explicites `Fn`, `FnMut` et `FnOnce` (#312), inférées sur
   les lambdas et conservées par les signatures, les bornes génériques et les
   outils. Les anciens types `(A) => B` doivent préciser leur capacité.

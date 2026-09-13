@@ -129,6 +129,8 @@ Token Lexer::next() {
       kind = TokenKind::Consume;
     } else if (lexeme == "borrow") {
       kind = TokenKind::Borrow;
+    } else if (lexeme == "using") {
+      kind = TokenKind::Using;
     } else if (lexeme == "defer") {
       kind = TokenKind::Defer;
     } else if (lexeme == "delete") {

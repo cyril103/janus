@@ -68,6 +68,8 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerExclusiveCallback,
     DiagnosticCode::AnalyzerAffineCallbackLoop,
     DiagnosticCode::AnalyzerFunctionResolution,
+    DiagnosticCode::AnalyzerInvalidUsingType,
+    DiagnosticCode::AnalyzerDisarmedUsingValue,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::ConstantLegacy,
     DiagnosticCode::BackendLegacy,
@@ -86,6 +88,18 @@ diagnostic_code_from_name(std::string_view name) noexcept {
 [[nodiscard]] inline DiagnosticExplanation
 explain_diagnostic(DiagnosticCode code) noexcept {
   switch (code) {
+  case DiagnosticCode::AnalyzerInvalidUsingType:
+    return {
+        code, "invalid using resource type",
+        "A using val binding requires a type that supports owning deletion.",
+        "Use an ordinary val for a Copy value without a resource."};
+  case DiagnosticCode::AnalyzerDisarmedUsingValue:
+    return {
+        code, "using resource already moved or deleted",
+        "Moving or explicitly deleting a using resource disarms its cleanup "
+        "and invalidates the binding.",
+        "Use the new owner after a move; do not access or delete the old "
+        "binding."};
   case DiagnosticCode::AnalyzerInvalidMapLiteral:
     return {code, "invalid map literal",
             "Map literals require a complete canonical HashMap[K, V, H] target "

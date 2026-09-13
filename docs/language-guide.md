@@ -1044,6 +1044,44 @@ val point : Point = new Point(1, 2)
 defer delete point
 ```
 
+`using val` associe une liaison locale immuable à sa destruction :
+
+```janus
+// doctest: doctest name=using-val-lifo
+class ScopedResource(val id : int) {
+    destructor { println(id) }
+}
+
+def main() : int {
+    using val first = new ScopedResource(1)
+    defer println(2)
+    using val last = new ScopedResource(3)
+    return 0 // affiche 3, puis 2, puis 1
+}
+```
+
+Après une initialisation réussie, le nettoyage est enregistré immédiatement,
+comme `defer delete`, dans une pile LIFO commune. Il s'exécute une seule fois
+à la fin de la portée lexicale, lors de `return`, `break`, `continue` ou du
+déroulement d'une panic selon le modèle runtime existant. Les portées
+imbriquées nettoient d'abord leurs propres ressources.
+
+`move resource` transfère explicitement la possession et désarme le nettoyage ;
+`delete resource` le désarme aussi, avant d'appeler le destructeur. Une seconde
+destruction ou utilisation de cette liaison est rejetée (`JANA0044`). Les règles
+habituelles d'emprunt et de transfert restent applicables : un emprunt encore
+actif ou une lecture différée interdit de déplacer ou détruire sa source. Une
+closure ne peut pas faire échapper une ressource locale en la capturant par
+emprunt ; un transfert de possession doit rester explicite.
+
+Une initialisation interrompue, notamment par `?` ou une panic, n'enregistre
+aucun nettoyage de la liaison incomplète ; les temporaires déjà construits
+suivent les nettoyages du runtime. `using` est réservé aux déclarations locales
+`using val`, avec initialiseur : ni `using var`, ni globales, champs ou
+paramètres. Le type doit accepter `delete` ; pour une valeur `Copy` sans
+ressource, utilisez `val` (`JANA0043`). Les `val` ordinaires gardent leur
+comportement et `defer` reste disponible pour toute autre action.
+
 Les destructeurs exécutent le nettoyage propre à une classe avant la
 libération de sa mémoire. Lors d'une panique, les nettoyages de toutes les
 fonctions Janus traversées s'exécutent exactement une fois en ordre LIFO. Une

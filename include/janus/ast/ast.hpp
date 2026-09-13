@@ -366,6 +366,7 @@ struct ValueDeclaration {
   std::string documentation;
   bool is_borrowed{};
   bool is_constant{};
+  bool is_using{};
 };
 
 struct GlobalDeclaration {
@@ -443,6 +444,8 @@ struct ExpressionStatement {
 struct DeferStatement {
   std::variant<DeleteStatement, ExpressionStatement> action;
   SourceLocation location;
+  // Synthesized immediately after a using declaration, on the same LIFO stack.
+  bool is_automatic{};
 };
 
 struct BreakStatement {

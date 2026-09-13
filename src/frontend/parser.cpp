@@ -1256,6 +1256,16 @@ std::vector<ast::Statement> Parser::parse_block() {
     if (current_.kind == TokenKind::End)
       throw CompileError{current_.location, "expected '}', found end of file"};
     body.push_back(parse_statement());
+    if (const auto *declaration =
+            std::get_if<ast::ValueDeclaration>(&body.back());
+        declaration != nullptr && declaration->is_using) {
+      ast::DeferStatement cleanup{
+          ast::DeleteStatement{ast::Expression{ast::IdentifierExpression{
+                                   declaration->name, declaration->location}},
+                               declaration->location},
+          declaration->location, true};
+      body.push_back(std::move(cleanup));
+    }
     if (current_.kind == TokenKind::Semicolon)
       advance();
   }
@@ -1461,6 +1471,15 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
 }
 
 ast::Statement Parser::parse_statement() {
+  if (current_.kind == TokenKind::Using) {
+    advance();
+    if (current_.kind != TokenKind::Val)
+      throw CompileError{current_.location,
+                         "using requires an immutable local 'val'"};
+    auto declaration = parse_variable_declaration();
+    declaration.is_using = true;
+    return declaration;
+  }
   if (current_.kind == TokenKind::Const) {
     const SourceLocation location = current_.location;
     advance();
@@ -2644,7 +2663,7 @@ bool Parser::starts_assignment() const {
     if (brackets == 0 && parentheses == 0 &&
         (next.kind == TokenKind::Val || next.kind == TokenKind::Var ||
          next.kind == TokenKind::Return || next.kind == TokenKind::Delete ||
-         next.kind == TokenKind::Defer))
+         next.kind == TokenKind::Defer || next.kind == TokenKind::Using))
       return false;
   }
   return false;

@@ -327,6 +327,25 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(invalid.front().find("\"version\":1") !=
                 std::string::npos);
 
+  const auto using_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///using.janus","text":"class Resource() {}\ndef main() : int {\n    using val r = new Resource()\n    return 0\n}"}}})");
+  JANUS_REQUIRE(using_diagnostics.size() == 1);
+  JANUS_REQUIRE(using_diagnostics.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const auto using_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":9277,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///using.janus"},"position":{"line":2,"character":14}}})");
+  JANUS_REQUIRE(using_hover.size() == 1);
+  JANUS_REQUIRE(using_hover.front().find("using val r : Resource") !=
+                std::string::npos);
+  const auto using_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":9278,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///using.janus"}}})");
+  JANUS_REQUIRE(using_tokens.size() == 1);
+  JANUS_REQUIRE(semantic_token_type_at(using_tokens.front(), 2, 4) == 10);
+  const auto using_error = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///using-invalid.janus","text":"def main() : int { using val n = 1 return 0 }"}}})");
+  JANUS_REQUIRE(using_error.size() == 1);
+  JANUS_REQUIRE(using_error.front().find("JANA0043") != std::string::npos);
+
   const std::vector<std::string> trait_visibility = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///trait-visibility.janus","text":"trait Named { borrow def name() : string }\nclass Secret(val text : string) extends Named { internal borrow def name() : string { return text } }"}}})");
   JANUS_REQUIRE(trait_visibility.size() == 1);

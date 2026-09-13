@@ -1,0 +1,12 @@
+class Resource(val id : int) {
+    destructor { println(id) }
+}
+class Pair(val left : Resource, val right : Resource) {
+    destructor { println(99) }
+}
+def fail() : Resource { panic("using partial initialization panic") }
+def main() : int {
+    using val guard = new Resource(1)
+    using val absent = new Pair(new Resource(2), fail())
+    return 0
+}

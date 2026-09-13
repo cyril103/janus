@@ -368,6 +368,8 @@ std::vector<DocumentSymbol> symbols(
       detail = token.kind == TokenKind::Const
                    ? "const "
                    : (token.kind == TokenKind::Val ? "val " : "var ");
+      if (index > 0 && document_tokens[index - 1].kind == TokenKind::Using)
+        detail = "using " + detail;
       detail += std::string{name.identifier()};
       if (index + 3 < document_tokens.size() &&
           document_tokens[index + 2].kind == TokenKind::Colon &&
@@ -4236,12 +4238,11 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
               "usize", "Fn", "FnMut", "FnOnce"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"const", "pure",         "staticAssert", "val",    "var",    "tailrec",
-              "def",   "class",        "struct", "trait",  "extend",
-              "enum",  "new",          "move",   "borrow", "consume",
-              "owned", "derives",      "delete", "defer",  "if",
-              "else",  "match",        "for",    "while",  "return",
-              "true",  "false",        "unit"})
+             {"const",  "pure",  "staticAssert", "val",     "var",    "tailrec",
+              "def",    "class", "struct",       "trait",   "extend", "enum",
+              "new",    "move",  "borrow",       "consume", "owned",  "derives",
+              "delete", "defer", "using",        "if",      "else",   "match",
+              "for",    "while", "return",       "true",    "false",  "unit"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(request_id(*request),

@@ -1,0 +1,31 @@
+enum Result[T, E] { Ok(T), Error(E) }
+var releases : int = 0
+class Resource(val id : int) {
+    destructor { releases += 1 }
+}
+struct Box(val resource : Resource) {}
+
+def pick(input : Result[Resource, int]) : Result[int, int] {
+    using val guard = new Resource(0)
+    using val r = (move input)?
+    return Result.Ok[int, int](r.id)
+}
+
+def aggregates() : Unit {
+    using val box = new Box(new Resource(3))
+    using val other = move box
+    delete other
+    using val variant = Result.Ok[Resource, int](new Resource(4))
+    using val moved = move variant
+    delete moved
+}
+
+def main() : int {
+    val error = pick(Result.Error[Resource, int](1))
+    println(releases)
+    val ok = pick(Result.Ok[Resource, int](new Resource(2)))
+    println(releases)
+    aggregates()
+    println(releases)
+    return match ok { Ok(n) => n - 2, Error(e) => e }
+}
