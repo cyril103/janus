@@ -13,7 +13,7 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **45 modules**, **18310 lignes** et **1267 symboles publics** inventoriés ;
+- **45 modules**, **18313 lignes** et **1267 symboles publics** inventoriés ;
 - **1474 blocs `///` publics pour 1267 symboles** (couverture source du lot #115 : 100 %) ;
 - **382 sites d'allocation**, **1043 marqueurs de nettoyage**, **1267/101/74** occurrences `move`/`consume`/destructeur ;
 - **40/45 modules** importés directement par au moins une fixture ou un test, soit **347 couples module-fichier de test** ;
@@ -79,7 +79,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.persistent_vector` | `experimental` | `conservation` | [#314](https://github.com/cyril103/janus/issues/314) | 18 | 412 | 18 | 26/2/3 | 0/4/6 | 30 | 75 | `std.array`, `std.array_builder`, `std.iterator`, `std.option`, `std.shared` | 8 | `docs/stdlib-reference.md`, `docs/language-guide.md`, `docs/design/persistent-vector.md` |
 | `std.priority_queue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 15 | 266 | 15 | 4/0/1 | 2/2/5 | 3 | 7 | `std.array`, `std.error`, `std.option`, `std.result` | 4 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 6 | 80 | 6 | 0/0/0 | 0/0/2 | 2 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 28 | 585 | 28 | 2/0/4 | 12/10/0 | 16 | 18 | `std.array`, `std.bytes`, `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
+| `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 28 | 588 | 28 | 2/0/4 | 12/10/0 | 16 | 18 | `std.array`, `std.bytes`, `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
 | `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/1/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 3 | `docs/language-guide.md` |
 | `std.result` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 26 | 664 | 49 | 89/14/2 | 80/22/2 | 7 | 44 | `std.option` | 26 | `docs/language-guide.md`, `docs/stdlib-reference.md`, `docs/design/option-result-combinators.md`, `docs/stability-contract.md` |
 | `std.shared` | `experimental` | `conservation` | [#299](https://github.com/cyril103/janus/issues/299) | 7 | 122 | 7 | 1/0/1 | 0/0/3 | 4 | 7 | — | 15 | `docs/design/shared-immutable.md` |

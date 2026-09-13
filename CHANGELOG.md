@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Runtime
+
+- sur POSIX, détruire un `ChildProcess` immédiatement après `terminate()` ne
+  laisse plus de zombie (#361). La récupération se poursuit en arrière-plan,
+  sans attendre la sortie dans le destructeur ni récupérer les enfants du code
+  FFI ; la politique `SIGCHLD` de l’application est préservée.
+
 ### Compilation
 
 - les syntaxes trop profondément imbriquées et les longues chaînes

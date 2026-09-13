@@ -9,7 +9,9 @@
 #include <io.h>
 #include <windows.h>
 #else
+#include <errno.h>
 #include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -59,6 +61,7 @@ enum {
   JANUS_SYSTEM_NOT_FOUND = 0,
   JANUS_SYSTEM_INVALID_INPUT = 3,
   JANUS_SYSTEM_WOULD_BLOCK = 5,
+  JANUS_SYSTEM_RESOURCE_EXHAUSTED = 9,
   JANUS_SYSTEM_OTHER = 10,
 };
 
@@ -89,8 +92,192 @@ static uint64_t monotonic_milliseconds(void) {
     }                                                                          \
   } while (0)
 
+#if !defined(_WIN32)
+/* WNOWAIT observes without reaping: the test must not hide a runtime leak. */
+#if defined(JANUS_PROCESS_TEST_FAULTS)
+#include <stdatomic.h>
+#include <pthread.h>
+static int reject_thread;
+int __real_pthread_create(pthread_t *, const pthread_attr_t *,
+                          void *(*)(void *), void *);
+int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
+                          void *(*entry)(void *), void *argument) {
+  if (reject_thread)
+    return EAGAIN;
+  return __real_pthread_create(thread, attributes, entry, argument);
+}
+
+static atomic_int interrupt_wait;
+static atomic_int interrupt_blocking_wait;
+static int reject_kill;
+pid_t __real_waitpid(pid_t pid, int *status, int options);
+int __real_kill(pid_t pid, int signal);
+pid_t __wrap_waitpid(pid_t pid, int *status, int options) {
+  if (atomic_exchange(&interrupt_wait, 0) ||
+      (options == 0 && atomic_exchange(&interrupt_blocking_wait, 0))) {
+    errno = EINTR;
+    return -1;
+  }
+  return __real_waitpid(pid, status, options);
+}
+int __wrap_kill(pid_t pid, int signal) {
+  if (reject_kill) {
+    errno = EPERM;
+    return -1;
+  }
+  return __real_kill(pid, signal);
+}
+#endif
+
+static int await_reaped(pid_t child) {
+  const uint64_t deadline = monotonic_milliseconds() + 5000U;
+  do {
+    siginfo_t information = {0};
+    if (waitid(P_PID, (id_t)child, &information,
+               WEXITED | WNOHANG | WNOWAIT) < 0) {
+      if (errno == ECHILD)
+        return 1;
+      if (errno != EINTR)
+        return 0;
+    }
+    wait_milliseconds(1);
+  } while (monotonic_milliseconds() < deadline);
+  /* Clean up on failure, but still report the unreaped child. */
+  (void)kill(child, SIGKILL);
+  while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {}
+  return 0;
+}
+
+static int test_deferred_cleanup(const char *executable) {
+  struct sigaction before, after;
+  CHECK(sigaction(SIGCHLD, NULL, &before) == 0);
+  /* Keep an unrelated zombie available throughout the runtime cleanup. */
+  const pid_t foreign = fork();
+  CHECK(foreign >= 0);
+  if (foreign == 0)
+    _exit(42);
+  siginfo_t information = {0};
+  int observed;
+  do {
+    observed = waitid(P_PID, (id_t)foreign, &information, WEXITED | WNOWAIT);
+  } while (observed < 0 && errno == EINTR);
+  CHECK(observed == 0);
+
+  pid_t children[30];
+  for (unsigned index = 0; index < 30; ++index) {
+    const char *arguments[] = {"--pid-child"};
+    const uint64_t lengths[] = {11};
+    intptr_t child = janus_process_spawn(executable, strlen(executable),
+                                         arguments, lengths, 1, NULL, 0);
+    CHECK(child > 0);
+    CHECK(janus_process_child_read(child, &children[index], sizeof(pid_t)) ==
+          sizeof(pid_t));
+    const uint64_t started = monotonic_milliseconds();
+    CHECK(janus_process_child_terminate(child) == 0);
+    janus_process_child_destroy(child);
+    CHECK(monotonic_milliseconds() - started < 1000U);
+  }
+  for (unsigned index = 0; index < 30; ++index) {
+    if (!await_reaped(children[index])) {
+      for (unsigned remaining = index + 1; remaining < 30; ++remaining) {
+        while (waitpid(children[remaining], NULL, 0) < 0 && errno == EINTR) {}
+      }
+      while (waitpid(foreign, NULL, 0) < 0 && errno == EINTR) {}
+      CHECK(0 && "runtime left an unreaped child");
+    }
+  }
+
+  /* A host that has already collected our child leaves no usable exit status
+     or PID to signal. Repeated tryWait must retain that fact. */
+  const char *arguments[] = {"--pid-exit"};
+  const uint64_t lengths[] = {10};
+  intptr_t child = janus_process_spawn(executable, strlen(executable),
+                                       arguments, lengths, 1, NULL, 0);
+  CHECK(child > 0);
+  pid_t pid;
+  CHECK(janus_process_child_read(child, &pid, sizeof(pid)) == sizeof(pid));
+  pid_t waited;
+  do {
+    waited = waitpid(pid, NULL, 0);
+  } while (waited < 0 && errno == EINTR);
+  CHECK(waited == pid);
+  int32_t code;
+  CHECK(janus_process_child_try_wait(child, &code) == -1);
+  CHECK(janus_system_error_code() == ECHILD);
+  CHECK(janus_process_child_try_wait(child, &code) == -1);
+  CHECK(janus_process_child_terminate(child) == -1);
+  janus_process_child_destroy(child);
+  CHECK(await_reaped(pid));
+
+  /* Observe a natural exit without consuming it, then let terminate/tryWait
+     cache its status. Destruction must not attempt a second collection. */
+  child = janus_process_spawn(executable, strlen(executable), arguments,
+                              lengths, 1, NULL, 0);
+  CHECK(child > 0);
+  CHECK(janus_process_child_read(child, &pid, sizeof(pid)) == sizeof(pid));
+  do {
+    observed = waitid(P_PID, (id_t)pid, &information, WEXITED | WNOWAIT);
+  } while (observed < 0 && errno == EINTR);
+  CHECK(observed == 0);
+  CHECK(janus_process_child_terminate(child) == 0);
+  CHECK(janus_process_child_try_wait(child, &code) == 1 && code == 0);
+  CHECK(janus_process_child_try_wait(child, &code) == 1 && code == 0);
+  janus_process_child_destroy(child);
+  CHECK(await_reaped(pid));
+
+#if defined(JANUS_PROCESS_TEST_FAULTS)
+  reject_thread = 1;
+  CHECK(janus_process_spawn(executable, strlen(executable), arguments,
+                            lengths, 1, NULL, 0) == -1);
+  CHECK(janus_system_error_code() == EAGAIN);
+  CHECK(janus_system_error_category() == JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+  reject_thread = 0;
+
+  const char *live_arguments[] = {"--pid-child"};
+  const uint64_t live_lengths[] = {11};
+  child = janus_process_spawn(executable, strlen(executable), live_arguments,
+                              live_lengths, 1, NULL, 0);
+  CHECK(child > 0);
+  CHECK(janus_process_child_read(child, &pid, sizeof(pid)) == sizeof(pid));
+  atomic_store(&interrupt_wait, 1);
+  CHECK(janus_process_child_try_wait(child, &code) == 0);
+  reject_kill = 1;
+  CHECK(janus_process_child_terminate(child) == -1);
+  CHECK(janus_system_error_code() == EPERM);
+  atomic_store(&interrupt_blocking_wait, 1);
+  const uint64_t started = monotonic_milliseconds();
+  janus_process_child_destroy(child);
+  CHECK(monotonic_milliseconds() - started < 1000U);
+  reject_kill = 0;
+  /* Cleanup must retain this still-live child after the failed request. */
+  CHECK(kill(pid, SIGKILL) == 0);
+  CHECK(await_reaped(pid));
+#endif
+
+  int status;
+  CHECK(waitpid(foreign, &status, WNOHANG) == foreign);
+  CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 42);
+  CHECK(sigaction(SIGCHLD, NULL, &after) == 0);
+  CHECK(before.sa_handler == after.sa_handler);
+  CHECK(before.sa_flags == after.sa_flags);
+  return 0;
+}
+#endif
+
 int main(int argc, char **argv) {
   janus_process_initialize(argc, argv);
+#if !defined(_WIN32)
+  if (argc == 2 && (strcmp(argv[1], "--pid-child") == 0 ||
+                    strcmp(argv[1], "--pid-exit") == 0)) {
+    const pid_t pid = getpid();
+    if (write(STDOUT_FILENO, &pid, sizeof(pid)) != sizeof(pid))
+      return 2;
+    if (strcmp(argv[1], "--pid-exit") == 0)
+      return 0;
+    for (;;)
+      pause();
+  }
+#endif
   if (argc == 2 && strcmp(argv[1], "--interactive-child") == 0) {
 #if defined(_WIN32)
     (void)_setmode(_fileno(stdin), _O_BINARY);
@@ -272,6 +459,10 @@ int main(int argc, char **argv) {
   CHECK(janus_process_child_terminate(terminated_then_destroyed) == 0);
   janus_process_child_destroy(terminated_then_destroyed);
   CHECK(monotonic_milliseconds() - operation_started < 1000U);
+
+#if !defined(_WIN32)
+  CHECK(test_deferred_cleanup(argv[0]) == 0);
+#endif
 
   const char *partial_arguments[] = {"--partial-child"};
   const uint64_t partial_lengths[] = {15};

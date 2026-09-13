@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -63,6 +64,10 @@ typedef struct {
   int output_eof;
 #else
   pid_t process;
+  pthread_mutex_t cleanup_mutex;
+  pthread_cond_t cleanup_ready;
+  int cleanup_started;
+  int cleanup_released;
   int standard_input;
   int standard_output;
 #endif
@@ -512,6 +517,57 @@ static void janus_process_close_fd(int *descriptor) {
   }
 }
 
+/* Reserve cleanup before exposing the handle: destruction must not depend on
+   allocating memory or creating a thread under resource pressure. Each worker
+   waits only for its own PID, and starts reaping only after ownership transfer.
+   No SIGCHLD handler or process-wide waitpid(-1) policy is installed. */
+static void *janus_process_cleanup(void *argument) {
+  janus_interactive_process *process = argument;
+  pthread_mutex_lock(&process->cleanup_mutex);
+  while (!process->cleanup_released)
+    pthread_cond_wait(&process->cleanup_ready, &process->cleanup_mutex);
+  pthread_mutex_unlock(&process->cleanup_mutex);
+  if (!process->reaped) {
+    pid_t waited;
+    do {
+      waited = waitpid(process->process, NULL, 0);
+    } while (waited < 0 && errno == EINTR);
+    /* ECHILD also ends ownership if the embedding application reaped it. */
+  }
+  pthread_cond_destroy(&process->cleanup_ready);
+  pthread_mutex_destroy(&process->cleanup_mutex);
+  free(process);
+  return NULL;
+}
+
+static int janus_process_prepare_cleanup(janus_interactive_process *process) {
+  int error = pthread_mutex_init(&process->cleanup_mutex, NULL);
+  if (error != 0)
+    return error;
+  error = pthread_cond_init(&process->cleanup_ready, NULL);
+  if (error != 0) {
+    pthread_mutex_destroy(&process->cleanup_mutex);
+    return error;
+  }
+  pthread_attr_t attributes;
+  error = pthread_attr_init(&attributes);
+  if (error == 0) {
+    error = pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+    if (error == 0) {
+      pthread_t thread;
+      error = pthread_create(&thread, &attributes, janus_process_cleanup, process);
+    }
+    pthread_attr_destroy(&attributes);
+  }
+  if (error != 0) {
+    pthread_cond_destroy(&process->cleanup_ready);
+    pthread_mutex_destroy(&process->cleanup_mutex);
+    return error;
+  }
+  process->cleanup_started = 1;
+  return 0;
+}
+
 static int janus_process_pipe(int descriptors[2]) {
   if (pipe(descriptors) != 0)
     return 0;
@@ -654,6 +710,18 @@ intptr_t janus_process_spawn(const char *executable, uint64_t executable_length,
   if (!janus_process_nonblocking(process->standard_input) ||
       !janus_process_nonblocking(process->standard_output)) {
     janus_system_capture_posix_error();
+    janus_process_child_destroy((intptr_t)process);
+    goto interactive_cleanup_arguments;
+  }
+  const int cleanup_error = janus_process_prepare_cleanup(process);
+  if (cleanup_error != 0) {
+    if (cleanup_error == EAGAIN || cleanup_error == ENOMEM)
+      janus_system_set_error((uint32_t)cleanup_error,
+                             JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+    else {
+      errno = cleanup_error;
+      janus_system_capture_posix_error();
+    }
     janus_process_child_destroy((intptr_t)process);
     goto interactive_cleanup_arguments;
   }
@@ -856,6 +924,8 @@ int32_t janus_process_child_try_wait(intptr_t handle, int32_t *exit_code) {
       waited = waitpid(process->process, &status, WNOHANG);
     } while (waited < 0 && errno == EINTR);
     if (waited < 0) {
+      if (errno == ECHILD)
+        process->reaped = -1; /* Exit status is no longer available. */
       janus_system_capture_posix_error();
       return -1;
     }
@@ -865,6 +935,11 @@ int32_t janus_process_child_try_wait(intptr_t handle, int32_t *exit_code) {
     }
     process->exit_code = janus_process_child_status(status);
     process->reaped = 1;
+  }
+  if (process->reaped < 0) {
+    errno = ECHILD;
+    janus_system_capture_posix_error();
+    return -1;
   }
   *exit_code = process->exit_code;
   janus_system_clear_error();
@@ -879,7 +954,15 @@ int32_t janus_process_child_terminate(intptr_t handle) {
   janus_interactive_process *process = (janus_interactive_process *)handle;
   /* Every terminate attempt arms bounded destruction, including OS errors. */
   process->termination_requested = 1;
-  if (!process->reaped && kill(process->process, SIGKILL) != 0) {
+  int32_t ignored = 0;
+  const int32_t state = janus_process_child_try_wait(handle, &ignored);
+  if (state != 0)
+    return state > 0 ? 0 : -1;
+  int killed;
+  do {
+    killed = kill(process->process, SIGKILL);
+  } while (killed < 0 && errno == EINTR);
+  if (killed != 0) {
     const int terminate_errno = errno;
     if (terminate_errno == ESRCH) {
       int32_t ignored = 0;
@@ -900,20 +983,35 @@ void janus_process_child_destroy(intptr_t handle) {
   janus_interactive_process *process = (janus_interactive_process *)handle;
   janus_process_close_fd(&process->standard_input);
   janus_process_close_fd(&process->standard_output);
-  if (process->termination_requested) {
-    if (!process->reaped) {
-      int status = 0;
-      (void)waitpid(process->process, &status, WNOHANG);
+  if (!process->reaped) {
+    pid_t waited;
+    do {
+      waited = waitpid(process->process, NULL, WNOHANG);
+    } while (waited < 0 && errno == EINTR);
+    if (waited == process->process || (waited < 0 && errno == ECHILD))
+      process->reaped = 1;
+    else if (!process->termination_requested) {
+      int killed;
+      do {
+        killed = kill(process->process, SIGKILL);
+      } while (killed < 0 && errno == EINTR);
     }
-    free(process);
+  }
+  if (process->cleanup_started) {
+    pthread_mutex_lock(&process->cleanup_mutex);
+    process->cleanup_released = 1;
+    pthread_cond_signal(&process->cleanup_ready);
+    pthread_mutex_unlock(&process->cleanup_mutex);
+    /* The worker now owns the state, including any PID still awaiting exit
+       after a failed terminate request. Never access process again here. */
     return;
   }
-  int status = 0;
-  pid_t waited = process->reaped ? process->process
-                                : waitpid(process->process, &status, WNOHANG);
-  if (!process->reaped && waited == 0) {
-    (void)kill(process->process, SIGKILL);
-    (void)waitpid(process->process, &status, 0);
+  /* Spawn failed before it could reserve the worker; no public handle exists. */
+  if (!process->reaped) {
+    pid_t waited;
+    do {
+      waited = waitpid(process->process, NULL, 0);
+    } while (waited < 0 && errno == EINTR);
   }
   free(process);
 }

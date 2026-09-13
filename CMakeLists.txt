@@ -130,6 +130,10 @@ target_compile_options(janus_runtime
         -Wextra
         -Wpedantic
 )
+if(UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(janus_runtime PUBLIC Threads::Threads)
+endif()
 if(UNIX AND NOT APPLE)
     target_link_libraries(janus_runtime PUBLIC m)
 endif()
@@ -664,6 +668,11 @@ if(BUILD_TESTING)
             -Wextra
             -Wpedantic
     )
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_compile_definitions(process_runtime_test PRIVATE JANUS_PROCESS_TEST_FAULTS)
+        target_link_options(process_runtime_test PRIVATE
+            -Wl,--wrap=waitpid -Wl,--wrap=kill -Wl,--wrap=pthread_create)
+    endif()
     add_test(NAME runtime.process_native COMMAND process_runtime_test)
 
     add_library(fake_raylib SHARED tests/runtime/fake_raylib.c)

@@ -8620,6 +8620,9 @@ val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
 [[ChildProcess.read]] est bloquante, tandis que [[tryRead]] retourne immédiatement. Le
 destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;
 [[closeInput]] permet de lui signaler une fin de flux.
+Sur POSIX, la destruction n’attend pas la sortie : un thread réservé au
+lancement récupère ensuite cet enfant, même après [[terminate]], sans modifier
+`SIGCHLD` ni récupérer les enfants créés hors du runtime.
 Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread
 ne doit effectuer d’entrée-sortie concurrente sur ses handles.
 @param nativeProcess Handle natif propriétaire créé par [[spawnProcess]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ChildProcess internal(var nativeProcess : isize)</code></h3>
@@ -8627,6 +8630,9 @@ ne doit effectuer d’entrée-sortie concurrente sur ses handles.
 <div class="doc-details"><p><a href="#std-process-childprocess-read"><code>ChildProcess.read</code></a> est bloquante, tandis que <a href="#std-process-childprocess-tryread"><code>tryRead</code></a> retourne immédiatement. Le<br>
 destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;<br>
 <a href="#std-process-childprocess-closeinput"><code>closeInput</code></a> permet de lui signaler une fin de flux.<br>
+Sur POSIX, la destruction n’attend pas la sortie : un thread réservé au<br>
+lancement récupère ensuite cet enfant, même après <a href="#std-process-childprocess-terminate"><code>terminate</code></a>, sans modifier<br>
+`SIGCHLD` ni récupérer les enfants créés hors du runtime.<br>
 Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread<br>
 ne doit effectuer d’entrée-sortie concurrente sur ses handles.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeProcess</code></td><td><code>isize</code></td><td>Handle natif propriétaire créé par <a href="#std-process-spawnprocess"><code>spawnProcess</code></a>.</td></tr></tbody></table></section>

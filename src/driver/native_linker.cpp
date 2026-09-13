@@ -126,6 +126,8 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
   // Static archives do not carry transitive linker dependencies.
   command += " -lm";
 #endif
+  // The POSIX process runtime reserves a cleanup thread for each child.
+  command += " -pthread";
   command += " -o " + shell_quote(output);
   const int status = command_status(std::system(command.c_str()));
 #endif
