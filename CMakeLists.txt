@@ -3273,6 +3273,63 @@ if(BUILD_TESTING)
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    if(UNIX AND NOT APPLE)
+        add_test(
+            NAME runtime.persistent_vector_allocation_panics
+            COMMAND ${Python3_EXECUTABLE}
+                "${PROJECT_SOURCE_DIR}/tests/runtime/run_persistent_vector_allocations.py"
+                --janusc "$<TARGET_FILE:janusc>" --clang "${CLANG_EXECUTABLE}"
+                --source "${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/persistent_vector_allocation_panic.janus"
+                --runtime "$<TARGET_FILE:janus_runtime>"
+                --shim "${PROJECT_SOURCE_DIR}/tests/runtime/persistent_vector_allocations.c"
+                --output "${PROJECT_BINARY_DIR}/persistent_vector_allocations"
+        )
+        add_test(
+            NAME benchmarks.persistent_vector_smoke
+            COMMAND ${Python3_EXECUTABLE}
+                "${PROJECT_SOURCE_DIR}/benchmarks/run_persistent_vector.py"
+                --build-dir "${PROJECT_BINARY_DIR}" --clang "${CLANG_EXECUTABLE}" --repeats 1
+        )
+    endif()
+    add_test(
+        NAME downstream.persistent_editor
+        COMMAND "$<TARGET_FILE:janus>" test --fail-if-empty
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/examples/persistent-editor"
+    )
+    foreach(vector_fixture persistent_vector persistent_vector_deep_destruction)
+        add_test(
+            NAME runtime.${vector_fixture}
+            COMMAND ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${vector_fixture}.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/${vector_fixture}_runtime"
+                "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${vector_fixture}.expected.txt"
+                "-DENABLE_UNDEFINED_SANITIZER=ON"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+        )
+    endforeach()
+    foreach(vector_panic map filter get set pop)
+        set(vector_error "PersistentVector index out of bounds")
+        if(vector_panic STREQUAL "map" OR vector_panic STREQUAL "filter")
+            set(vector_error "persistent vector callback panic")
+        elseif(vector_panic STREQUAL "pop")
+            set(vector_error "cannot pop an empty PersistentVector")
+        endif()
+        add_test(
+            NAME runtime.persistent_vector_${vector_panic}_panic
+            COMMAND ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/persistent_vector_${vector_panic}_panic.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/persistent_vector_${vector_panic}_panic_runtime"
+                "-DEXPECTED_ERROR=${vector_error}"
+                "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/persistent_vector_panic.expected.txt"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+        )
+    endforeach()
     add_test(
         NAME runtime.persistent_list
         COMMAND

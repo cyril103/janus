@@ -105,6 +105,7 @@ retrait requiert une note de migration.
 | `std.ordering` | `stable-candidate` | Contrats des collections. |
 | `std.path` | `stable-candidate` | Cœur système. |
 | `std.persistent_list` | `experimental` | Première collection persistante. |
+| `std.persistent_vector` | `experimental` | Arbre de facteur 32, snapshots indexés et mesures dédiées (#314). |
 | `std.priority_queue` | `experimental` | Observation aval requise. |
 | `std.random` | `stable-candidate` | Cœur système. |
 | `std.process` | `stable-candidate` | Cœur système. |

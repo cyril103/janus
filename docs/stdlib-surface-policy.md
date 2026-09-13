@@ -10,7 +10,7 @@ l'[inventaire courant](stability-inventory-current.md).
   compatibilité source 1.x avant une promotion explicite.
 - `std.graphics.*` devient une famille officielle expérimentale hors du cœur ;
   sa future extraction en paquet ne devra pas modifier les garanties du cœur.
-- `std.persistent_list`, `std.shared`, `std.validated`, `std.functional`,
+- `std.persistent_list`, `std.persistent_vector`, `std.shared`, `std.validated`, `std.functional`,
   `std.deque` et `std.priority_queue` restent observés sur les projets aval.
 
 Une promotion exige une fixture N/N+1, une documentation complète et un usage

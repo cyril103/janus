@@ -1,0 +1,38 @@
+import std.array
+import std.testing
+import std.persistent_vector
+import std.shared
+import history
+
+/// @test
+def savedRevisionSurvivesUndoRedoAndBranch() : Unit {
+    val lines : Array[Line] = new Array[Line](usize(0))
+    var i : int = 0
+    while i < 1050 { lines.push(new Line("original")); i = i + 1 }
+    val editor : Editor = new Editor(persistentVectorFromArray[Line](move lines))
+    defer delete editor
+    val saved : PersistentVector[Line] = editor.snapshot()
+    defer delete saved
+    assertEqual[bool](editor.undo(), false)
+    editor.replace(usize(1024), "edited")
+    assertEqual[bool](editor.undo(), true)
+    assertEqual[bool](editor.redo(), true)
+    val revised : PersistentVector[Line] = editor.snapshot()
+    defer delete revised
+    val oldLine : Shared[Line] = saved.get(usize(1024))
+    defer delete oldLine
+    val newLine : Shared[Line] = revised.get(usize(1024))
+    defer delete newLine
+    assertEqual[string](oldLine.get().text, "original")
+    assertEqual[string](newLine.get().text, "edited")
+    assertEqual[bool](editor.undo(), true)
+    editor.replace(usize(31), "branch")
+    assertEqual[bool](editor.redo(), false)
+    val branch : PersistentVector[Line] = editor.snapshot()
+    defer delete branch
+    val sharedBefore : Shared[Line] = saved.get(usize(500))
+    defer delete sharedBefore
+    val sharedAfter : Shared[Line] = branch.get(usize(500))
+    defer delete sharedAfter
+    assertEqual[bool](sharedBefore.isSame(sharedAfter), true)
+}

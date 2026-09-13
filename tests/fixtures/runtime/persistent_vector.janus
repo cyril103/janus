@@ -1,0 +1,183 @@
+import std.array
+import std.array_builder
+import std.iterator
+import std.option
+import std.persistent_vector
+import std.shared
+
+var destroyed : int = 0
+class Resource(val value : int) {
+    destructor { destroyed = destroyed + 1 }
+}
+
+def check(condition : bool) : Unit {
+    if !condition { panic("persistent vector assertion failed\n") }
+}
+
+def read(borrow values : PersistentVector[int], index : usize) : int {
+    val value : Shared[int] = values.get(index)
+    val result : int = value.get() + 0
+    delete value
+    return result
+}
+
+class Versions(private var current : PersistentVector[int]) {
+    def push(value : int) : Unit {
+        val previous : PersistentVector[int] = move current
+        current = previous.push(value)
+        delete previous
+    }
+    def pop() : Unit {
+        val previous : PersistentVector[int] = move current
+        current = previous.pop()
+        delete previous
+    }
+    borrow def snapshot() : PersistentVector[int] { return current.clone() }
+    destructor { delete current }
+}
+
+def boundary(count : usize) : Unit {
+    val source : Array[int] = new Array[int](count)
+    var i : usize = usize(0)
+    while i < count { source.push(truncatingCast[int](i)); i = i + usize(1) }
+    val original : PersistentVector[int] = persistentVectorFromArray[int](move source)
+    check(original.size() == count)
+    check(original.isEmpty() == (count == usize(0)))
+    val identity : PersistentVector[int] = original.map[int]((borrow value : int) => value + 0)
+    check(identity.equals(original))
+    delete identity
+    val retained : PersistentVector[int] = original.filter((borrow value : int) => true)
+    check(retained.equals(original))
+    delete retained
+    val rejected : PersistentVector[int] = original.filter((borrow value : int) => false)
+    check(rejected.isEmpty())
+    delete rejected
+    val appended : PersistentVector[int] = original.push(777)
+    check(read(appended, count) == 777)
+    val restored : PersistentVector[int] = appended.pop()
+    check(restored.equals(original))
+    if count > usize(0) {
+        val first : PersistentVector[int] = original.set(usize(0), -1)
+        val middle : PersistentVector[int] = original.set(count / usize(2), -2)
+        val last : PersistentVector[int] = original.set(count - usize(1), -3)
+        check(read(first, usize(0)) == -1)
+        check(read(middle, count / usize(2)) == -2)
+        check(read(last, count - usize(1)) == -3)
+        check(read(original, usize(0)) == 0)
+        check(read(original, count - usize(1)) == truncatingCast[int](count - usize(1)))
+        val before : Shared[int] = original.get(count / usize(2))
+        val after : Shared[int] = appended.get(count / usize(2))
+        check(before.isSame(after))
+        delete after
+        delete before
+        val shortened : PersistentVector[int] = original.pop()
+        check(shortened.size() == count - usize(1))
+        delete shortened
+        delete last
+        delete middle
+        delete first
+    }
+    var seen : usize = usize(0)
+    for value in original.iterator() {
+        check(value.get() == truncatingCast[int](seen))
+        seen = seen + usize(1)
+        delete value
+    }
+    check(seen == count)
+    delete restored
+    delete appended
+    delete original
+}
+
+def main() : int {
+    boundary(usize(0))
+    boundary(usize(1))
+    boundary(usize(31))
+    boundary(usize(32))
+    boundary(usize(33))
+    boundary(usize(1023))
+    boundary(usize(1024))
+    boundary(usize(1025))
+    boundary(usize(32767))
+    boundary(usize(32768))
+    boundary(usize(32769))
+
+    val state : Versions = new Versions(persistentVectorEmpty[int]())
+    val history : Array[PersistentVector[int]] = new Array[PersistentVector[int]](usize(0))
+    var i : int = 0
+    while i < 1100 {
+        history.push(state.snapshot())
+        state.push(i)
+        i = i + 1
+    }
+    i = 1099
+    while i >= 0 {
+        state.pop()
+        val snapshot : PersistentVector[int] = state.snapshot()
+        check(snapshot.equals(history.getBorrowed(truncatingCast[usize](i))))
+        delete snapshot
+        i = i - 1
+    }
+    delete history
+    delete state
+
+    val input : Array[int] = new Array[int](usize(0))
+    input.push(1); input.push(2); input.push(3)
+    val vector : PersistentVector[int] = persistentVectorFromArray[int](move input)
+    val mapped : PersistentVector[int] = vector.map[int]((borrow value : int) => value * 10)
+    val filtered : PersistentVector[int] = mapped.filter((borrow value : int) => value != 20)
+    check(filtered.fold[int](0, (sum : int, borrow value : int) => sum + value) == 40)
+    val array : Array[int] = filtered.toArray()
+    check(array.size() == usize(2))
+    check(array.get(usize(0)) == 10 && array.get(usize(1)) == 30)
+    check(!filtered.equals(mapped))
+    val different : PersistentVector[int] = vector.set(usize(1), 99)
+    check(!vector.equals(different))
+    delete different
+    delete array
+    delete filtered
+    delete mapped
+    delete vector
+
+    val owned : Array[Resource] = new Array[Resource](usize(0))
+    i = 0
+    while i < 1050 { owned.push(new Resource(i)); i = i + 1 }
+    val base : PersistentVector[Resource] = persistentVectorFromArray[Resource](move owned)
+    val left : PersistentVector[Resource] = base.set(usize(1), new Resource(-1))
+    val right : PersistentVector[Resource] = base.set(usize(1049), new Resource(-2))
+    check(!base.equalsBy(right, (borrow a : Resource, borrow b : Resource) => a.value == b.value))
+    val untouched : Shared[Resource] = left.get(usize(500))
+    check(untouched.strongCount() == usize(2))
+    delete untouched
+    val diamond : PersistentVector[Resource] = left.filter((borrow value : Resource) => value.value != -1)
+    val retained : Shared[Resource] = right.get(usize(0))
+    val same : Shared[Resource] = diamond.get(usize(0))
+    check(retained.isSame(same))
+    delete same
+    val partial : Iterator[Shared[Resource]] = base.iterator()
+    val first : Option[Shared[Resource]] = partial.next()
+    delete first
+    delete partial
+    for value in right.iterator() { delete value; break }
+    delete diamond
+    delete left
+    delete right
+    delete base
+    check(destroyed == 1051)
+    delete retained
+    check(destroyed == 1052)
+
+    val empty : PersistentVector[Resource] = persistentVectorEmpty[Resource]()
+    val single : PersistentVector[Resource] = empty.push(new Resource(7))
+    delete empty
+    val iterator : Iterator[Shared[Resource]] = single.intoIterator()
+    val builder : ArrayBuilder[Shared[Resource]] = new ArrayBuilder[Shared[Resource]](usize(0))
+    val collected : Array[Shared[Resource]] = iterator.collectWith[Array[Shared[Resource]], ArrayBuilder[Shared[Resource]]](builder)
+    borrow val collectedValue : Shared[Resource] = collected.getBorrowed(usize(0))
+    check(collectedValue.get().value == 7)
+    delete builder
+    delete collected
+    check(destroyed == 1053)
+    println("persistent vector ok")
+    return 0
+}

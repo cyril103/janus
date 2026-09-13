@@ -1,0 +1,412 @@
+/// Fournit un vecteur immutable a partage structurel, de facteur 32.
+/// Les operations indexees reconstruisent un seul chemin; les valeurs sont
+/// possedees par Shared et les anciennes versions restent utilisables.
+module std.persistent_vector
+import std.array
+import std.array_builder
+import std.iterator
+import std.option
+import std.shared
+
+private def persistentVectorInvariant[T](message : string) : T {
+    panic(message)
+}
+
+private def persistentVectorSharedEquals[T](
+    left : Shared[T],
+    right : Shared[T],
+    scoped borrow var equals : FnMut (borrow T, borrow T) => bool
+) : bool {
+    defer delete left
+    defer delete right
+    val same : bool = equals(left.get(), right.get())
+    return same
+}
+
+private def persistentVectorTakeShared[T](
+    value : Option[Shared[T]]
+) : Shared[T] {
+    return match move value {
+        Some(item) => move item,
+        None => persistentVectorInvariant[Shared[T]](
+            "PersistentVector iterator length invariant violated\n"
+        )
+    }
+}
+
+private def persistentVectorOptionEquals[T](
+    left : Option[Shared[T]],
+    right : Option[Shared[T]],
+    scoped borrow var equals : FnMut (borrow T, borrow T) => bool
+) : bool {
+    val leftItem : Shared[T] = persistentVectorTakeShared[T](move left)
+    val rightItem : Shared[T] = persistentVectorTakeShared[T](move right)
+    return persistentVectorSharedEquals[T](
+        move leftItem, move rightItem, equals
+    )
+}
+
+private class PersistentVectorNode[T](
+    private val values : Array[Shared[T]],
+    private val children : Array[Shared[PersistentVectorNode[T]]],
+    private val span : usize
+) {
+    borrow def isLeaf() : bool { return span == usize(1) }
+    borrow def valueCount() : usize { return values.size() }
+    borrow def childCount() : usize { return children.size() }
+    borrow def cloneChild(index : usize) : Shared[PersistentVectorNode[T]] {
+        return children.getBorrowed(index).clone()
+    }
+    borrow def get(index : usize) : Shared[T] {
+        if this.isLeaf() { return values.getBorrowed(index).clone() }
+        val value : Shared[T] = children.getBorrowed(index / span).get().get(index % span)
+        return move value
+    }
+
+    // Rebuild one path. index may designate the first unused position.
+    borrow def write(index : usize, value : Shared[T]) : Shared[PersistentVectorNode[T]] {
+        defer delete value
+        val nextValues : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+        defer delete nextValues
+        val nextChildren : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+        defer delete nextChildren
+        if this.isLeaf() {
+            var i : usize = usize(0)
+            while i < values.size() {
+                if i == index { nextValues.add(value.clone()) }
+                else { nextValues.add(values.getBorrowed(i).clone()) }
+                i = i + usize(1)
+            }
+            if index == values.size() { nextValues.add(value.clone()) }
+        } else {
+            val slot : usize = index / span
+            var i : usize = usize(0)
+            while i < children.size() {
+                if i == slot {
+                    nextChildren.add(children.getBorrowed(i).get().write(index % span, value.clone()))
+                } else { nextChildren.add(children.getBorrowed(i).clone()) }
+                i = i + usize(1)
+            }
+            if slot == children.size() {
+                nextChildren.add(persistentVectorPath[T](span / usize(32), value.clone()))
+            }
+        }
+        return share[PersistentVectorNode[T]](new PersistentVectorNode[T](
+            nextValues.result(), nextChildren.result(), span
+        ))
+    }
+
+    borrow def removeLast(index : usize) : Shared[PersistentVectorNode[T]] {
+        val nextValues : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+        defer delete nextValues
+        val nextChildren : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+        defer delete nextChildren
+        var i : usize = usize(0)
+        if this.isLeaf() {
+            while i < index {
+                nextValues.add(values.getBorrowed(i).clone())
+                i = i + usize(1)
+            }
+        } else {
+            val slot : usize = index / span
+            while i < slot {
+                nextChildren.add(children.getBorrowed(i).clone())
+                i = i + usize(1)
+            }
+            if index % span != usize(0) {
+                nextChildren.add(children.getBorrowed(slot).get().removeLast(index % span))
+            }
+        }
+        return share[PersistentVectorNode[T]](new PersistentVectorNode[T](
+            nextValues.result(), nextChildren.result(), span
+        ))
+    }
+
+    destructor { delete children; delete values }
+}
+
+private def persistentVectorPath[T](span : usize, value : Shared[T]) : Shared[PersistentVectorNode[T]] {
+    defer delete value
+    val values : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+    defer delete values
+    val children : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+    defer delete children
+    if span == usize(1) { values.add(value.clone()) }
+    else { children.add(persistentVectorPath[T](span / usize(32), value.clone())) }
+    return share[PersistentVectorNode[T]](new PersistentVectorNode[T](values.result(), children.result(), span))
+}
+
+private class PersistentVectorIteratorState[T](
+    private val pending : Array[Shared[PersistentVectorNode[T]]],
+    private var offset : usize
+) {
+    def next() : Option[Shared[T]] {
+        while !pending.isEmpty() {
+            val node : Shared[PersistentVectorNode[T]] = pending.pop()
+            defer delete node
+            if node.get().isLeaf() {
+                if offset < node.get().valueCount() {
+                    val value : Shared[T] = node.get().get(offset)
+                    offset = offset + usize(1)
+                    pending.push(node.clone())
+                    return Option.Some[Shared[T]](move value)
+                }
+                offset = usize(0)
+            } else {
+                var i : usize = node.get().childCount()
+                while i > usize(0) {
+                    i = i - usize(1)
+                    pending.push(node.get().cloneChild(i))
+                }
+            }
+        }
+        return Option.None[Shared[T]]()
+    }
+    consume def dispose() : Unit { delete this }
+    destructor { delete pending }
+}
+
+private def persistentVectorIterator[T](root : Shared[PersistentVectorNode[T]]) : Iterator[Shared[T]] {
+    val pending : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+    defer delete pending
+    pending.add(move root)
+    val state : PersistentVectorIteratorState[T] = new PersistentVectorIteratorState[T](pending.result(), usize(0))
+    return new Iterator[Shared[T]](
+        owningCapture[PersistentVectorIteratorState[T]](state, () => state.next()), () => unit
+    )
+}
+
+/// Vecteur immutable indexe, represente par un arbre de facteur 32.
+/// Les versions partagent leurs sous-arbres et leurs valeurs proprietaires.
+/// @param root Racine partagee interne.
+/// @param length Nombre de valeurs de cette version.
+/// @param capacity Capacite logique de la racine, puissance de 32.
+class PersistentVector[T] internal(
+    private val root : Shared[PersistentVectorNode[T]],
+    private val length : usize,
+    private val capacity : usize
+) extends IntoIterable[Shared[T]] {
+    /// Retourne la taille en O(1).
+    /// @return Nombre de valeurs.
+    pure borrow def size() : usize { return length }
+    /// Teste le vide en O(1).
+    /// @return Vrai si aucune valeur n'est presente.
+    pure borrow def isEmpty() : bool { return length == usize(0) }
+    /// Partage la racine en O(1).
+    /// @return Nouvelle enveloppe immutable.
+    borrow def clone() : PersistentVector[T] {
+        return new PersistentVector[T](root.clone(), length, capacity)
+    }
+    /// Observe un element en O(log_32 n); panique hors bornes.
+    /// @param index Indice commencant a zero.
+    /// @return Handle proprietaire a detruire, sans copie de T.
+    borrow def get(index : usize) : Shared[T] {
+        if index >= length { panic("PersistentVector index out of bounds\n") }
+        return root.get().get(index)
+    }
+    /// Remplace une valeur en recopiant seulement son chemin; panique hors bornes.
+    /// @param index Indice commencant a zero.
+    /// @param value Nouvelle valeur transferee.
+    /// @return Nouvelle version en O(log_32 n).
+    borrow def set(index : usize, value : T) : PersistentVector[T] {
+        if index >= length { delete value; panic("PersistentVector index out of bounds\n") }
+        val updated : Shared[PersistentVectorNode[T]] = root.get().write(index, share[T](move value))
+        return new PersistentVector[T](move updated, length, capacity)
+    }
+    /// Ajoute une valeur en fin en O(log_32 n).
+    /// @param value Valeur transferee dans la nouvelle version.
+    /// @return Nouvelle version; panique si la capacite deborde usize.
+    borrow def push(value : T) : PersistentVector[T] {
+        val shared : Shared[T] = share[T](move value)
+        defer delete shared
+        if length == capacity {
+            if capacity > usize(-1) / usize(32) {
+                panic("PersistentVector capacity overflow\n")
+            }
+            val values : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+            defer delete values
+            val children : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+            defer delete children
+            children.add(root.clone())
+            children.add(persistentVectorPath[T](capacity / usize(32), shared.clone()))
+            val updated : Shared[PersistentVectorNode[T]] = share[PersistentVectorNode[T]](
+                new PersistentVectorNode[T](values.result(), children.result(), capacity)
+            )
+            return new PersistentVector[T](move updated, length + usize(1), capacity * usize(32))
+        }
+        val updated : Shared[PersistentVectorNode[T]] = root.get().write(length, shared.clone())
+        return new PersistentVector[T](move updated, length + usize(1), capacity)
+    }
+    /// Retire la derniere valeur en O(log_32 n); panique sur le vide.
+    /// @return Nouvelle version, sans transfert de la valeur retiree.
+    borrow def pop() : PersistentVector[T] {
+        if length == usize(0) { panic("cannot pop an empty PersistentVector\n") }
+        val next : Shared[PersistentVectorNode[T]] = root.get().removeLast(length - usize(1))
+        if capacity > usize(32) && next.get().childCount() == usize(1) {
+            val child : Shared[PersistentVectorNode[T]] = next.get().cloneChild(usize(0))
+            delete next
+            return new PersistentVector[T](move child, length - usize(1), capacity / usize(32))
+        }
+        return new PersistentVector[T](move next, length - usize(1), capacity)
+    }
+    /// Parcourt les valeurs en O(n), avec une pile O(32 log_32 n).
+    /// @return Iterateur proprietaire de handles; intoIterator consomme la source.
+    borrow def iterator() : Iterator[Shared[T]] {
+        return persistentVectorIterator[T](root.clone())
+    }
+    /// Consomme l'enveloppe et conserve la racine dans le parcours.
+    /// @return Iterateur compatible avec IntoIterable et les builders existants.
+    consume def intoIterator() : Iterator[Shared[T]] {
+        val result : Iterator[Shared[T]] = persistentVectorIterator[T](root.clone())
+        delete this
+        return move result
+    }
+    /// Transforme les valeurs observees en O(n), dans l'ordre des indices.
+    /// @param transform Projection empruntant chaque valeur.
+    /// @return Vecteur construit de bas en haut.
+    borrow def map[U](scoped transform : FnMut (borrow T) => U) : PersistentVector[U] {
+        defer delete transform
+        val values : ArrayBuilder[Shared[U]] = new ArrayBuilder[Shared[U]](usize(0))
+        defer delete values
+        val iterator : Iterator[Shared[T]] = this.iterator()
+        for value in move iterator {
+            defer delete value
+            values.add(share[U](transform(value.get())))
+        }
+        return persistentVectorBuild[U](values.result())
+    }
+    /// Filtre en O(n) en partageant les valeurs retenues.
+    /// @param predicate Test observant chaque valeur.
+    /// @return Nouveau vecteur dans l'ordre source.
+    borrow def filter(scoped predicate : FnMut (borrow T) => bool) : PersistentVector[T] {
+        defer delete predicate
+        val values : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+        defer delete values
+        val iterator : Iterator[Shared[T]] = this.iterator()
+        for value in move iterator {
+            defer delete value
+            if predicate(value.get()) { values.add(value.clone()) }
+        }
+        return persistentVectorBuild[T](values.result())
+    }
+    /// Reduit les elements de gauche a droite sans les copier.
+    /// @param initial Accumulateur initial transfere au premier appel.
+    /// @param combine Fonction recevant l'accumulateur et une valeur empruntee.
+    /// @return Accumulateur final, ou `initial` pour un vecteur vide.
+    borrow def fold[U](
+        initial : U,
+        scoped combine : FnMut (U, borrow T) => U
+    ) : U {
+        defer delete combine
+        var accumulator : U = move initial
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            defer delete value
+            accumulator = combine(move accumulator, value.get())
+        }
+        return move accumulator
+    }
+
+    /// Compare structurellement deux vecteurs avec un comparateur emprunte.
+    /// @param other Vecteur observe au meme rang que ce vecteur.
+    /// @param equals Comparateur des valeurs de meme rang.
+    /// @return `true` si tailles et valeurs sont egales.
+    borrow def equalsBy(
+        borrow other : PersistentVector[T],
+        scoped equals : FnMut (borrow T, borrow T) => bool
+    ) : bool {
+        defer delete equals
+        if length != other.length { return false }
+        val left : Iterator[Shared[T]] = this.iterator()
+        val right : Iterator[Shared[T]] = other.iterator()
+        defer delete left
+        defer delete right
+        var remaining : usize = length
+        while remaining > usize(0) {
+            val same : bool = persistentVectorOptionEquals[T](
+                left.next(), right.next(), equals
+            )
+            if !same { return false }
+            remaining = remaining - usize(1)
+        }
+        return true
+    }
+
+    /// Compare avec l'egalite derivee de T, lorsqu'elle est disponible.
+    /// @param other Vecteur observe structurellement.
+    /// @return `true` si tailles et valeurs derivees sont egales.
+    borrow def equals(borrow other : PersistentVector[T]) : bool {
+        return this.equalsBy(
+            other,
+            (borrow left : T, borrow right : T) =>
+            __derivedEquals[T](left, right)
+        )
+    }
+
+    /// Copie les elements vers un tableau lorsque T satisfait Copy.
+    /// @return Nouveau tableau dans l'ordre de du vecteur.
+    borrow def toArray() : Array[T] where T <: Copy {
+        val result : ArrayBuilder[T] = new ArrayBuilder[T](usize(0))
+        defer delete result
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            defer delete value
+            result.add(value.get())
+        }
+        return result.result()
+    }
+
+    destructor { delete root }
+}
+
+// Bottom-up construction visits each node once, consuming the input in order.
+private def persistentVectorBuildNode[T](
+    borrow var source : Iterator[Shared[T]], count : usize, span : usize
+) : Shared[PersistentVectorNode[T]] {
+    val values : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+    defer delete values
+    val children : ArrayBuilder[Shared[PersistentVectorNode[T]]] = new ArrayBuilder[Shared[PersistentVectorNode[T]]](usize(0))
+    defer delete children
+    var remaining : usize = count
+    while remaining > usize(0) {
+        if span == usize(1) {
+            values.add(persistentVectorTakeShared[T](source.next()))
+            remaining = remaining - usize(1)
+        } else {
+            var chunk : usize = span
+            if remaining < chunk { chunk = remaining }
+            children.add(persistentVectorBuildNode[T](source, chunk, span / usize(32)))
+            remaining = remaining - chunk
+        }
+    }
+    return share[PersistentVectorNode[T]](new PersistentVectorNode[T](values.result(), children.result(), span))
+}
+
+private def persistentVectorBuild[T](values : Array[Shared[T]]) : PersistentVector[T] {
+    val length : usize = values.size()
+    val source : Iterator[Shared[T]] = values.intoIterator()
+    defer delete source
+    var capacity : usize = usize(32)
+    while capacity < length {
+        if capacity > usize(-1) / usize(32) { panic("PersistentVector capacity overflow\n") }
+        capacity = capacity * usize(32)
+    }
+    val root : Shared[PersistentVectorNode[T]] = persistentVectorBuildNode[T](source, length, capacity / usize(32))
+    return new PersistentVector[T](move root, length, capacity)
+}
+
+/// Construit un vecteur vide.
+/// @return Nouvelle version sans valeur.
+def persistentVectorEmpty[T]() : PersistentVector[T] {
+    return persistentVectorBuild[T](new Array[Shared[T]](usize(0)))
+}
+
+/// Consomme un tableau en O(n) et transfere ses valeurs sans exiger Copy.
+/// @param source Tableau proprietaire dans l'ordre logique.
+/// @return Vecteur construit de bas en haut.
+def persistentVectorFromArray[T](source : Array[T]) : PersistentVector[T] {
+    val values : ArrayBuilder[Shared[T]] = new ArrayBuilder[Shared[T]](usize(0))
+    defer delete values
+    for value in source.intoIterator() { values.add(share[T](move value)) }
+    return persistentVectorBuild[T](values.result())
+}

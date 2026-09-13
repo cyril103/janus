@@ -90,6 +90,9 @@ OWNER_MODULES = {
     "#299": {
         "std.shared",
     },
+    "#314": {
+        "std.persistent_vector",
+    },
     "#300": {
         "std.persistent_list",
     },

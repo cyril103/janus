@@ -237,6 +237,37 @@
       "symbols": ["PersistentList", "PersistentList.size", "PersistentList.isEmpty", "PersistentList.clone", "PersistentList.prepend", "PersistentList.head", "PersistentList.tail", "PersistentList.iterator", "PersistentList.reverse", "PersistentList.concat", "PersistentList.map", "PersistentList.filter", "PersistentList.fold", "PersistentList.equalsBy", "PersistentList.equals", "PersistentList.toArray", "persistentListEmpty", "persistentListFromArray"]
     },
     {
+      "name": "std.persistent_vector",
+      "source": "stdlib/std/persistent_vector.janus",
+      "documentation": [
+        "docs/stdlib-reference.md",
+        "docs/language-guide.md",
+        "docs/design/persistent-vector.md"
+      ],
+      "status": "experimental",
+      "signature_digest": "679e9b9c8000588284ecab386864443d0fcf220ba1fc2b8eec3268bc1496a42f",
+      "symbols": [
+        "PersistentVector",
+        "PersistentVector.size",
+        "PersistentVector.isEmpty",
+        "PersistentVector.clone",
+        "PersistentVector.get",
+        "PersistentVector.set",
+        "PersistentVector.push",
+        "PersistentVector.pop",
+        "PersistentVector.iterator",
+        "PersistentVector.intoIterator",
+        "PersistentVector.map",
+        "PersistentVector.filter",
+        "PersistentVector.fold",
+        "PersistentVector.equalsBy",
+        "PersistentVector.equals",
+        "PersistentVector.toArray",
+        "persistentVectorEmpty",
+        "persistentVectorFromArray"
+      ]
+    },
+    {
       "name": "std.priority_queue",
       "source": "stdlib/std/priority_queue.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],

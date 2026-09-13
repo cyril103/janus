@@ -1,0 +1,71 @@
+import std.array
+import std.persistent_list
+import std.persistent_vector
+import std.shared
+
+private extern("vector_mode") def mode() : int
+private extern("vector_report") def report() : Unit
+var position : int = 0
+var replacement : int = 0
+
+def changed(value : int) : int {
+    val index : int = position
+    position = position + 1
+    return if index == replacement { -1 } else { value }
+}
+def input() : Array[int] {
+    val values : Array[int] = new Array[int](usize(0))
+    var i : int = 0
+    while i < 4096 { values.push(i); i = i + 1 }
+    return move values
+}
+def arrayWork() : Unit {
+    val original : Array[int] = input()
+    val versions : Array[Array[int]] = new Array[Array[int]](usize(0))
+    var i : int = 0
+    while i < 32 {
+        position = 0
+        replacement = i * 127
+        versions.push(original.map[int]((value : int) => changed(value)))
+        i = i + 1
+    }
+    println(original.fold[int](0, (sum : int, value : int) => sum + value))
+    println(versions.size())
+    delete versions
+    delete original
+}
+def listWork() : Unit {
+    val original : PersistentList[int] = persistentListFromArray[int](input())
+    val versions : Array[PersistentList[int]] = new Array[PersistentList[int]](usize(0))
+    var i : int = 0
+    while i < 32 {
+        position = 0
+        replacement = i * 127
+        versions.push(original.map[int]((borrow value : int) => changed(value)))
+        i = i + 1
+    }
+    println(original.fold[int](0, (sum : int, borrow value : int) => sum + value))
+    println(versions.size())
+    delete versions
+    delete original
+}
+def vectorWork() : Unit {
+    val original : PersistentVector[int] = persistentVectorFromArray[int](input())
+    val versions : Array[PersistentVector[int]] = new Array[PersistentVector[int]](usize(0))
+    var i : int = 0
+    while i < 32 {
+        versions.push(original.set(truncatingCast[usize](i * 127), -1))
+        i = i + 1
+    }
+    println(original.fold[int](0, (sum : int, borrow value : int) => sum + value))
+    println(versions.size())
+    delete versions
+    delete original
+}
+def main() : int {
+    if mode() == 0 { arrayWork() }
+    if mode() == 1 { listWork() }
+    if mode() == 2 { vectorWork() }
+    report()
+    return 0
+}

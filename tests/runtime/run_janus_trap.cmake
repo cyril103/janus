@@ -72,3 +72,9 @@ if(DEFINED EXPECTED_OUTPUT)
     file(WRITE "${ACTUAL_OUTPUT}" "${PROGRAM_OUTPUT}")
     compare_janus_output("${EXPECTED_OUTPUT}" "${ACTUAL_OUTPUT}")
 endif()
+
+# A matching panic must not hide a cleanup failure reported during unwinding.
+if(PROGRAM_ERROR MATCHES "ERROR: (AddressSanitizer|LeakSanitizer)" OR
+   PROGRAM_ERROR MATCHES "runtime error:")
+    message(FATAL_ERROR "sanitizer failure during panic cleanup:\n${PROGRAM_ERROR}")
+endif()

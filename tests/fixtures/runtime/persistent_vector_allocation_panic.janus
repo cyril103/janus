@@ -1,0 +1,76 @@
+import std.array
+import std.iterator
+import std.persistent_vector
+import std.shared
+private extern("vector_arm") def arm(count : usize) : Unit
+private extern("vector_drop") def drop() : Unit
+private extern("vector_verify") def verify() : Unit
+private extern("vector_mode") def mode() : int
+private extern("vector_expect_more") def expectMore() : Unit
+class Resource(val value : int) { destructor { drop() } }
+def project(borrow value : Resource) : Resource {
+    expectMore()
+    return new Resource(value.value)
+}
+def inspect(borrow vector : PersistentVector[Resource]) : Unit {
+    val first : Shared[Resource] = vector.get(usize(0))
+    defer delete first
+    val last : Shared[Resource] = vector.get(vector.size() - usize(1))
+    defer delete last
+    if first.get().value != 0 || last.get().value != truncatingCast[int](vector.size() - usize(1)) {
+        panic("source changed during allocation panic\n")
+    }
+}
+def exercise() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(0))
+    var i : int = 0
+    var count : int = 70
+    if mode() == 8 { count = 1024 }
+    while i < count { values.push(new Resource(i)); i = i + 1 }
+    if mode() == 0 { arm(usize(70)) }
+    val vector : PersistentVector[Resource] = persistentVectorFromArray[Resource](move values)
+    defer delete vector
+    defer inspect(vector)
+    if mode() != 0 && mode() != 7 { arm(truncatingCast[usize](count)) }
+    if mode() == 1 {
+        expectMore()
+        val changed : PersistentVector[Resource] = vector.set(usize(35), new Resource(99))
+        delete changed
+    }
+    if mode() == 2 || mode() == 8 {
+        expectMore()
+        val changed : PersistentVector[Resource] = vector.push(new Resource(99))
+        delete changed
+    }
+    if mode() == 3 {
+        val changed : PersistentVector[Resource] = vector.pop()
+        delete changed
+    }
+    if mode() == 4 {
+        val changed : PersistentVector[Resource] = vector.map[Resource]((borrow value : Resource) => project(value))
+        delete changed
+    }
+    if mode() == 5 {
+        val changed : PersistentVector[Resource] = vector.filter((borrow value : Resource) => value.value % 2 == 0)
+        delete changed
+    }
+    if mode() == 6 {
+        for value in vector.iterator() { delete value }
+    }
+    if mode() == 7 {
+        val input : Array[int] = new Array[int](usize(0))
+        i = 0
+        while i < 70 { input.push(i); i = i + 1 }
+        val integers : PersistentVector[int] = persistentVectorFromArray[int](move input)
+        defer delete integers
+        arm(usize(70))
+        val copied : Array[int] = integers.toArray()
+        delete copied
+    }
+
+}
+def main() : int {
+    exercise()
+    verify()
+    return 0
+}

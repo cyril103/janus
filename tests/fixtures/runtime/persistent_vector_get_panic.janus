@@ -1,0 +1,31 @@
+import std.array
+import std.persistent_vector
+import std.shared
+
+var destroyed : int = 0
+class Resource(val value : int) {
+    destructor { destroyed = destroyed + 1 }
+}
+class Audit() {
+    destructor { println(destroyed == 70) }
+}
+def project(borrow value : Resource) : Resource {
+    if value.value == 40 { panic("persistent vector callback panic\n") }
+    return new Resource(value.value)
+}
+def accept(borrow value : Resource) : bool {
+    if value.value == 40 { panic("persistent vector callback panic\n") }
+    return value.value % 2 == 0
+}
+def main() : int {
+    val audit : Audit = new Audit()
+    defer delete audit
+    val values : Array[Resource] = new Array[Resource](usize(0))
+    var i : int = 0
+    while i < 70 { values.push(new Resource(i)); i = i + 1 }
+    val vector : PersistentVector[Resource] = persistentVectorFromArray[Resource](move values)
+    defer delete vector
+    val result : Shared[Resource] = vector.get(usize(70))
+    delete result
+    return 0
+}

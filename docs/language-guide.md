@@ -2112,3 +2112,35 @@ placé avant l'appel reste valide et est désarmé par le transfert.
 
 Voir la [RFC des capacités d'appel](design/call-capabilities.md) pour la
 matrice complète et les bornes génériques `F <: FnOnce () => T`.
+
+
+### Snapshots indexés immuables
+
+`PersistentVector[T]` conserve les anciennes versions d'une collection indexée.
+Chaque mise à jour copie un chemin d'arbre de facteur 32 et partage les autres
+sous-arbres. Les valeurs propriétaires sont acceptées : `get` retourne un
+handle `Shared[T]`, dont le contenu s'observe avec `get()`.
+
+```janus
+import std.persistent_vector
+import std.shared
+
+def main() : int {
+    val empty : PersistentVector[int] = persistentVectorEmpty[int]()
+    defer delete empty
+    val saved : PersistentVector[int] = empty.push(10)
+    defer delete saved
+    val edited : PersistentVector[int] = saved.set(usize(0), 20)
+    defer delete edited
+    val oldValue : Shared[int] = saved.get(usize(0))
+    defer delete oldValue
+    println(oldValue.get()) // 10
+    return 0
+}
+```
+
+Les accès hors bornes paniquent. `pop()` retourne une version raccourcie sans
+consommer la source. `iterator()` parcourt les handles sans copie intermédiaire
+des valeurs; `intoIterator()` consomme une version. Pour un exemple complet,
+voir [l'historique de document](../examples/persistent-editor/README.md) et la
+[représentation du vecteur](design/persistent-vector.md).

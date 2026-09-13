@@ -1,0 +1,37 @@
+module history
+import std.array
+import std.persistent_vector
+import std.shared
+
+/// Immutable document line, owned by every snapshot which contains it.
+class Line(val text : string) {}
+
+/// A line-based document history with immutable saved revisions.
+class Editor(private var current : PersistentVector[Line]) {
+    private val past : Array[PersistentVector[Line]] = new Array[PersistentVector[Line]](usize(0))
+    private val future : Array[PersistentVector[Line]] = new Array[PersistentVector[Line]](usize(0))
+
+    def replace(index : usize, text : string) : Unit {
+        val next : PersistentVector[Line] = current.set(index, new Line(text))
+        past.push(current.clone())
+        delete current
+        current = move next
+        future.clear()
+    }
+    def undo() : bool {
+        if past.isEmpty() { return false }
+        future.push(current.clone())
+        delete current
+        current = past.pop()
+        return true
+    }
+    def redo() : bool {
+        if future.isEmpty() { return false }
+        past.push(current.clone())
+        delete current
+        current = future.pop()
+        return true
+    }
+    borrow def snapshot() : PersistentVector[Line] { return current.clone() }
+    destructor { delete future; delete past; delete current }
+}

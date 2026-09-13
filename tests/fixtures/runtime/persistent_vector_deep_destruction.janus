@@ -1,0 +1,16 @@
+import std.array
+import std.persistent_vector
+var destroyed : int = 0
+class Resource() { destructor { destroyed = destroyed + 1 } }
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(0))
+    var i : int = 0
+    while i < 100000 { values.push(new Resource()); i = i + 1 }
+    val vector : PersistentVector[Resource] = persistentVectorFromArray[Resource](move values)
+    val alias : PersistentVector[Resource] = vector.clone()
+    delete vector
+    println(destroyed)
+    delete alias
+    println(destroyed)
+    return 0
+}

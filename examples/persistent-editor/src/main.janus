@@ -1,0 +1,26 @@
+import std.array
+import std.persistent_vector
+import std.shared
+import history
+
+def main() : int {
+    val lines : Array[Line] = new Array[Line](usize(0))
+    lines.push(new Line("Hello"))
+    lines.push(new Line("world"))
+    val editor : Editor = new Editor(persistentVectorFromArray[Line](move lines))
+    val saved : PersistentVector[Line] = editor.snapshot()
+    editor.replace(usize(1), "Janus")
+    editor.undo()
+    editor.redo()
+    val current : PersistentVector[Line] = editor.snapshot()
+    val oldLine : Shared[Line] = saved.get(usize(1))
+    val newLine : Shared[Line] = current.get(usize(1))
+    println(oldLine.get().text)
+    println(newLine.get().text)
+    delete newLine
+    delete oldLine
+    delete current
+    delete saved
+    delete editor
+    return 0
+}

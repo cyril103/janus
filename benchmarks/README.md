@@ -86,3 +86,13 @@ clang -O3 /tmp/janus-prime-factors-bench.ll \
   -o /tmp/janus-prime-factors-bench
 /tmp/janus-prime-factors-bench
 ```
+
+## Vecteur persistant et snapshots indexés
+
+`python3 benchmarks/run_persistent_vector.py --build-dir build --repeats 3`
+compare `Array`, `PersistentList` et `PersistentVector` sur 4 096 valeurs et
+32 versions conservées. Le script Linux compile avec `clang -O3`, mesure le
+temps par processus ainsi que les allocations et le pic d'octets vivants, puis
+écrit un JSON dans le répertoire de build. Le shim de comptage utilise GNU
+`--wrap`; les mesures et leurs limites sont décrites dans
+[`persistent-vector.md`](../docs/design/persistent-vector.md).

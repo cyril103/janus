@@ -811,3 +811,42 @@ def main() : int {
     }
 }
 ```
+
+
+### `std.persistent_vector`
+
+`std.persistent_vector` fournit `PersistentVector[T]`, un arbre immutable de
+facteur 32. `persistentVectorEmpty[T]()` crée le vide et
+`persistentVectorFromArray[T](source)` consomme un tableau, même non `Copy`.
+`size()` et `isEmpty()` sont constants; `get`, `set`, `push` et `pop` sont
+logarithmiques. `get(index)` retourne un `Shared[T]` propriétaire; `set` et
+`push` transfèrent leur valeur et retournent une nouvelle version sans altérer
+la source. `get` et `set` paniquent hors bornes, `pop` sur le vide.
+
+`clone()` partage la racine. `iterator()` produit des handles dans l'ordre,
+`intoIterator()` consomme l'enveloppe via `IntoIterable[Shared[T]]`. Les
+adaptateurs d'itérateurs et builders existants restent utilisables. `map`,
+`filter`, `fold`, `equals`, `equalsBy` et `toArray` sont linéaires; `toArray`
+requiert `T <: Copy`. Les callbacks observent des emprunts immutables.
+La [représentation et les mesures](design/persistent-vector.md) documentent
+les garanties et limites d'allocation de cette surface expérimentale.
+
+
+```janus
+// doctest: doctest name=stdlib-std-persistent-vector
+import std.persistent_vector
+import std.shared
+def main() : int {
+    val empty : PersistentVector[int] = persistentVectorEmpty[int]()
+    defer delete empty
+    val original : PersistentVector[int] = empty.push(42)
+    defer delete original
+    val changed : PersistentVector[int] = original.set(usize(0), 7)
+    defer delete changed
+    val oldValue : Shared[int] = original.get(usize(0))
+    defer delete oldValue
+    val newValue : Shared[int] = changed.get(usize(0))
+    defer delete newValue
+    return if oldValue.get() == 42 && newValue.get() == 7 { 0 } else { 1 }
+}
+```

@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Collections
+
+- `std.persistent_vector.PersistentVector[T]` à partage structurel (#314), avec
+  accès et mises à jour logarithmiques, parcours de handles `Shared[T]`,
+  transformations linéaires et conservation des valeurs propriétaires.
+- tests de frontières, destruction et paniques d’allocation, benchmarks de
+  snapshots comparatifs et exemple de document avec undo/redo.
+
 ### Programmation fonctionnelle
 
 - factories propriétaires `compose`, `andThen`, `partialFirst2`, `curry2` et

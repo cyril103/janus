@@ -69,7 +69,8 @@ clang -O3 /tmp/persistent-list.ll build/libjanus_runtime.a \
 Le modèle d'allocation, plus stable que le temps mur, explique le compromis :
 `Array` amortit ses insertions dans un tampon, alors que chaque tête persistante
 alloue une valeur et une cellule partagées mais conserve toutes les versions.
-Aucun vecteur, map ou set persistant n'est ajouté avant des mesures dédiées.
+Le [vecteur persistant](persistent-vector.md) dispose désormais de mesures
+dédiées aux snapshots indexés. Les maps et sets persistants restent différés.
 
 ## Profondeur, diamants et cycles
 
