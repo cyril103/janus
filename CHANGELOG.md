@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.25.0] - 2026-09-13
+
+### Compilation
+
+- rétablissement de la compatibilité LLVM 18 des attributs d’allocation utilisés
+  pour optimiser les environnements de closures.
+
 ### Conception du langage
 
 - Construction nommée des structs `new Point { x: expression, y }` (#278),
@@ -1304,6 +1311,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.25.0]: https://github.com/cyril103/janus/releases/tag/v0.25.0
 [0.24.0]: https://github.com/cyril103/janus/releases/tag/v0.24.0
 [0.23.1]: https://github.com/cyril103/janus/releases/tag/v0.23.1
 [0.23.0]: https://github.com/cyril103/janus/releases/tag/v0.23.0

@@ -274,9 +274,10 @@ public:
       if (auto *allocate = module_->getFunction("janus_alloc");
           allocate != nullptr && allocate->isDeclaration()) {
         allocate->addFnAttr("alloc-family", "malloc");
-        allocate->addFnAttr(::llvm::Attribute::getWithAllocKind(
-            context_,
-            ::llvm::AllocFnKind::Alloc | ::llvm::AllocFnKind::Uninitialized));
+        ::llvm::AttrBuilder allocation_attributes(context_);
+        allocation_attributes.addAllocKindAttr(
+            ::llvm::AllocFnKind::Alloc | ::llvm::AllocFnKind::Uninitialized);
+        allocate->addFnAttrs(allocation_attributes);
         allocate->addFnAttr(
             ::llvm::Attribute::getWithAllocSizeArgs(context_, 0, std::nullopt));
         allocate->addRetAttr(::llvm::Attribute::NoAlias);
@@ -286,8 +287,9 @@ public:
       if (auto *release = module_->getFunction("janus_free");
           release != nullptr && release->isDeclaration()) {
         release->addFnAttr("alloc-family", "malloc");
-        release->addFnAttr(::llvm::Attribute::getWithAllocKind(
-            context_, ::llvm::AllocFnKind::Free));
+        ::llvm::AttrBuilder release_attributes(context_);
+        release_attributes.addAllocKindAttr(::llvm::AllocFnKind::Free);
+        release->addFnAttrs(release_attributes);
         release->addParamAttr(0, ::llvm::Attribute::AllocatedPointer);
         release->addFnAttr(::llvm::Attribute::NoUnwind);
         release->addFnAttr(::llvm::Attribute::WillReturn);

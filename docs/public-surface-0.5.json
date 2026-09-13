@@ -294,7 +294,8 @@
       ],
       "status": "experimental",
       "signature_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "symbols": []
+      "symbols": [],
+      "reexports": ["std.persistent_map"]
     },
     {
       "name": "std.persistent_vector",

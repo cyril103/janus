@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 38 mots-clés réservés de la version en développement de Janus ;
+- retrouver les 39 mots-clés réservés de la version en développement de Janus ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -64,7 +64,7 @@ derives Equality, Hashing, Debug {
 }
 ```
 
-`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.24.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
+`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.25.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
 
 `extend` introduit un bloc de méthodes d'extension, mais reste un mot
 contextuel afin de ne pas rendre invalides les identifiants existants.
@@ -91,6 +91,7 @@ contextuel afin de ne pas rendre invalides les identifiants existants.
 | `consume` | marque une méthode qui consomme son receveur `this` | s’écrit avant `def` |
 | `delete` | détruit une valeur propriétaire | destruction récursive des agrégats |
 | `defer` | reporte une expression à la sortie de la portée | les actions sont exécutées en ordre inverse |
+| `using` | déclare une ressource locale avec `using val` | destruction automatique à la sortie de portée ; `move` et `delete` désarment le nettoyage |
 | `destructor` | définit le bloc de nettoyage d’une classe | s’exécute lors de `delete` avant libération |
 
 ```janus

@@ -42,10 +42,11 @@ CONSTRUCTOR_EXCEPTIONS = {
 # newly added cast in the same document must be reviewed instead of inheriting
 # a broad path-level exemption.
 CAST_EXCEPTIONS: dict[tuple[str, str, int, int], str] = {
+    ("docs/stdlib-reference.md", "usize(1)", 886, 30): "nécessaire (opérande binaire usize)",
     ("docs/archive/migration-0.5-to-0.6.md", "usize(2)", 31, 55): "historique",
     ("docs/archive/migration-0.5-to-0.6.md", "usize(0)", 39, 23): "historique",
-    ("docs/audits/stdlib-0.7.4.md", "usize(1)", 158, 20): "donnée d’audit historique",
-    ("docs/audits/stdlib-0.7.4.md", "usize(0)", 159, 24): "donnée d’audit historique",
+    ("docs/audits/stdlib-0.7.4.md", "usize(1)", 164, 20): "donnée d’audit historique",
+    ("docs/audits/stdlib-0.7.4.md", "usize(0)", 166, 24): "donnée d’audit historique",
     ("docs/design/container-ownership.md", "usize(0)", 90, 21): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 175, 21): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 176, 45): "pédagogique (index usize)",

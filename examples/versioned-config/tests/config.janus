@@ -22,5 +22,5 @@ def snapshotsSurviveReplacementRollbackAndBranch() : Unit {
     assertEqual[string](setting(branch, "theme"), "light")
     assertEqual[string](setting(saved, "locale"), "fr")
     assertEqual[string](setting(branch, "locale"), "en")
-    assertEqual[usize](saved.size(), usize(2))
+    assertEqual[usize](saved.size(), 2)
 }

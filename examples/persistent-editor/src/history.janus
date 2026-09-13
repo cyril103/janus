@@ -8,8 +8,8 @@ class Line(val text : string) {}
 
 /// A line-based document history with immutable saved revisions.
 class Editor(private var current : PersistentVector[Line]) {
-    private val past : Array[PersistentVector[Line]] = new Array[PersistentVector[Line]](usize(0))
-    private val future : Array[PersistentVector[Line]] = new Array[PersistentVector[Line]](usize(0))
+    private val past : Array[PersistentVector[Line]] = new Array(0)
+    private val future : Array[PersistentVector[Line]] = new Array(0)
 
     def replace(index : usize, text : string) : Unit {
         val next : PersistentVector[Line] = current.set(index, new Line(text))

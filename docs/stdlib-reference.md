@@ -841,11 +841,11 @@ def main() : int {
     defer delete empty
     val original : PersistentVector[int] = empty.push(42)
     defer delete original
-    val changed : PersistentVector[int] = original.set(usize(0), 7)
+    val changed : PersistentVector[int] = original.set(0, 7)
     defer delete changed
-    val oldValue : Shared[int] = original.get(usize(0))
+    val oldValue : Shared[int] = original.get(0)
     defer delete oldValue
-    val newValue : Shared[int] = changed.get(usize(0))
+    val newValue : Shared[int] = changed.get(0)
     defer delete newValue
     return if oldValue.get() == 42 && newValue.get() == 7 { 0 } else { 1 }
 }
