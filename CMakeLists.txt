@@ -367,6 +367,7 @@ add_executable(janusup
     tools/janusup/main.cpp
 )
 function(configure_janusup_target target)
+    target_sources(${target} PRIVATE src/driver/temporary_directory.cpp)
     add_dependencies(${target} janus_build_identity)
     target_include_directories(${target}
         SYSTEM PRIVATE
@@ -1103,6 +1104,15 @@ if(BUILD_TESTING)
     set_tests_properties(toolchain.concurrent_install PROPERTIES TIMEOUT 90)
     if(UNIX)
         add_test(
+            NAME toolchain.temporary_directory
+            COMMAND "${Python3_EXECUTABLE}"
+                    "${PROJECT_SOURCE_DIR}/tests/driver/janusup_temporary_directory_test.py"
+                    --janusup "$<TARGET_FILE:janusup>"
+                    --platform "${CMAKE_SYSTEM_NAME}"
+                    --arch "${CMAKE_SYSTEM_PROCESSOR}"
+        )
+        set_tests_properties(toolchain.temporary_directory PROPERTIES TIMEOUT 90)
+        add_test(
             NAME toolchain.install_raylib_script
             COMMAND sh
                     "${PROJECT_SOURCE_DIR}/tests/driver/install_raylib_script_test.sh"
@@ -1239,10 +1249,13 @@ if(BUILD_TESTING)
     find_package(Threads REQUIRED)
     add_executable(temporary_directory_test
         tests/driver/temporary_directory_test.cpp
+        src/driver/temporary_directory.cpp
     )
+    target_include_directories(temporary_directory_test PRIVATE include)
+    target_compile_definitions(temporary_directory_test
+        PRIVATE JANUS_TEMPORARY_DIRECTORY_TEST_HOOKS=1)
     target_link_libraries(temporary_directory_test
         PRIVATE
-            janus_driver
             Threads::Threads
     )
     target_compile_options(temporary_directory_test

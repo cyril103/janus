@@ -1,6 +1,7 @@
 #include "janus/driver/temporary_directory.hpp"
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <stdexcept>
@@ -11,10 +12,16 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
 namespace janus::driver {
+#ifdef JANUS_TEMPORARY_DIRECTORY_TEST_HOOKS
+// Compiled only into the unit test, to precreate the actual next candidate.
+void temporary_directory_before_create(const std::filesystem::path &candidate);
+#endif
+
 namespace {
 
 std::uint64_t process_id() noexcept {
@@ -53,14 +60,26 @@ TemporaryDirectory TemporaryDirectory::create(std::string_view prefix) {
     const auto timestamp = std::chrono::steady_clock::now()
                                .time_since_epoch()
                                .count();
-    const std::filesystem::path candidate =
+    std::filesystem::path candidate =
         root / (std::string{prefix} + '-' + std::to_string(process_id()) + '-' +
                 std::to_string(sequence.fetch_add(1, std::memory_order_relaxed)) +
                 '-' + std::to_string(timestamp));
 
+#ifdef JANUS_TEMPORARY_DIRECTORY_TEST_HOOKS
+    temporary_directory_before_create(candidate);
+#endif
     error.clear();
-    if (std::filesystem::create_directory(candidate, error))
-      return TemporaryDirectory{candidate};
+#ifdef _WIN32
+    const bool created = std::filesystem::create_directory(candidate, error);
+#else
+    // Set private permissions atomically: chmod after creation leaves a window
+    // where another user could prepare entries inside the directory.
+    const bool created = ::mkdir(candidate.c_str(), 0700) == 0;
+    if (!created)
+      error = std::error_code{errno, std::generic_category()};
+#endif
+    if (created)
+      return TemporaryDirectory{std::move(candidate)};
     if (error && error != std::errc::file_exists)
       throw std::runtime_error{"cannot create temporary directory '" +
                                candidate.string() + "': " + error.message()};

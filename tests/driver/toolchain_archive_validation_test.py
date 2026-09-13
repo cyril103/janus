@@ -40,6 +40,9 @@ def main():
         env.update(JANUS_ARCHIVE_TEST_MAX_ENTRIES="8",
                    JANUS_ARCHIVE_TEST_MAX_FILE_SIZE="64",
                    JANUS_ARCHIVE_TEST_MAX_TOTAL_SIZE="72")
+        scratch = Path(temporary) / "temporary spaces é漢"
+        scratch.mkdir()
+        env.update(TMPDIR=str(scratch), TMP=str(scratch), TEMP=str(scratch))
         failures = []
         for case in manifest:
             formats = case.get("formats", ["tar.gz", "zip"])
@@ -54,6 +57,9 @@ def main():
                     if validator == "install.ps1" and extension != "zip":
                         continue
                     result = run(command(archive, expected_root), env)
+                    if list(scratch.iterdir()):
+                        failures.append(f"{validator}: temporary directories leaked: "
+                                        f"{list(scratch.iterdir())}")
                     actual = result.returncode == 0
                     if actual != case["accepted"]:
                         failures.append(f"{validator}: {archive.name}: expected "

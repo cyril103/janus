@@ -5,6 +5,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Outils en ligne de commande
+
+- `janusup` réserve exclusivement ses répertoires temporaires, avec des
+  permissions privées sur POSIX et un nettoyage automatique à la sortie,
+  y compris après une erreur de validation ou d'extraction (#306).
+
 ### Registre de paquets
 
 - suppression de l'amplification SQLite par les refus anonymes : agrégats en

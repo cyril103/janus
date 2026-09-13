@@ -1,4 +1,5 @@
 #include "janus/build_identity.hpp"
+#include "janus/driver/temporary_directory.hpp"
 
 #include <algorithm>
 #include <array>
@@ -191,15 +192,6 @@ void verify_attestation(const std::filesystem::path &archive) {
                              archive.filename().string() + "'"};
 }
 
-std::filesystem::path temporary_directory() {
-  const auto stamp =
-      std::chrono::steady_clock::now().time_since_epoch().count();
-  const std::filesystem::path path = std::filesystem::temp_directory_path() /
-                                     ("janusup-" + std::to_string(stamp));
-  std::filesystem::create_directories(path);
-  return path;
-}
-
 std::uint64_t archive_limit(const char *test_name,
                             std::uint64_t production) {
   const char *configured = std::getenv(test_name);
@@ -316,71 +308,62 @@ void validate_archive(const std::filesystem::path &archive,
       "JANUS_ARCHIVE_TEST_MAX_FILE_SIZE", production_file_size);
   const std::uint64_t max_total_size = archive_limit(
       "JANUS_ARCHIVE_TEST_MAX_TOTAL_SIZE", production_total_size);
-  const auto scratch = temporary_directory();
-  try {
-    const auto tar = archive_tar();
-    const auto names = read_archive_listing(archive, tar, scratch / "names", false);
-    const auto verbose =
-        read_archive_listing(archive, tar, scratch / "verbose", true);
-    if (names.empty() || names.size() != verbose.size())
-      throw std::runtime_error{"unsafe archive: inconsistent archive listing"};
-    if (names.size() > max_entries)
-      throw std::runtime_error{"unsafe archive: too many entries"};
-    std::unordered_set<std::string> paths;
-    std::unordered_set<std::string> regular_paths;
-    std::unordered_set<std::string> required_directories;
-    std::uint64_t total = 0;
-    for (std::size_t index = 0; index < names.size(); ++index) {
-      const std::string path =
-          portable_archive_path(names[index], expected_root);
-      if (!paths.insert(path).second)
-        throw std::runtime_error{"unsafe archive: colliding entry paths"};
-      std::istringstream fields{verbose[index]};
-      std::vector<std::string> tokens;
-      for (std::string token; fields >> token;)
-        tokens.push_back(std::move(token));
-      if (tokens.empty() || (tokens[0][0] != '-' && tokens[0][0] != 'd'))
-        throw std::runtime_error{"unsafe archive: link or special entry"};
-      for (std::size_t separator = path.find('/'); separator != path.npos;
-           separator = path.find('/', separator + 1)) {
-        const std::string ancestor = path.substr(0, separator);
-        if (regular_paths.contains(ancestor))
-          throw std::runtime_error{
-              "unsafe archive: file/directory path collision"};
-        required_directories.insert(ancestor);
-      }
-      if (tokens[0][0] == 'd')
-        continue;
-      if (required_directories.contains(path))
+  const auto scratch = janus::driver::TemporaryDirectory::create("janusup");
+  const auto tar = archive_tar();
+  const auto names =
+      read_archive_listing(archive, tar, scratch.path() / "names", false);
+  const auto verbose =
+      read_archive_listing(archive, tar, scratch.path() / "verbose", true);
+  if (names.empty() || names.size() != verbose.size())
+    throw std::runtime_error{"unsafe archive: inconsistent archive listing"};
+  if (names.size() > max_entries)
+    throw std::runtime_error{"unsafe archive: too many entries"};
+  std::unordered_set<std::string> paths;
+  std::unordered_set<std::string> regular_paths;
+  std::unordered_set<std::string> required_directories;
+  std::uint64_t total = 0;
+  for (std::size_t index = 0; index < names.size(); ++index) {
+    const std::string path =
+        portable_archive_path(names[index], expected_root);
+    if (!paths.insert(path).second)
+      throw std::runtime_error{"unsafe archive: colliding entry paths"};
+    std::istringstream fields{verbose[index]};
+    std::vector<std::string> tokens;
+    for (std::string token; fields >> token;)
+      tokens.push_back(std::move(token));
+    if (tokens.empty() || (tokens[0][0] != '-' && tokens[0][0] != 'd'))
+      throw std::runtime_error{"unsafe archive: link or special entry"};
+    for (std::size_t separator = path.find('/'); separator != path.npos;
+         separator = path.find('/', separator + 1)) {
+      const std::string ancestor = path.substr(0, separator);
+      if (regular_paths.contains(ancestor))
         throw std::runtime_error{
             "unsafe archive: file/directory path collision"};
-      regular_paths.insert(path);
-      const std::size_t size_index =
-          tokens.size() > 2 && tokens[1].find('/') != std::string::npos ? 2 : 4;
-      if (tokens.size() <= size_index)
-        throw std::runtime_error{"unsafe archive: unparseable entry size"};
-      std::uint64_t size = 0;
-      const auto parsed = std::from_chars(tokens[size_index].data(),
-                                          tokens[size_index].data() +
-                                              tokens[size_index].size(),
-                                          size);
-      if (parsed.ec != std::errc{} ||
-          parsed.ptr != tokens[size_index].data() + tokens[size_index].size())
-        throw std::runtime_error{"unsafe archive: unparseable entry size"};
-      if (size > max_file_size)
-        throw std::runtime_error{"unsafe archive: entry is too large"};
-      if (size > max_total_size - total)
-        throw std::runtime_error{"unsafe archive: total size limit exceeded"};
-      total += size;
+      required_directories.insert(ancestor);
     }
-    std::filesystem::remove_all(scratch);
-  } catch (...) {
-    std::error_code cleanup_error;
-    std::filesystem::remove_all(scratch, cleanup_error);
-    if (cleanup_error)
-      std::cerr << "janusup: WARNING: cleanup after archive validation failed: "
-                << cleanup_error.message() << '\n';
-    throw;
+    if (tokens[0][0] == 'd')
+      continue;
+    if (required_directories.contains(path))
+      throw std::runtime_error{
+          "unsafe archive: file/directory path collision"};
+    regular_paths.insert(path);
+    const std::size_t size_index =
+        tokens.size() > 2 && tokens[1].find('/') != std::string::npos ? 2 : 4;
+    if (tokens.size() <= size_index)
+      throw std::runtime_error{"unsafe archive: unparseable entry size"};
+    std::uint64_t size = 0;
+    const auto parsed = std::from_chars(tokens[size_index].data(),
+                                       tokens[size_index].data() +
+                                           tokens[size_index].size(),
+                                       size);
+    if (parsed.ec != std::errc{} ||
+        parsed.ptr != tokens[size_index].data() + tokens[size_index].size())
+      throw std::runtime_error{"unsafe archive: unparseable entry size"};
+    if (size > max_file_size)
+      throw std::runtime_error{"unsafe archive: entry is too large"};
+    if (size > max_total_size - total)
+      throw std::runtime_error{"unsafe archive: total size limit exceeded"};
+    total += size;
   }
 }
 
@@ -1355,20 +1338,10 @@ void install_directory(const std::filesystem::path &source,
 
 void install_spec(const std::string &name, bool replace,
                   std::string_view expected_active = {}) {
-  const std::filesystem::path temporary = temporary_directory();
-  try {
-    const ToolchainSpec spec = resolve_spec(name, temporary);
-    const std::filesystem::path package = download_package(spec, temporary);
-    install_directory(package, spec.name, replace, &spec, expected_active);
-    std::filesystem::remove_all(temporary);
-  } catch (...) {
-    std::error_code cleanup_error;
-    std::filesystem::remove_all(temporary, cleanup_error);
-    if (cleanup_error)
-      std::cerr << "janusup: WARNING: cleanup after download failure failed: "
-                << cleanup_error.message() << '\n';
-    throw;
-  }
+  const auto temporary = janus::driver::TemporaryDirectory::create("janusup");
+  const ToolchainSpec spec = resolve_spec(name, temporary.path());
+  const std::filesystem::path package = download_package(spec, temporary.path());
+  install_directory(package, spec.name, replace, &spec, expected_active);
 }
 
 void activate(const std::string &name) {

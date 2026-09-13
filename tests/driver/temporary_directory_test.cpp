@@ -1,8 +1,8 @@
 #include "janus/driver/temporary_directory.hpp"
 
+#include <exception>
 #include <filesystem>
 #include <fstream>
-#include <exception>
 #include <iostream>
 #include <mutex>
 #include <set>
@@ -11,11 +11,72 @@
 #include <thread>
 #include <vector>
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
+namespace {
+thread_local bool precreate_candidate = false;
+thread_local std::filesystem::path collision;
+} // namespace
+
+namespace janus::driver {
+void temporary_directory_before_create(const std::filesystem::path &candidate) {
+  if (precreate_candidate) {
+    precreate_candidate = false;
+    collision = candidate;
+    std::filesystem::create_directory(candidate);
+    std::ofstream{candidate / "sentinel"} << "owned by somebody else";
+  }
+}
+} // namespace janus::driver
+
 namespace {
 
 void require(bool condition, const std::string &message) {
   if (!condition)
     throw std::runtime_error{message};
+}
+
+void test_collision_is_not_reused_or_removed() {
+  precreate_candidate = true;
+  std::filesystem::path reserved;
+  try {
+    auto directory = janus::driver::TemporaryDirectory::create("janus-collision");
+    reserved = directory.path();
+    require(reserved != collision, "preexisting directory was reused");
+    std::ofstream{reserved / "partial-extraction"} << "partial";
+    throw std::runtime_error{"simulated extraction failure"};
+  } catch (const std::runtime_error &error) {
+    require(std::string{error.what()} == "simulated extraction failure",
+            error.what());
+  }
+  require(!reserved.empty() && !std::filesystem::exists(reserved),
+          "reserved directory survived extraction failure");
+  std::ifstream sentinel{collision / "sentinel"};
+  std::string contents;
+  std::getline(sentinel, contents);
+  require(contents == "owned by somebody else",
+          "collision contents were modified or removed");
+  sentinel.close();
+  std::filesystem::remove_all(collision);
+}
+
+void test_private_permissions() {
+#ifndef _WIN32
+  // A permissive umask must not expose the directory to other users.
+  const auto previous = ::umask(0);
+  try {
+    auto directory = janus::driver::TemporaryDirectory::create("janus-private");
+    require(std::filesystem::status(directory.path()).permissions() ==
+                std::filesystem::perms::owner_all,
+            "temporary directory permissions are not 0700");
+  } catch (...) {
+    ::umask(previous);
+    throw;
+  }
+  ::umask(previous);
+#endif
 }
 
 void test_unique_directories_under_concurrency() {
@@ -92,6 +153,8 @@ void test_cleanup_during_exception() {
 
 int main() {
   try {
+    test_collision_is_not_reused_or_removed();
+    test_private_permissions();
     test_unique_directories_under_concurrency();
     test_cleanup_after_success();
     test_cleanup_during_exception();
