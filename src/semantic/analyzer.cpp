@@ -7001,7 +7001,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      node.location,
                                      "using value '" + node.name +
                                          "' is used after move or delete"};
-                throw CompileError{node.location,
+                throw CompileError{DiagnosticCode::AnalyzerLegacy, node.location,
                                    "variable '" + node.name +
                                        "' is used before initialization"};
               }

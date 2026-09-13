@@ -1399,6 +1399,9 @@ int main(int argc, char **argv) {
     const auto hover = factory_server.handle(
         R"({"jsonrpc":"2.0","id":9001,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///functional-factory-hover.janus"},"position":{"line":4,"character":16}}})");
     JANUS_REQUIRE(hover.size() == 1);
+    if (hover.front().find("pure Fn (int) => int") == std::string::npos)
+      std::cerr << "unexpected functional factory hover: " << hover.front()
+                << '\n';
     JANUS_REQUIRE(hover.front().find("pure Fn (int) => int") !=
                   std::string::npos);
     const auto signature = factory_server.handle(
