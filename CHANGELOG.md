@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Outils éditeur
+
+- durcissement du transport stdio de `janus-lsp` : validation stricte de
+  `Content-Length`, rejet contrôlé des trames invalides ou tronquées, limites
+  de 16 Mio par message et 8 Kio d'en-têtes, et file bornée à 64 messages ou
+  32 Mio avec attente du lecteur ; tests d'intégration du processus.
+
 ## [0.24.0] - 2026-09-07
 
 ### Outils en ligne de commande

@@ -340,6 +340,21 @@ limite ; sinon il le place dans une continuation indentée déterministe.
 
 ## Serveur de langage
 
+Le transport standard de `janus-lsp` limite chaque corps JSON à 16 Mio et
+l'ensemble des en-têtes d'une trame à 8 Kio. `Content-Length` doit apparaître
+exactement une fois et contenir un entier décimal strictement positif ; les
+fins de ligne CRLF et LF sont acceptées. Une trame invalide ou tronquée ferme
+la session avec un diagnostic sur stderr et le statut 1, après traitement
+des messages complets déjà acceptés. Une fin de flux entre deux trames est
+normale (statut 0). Aucun corps partiel n'est transmis au serveur.
+
+La file de travail est limitée à 64 messages et 32 Mio de corps JSON. Quand
+elle est pleine, le lecteur attend que le traitement libère de la place,
+ce qui ralentit le client via stdin. Le lecteur et le worker peuvent chacun
+détenir un message supplémentaire de 16 Mio au maximum. Ces limites concernent
+le transport, pas la mémoire des documents ouverts ni celle de l'analyse.
+L'attente peut retarder la lecture des annulations suivantes.
+
 `janus-lsp` communique avec les éditeurs par le protocole LSP. Il prend
 actuellement en charge :
 

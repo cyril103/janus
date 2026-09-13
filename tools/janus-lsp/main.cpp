@@ -1,6 +1,7 @@
 #include "janus/build_identity.hpp"
 #include "janus/lsp/server.hpp"
 
+#include <charconv>
 #include <cstdint>
 #include <condition_variable>
 #include <cstdio>
@@ -24,6 +25,78 @@
 #endif
 
 namespace {
+
+constexpr std::size_t max_header_bytes = 8 * 1024;
+constexpr std::size_t max_message_bytes = 16 * 1024 * 1024;
+constexpr std::size_t max_queued_bytes = 32 * 1024 * 1024;
+constexpr std::size_t max_queued_messages = 64;
+
+enum class FrameResult { message, end, invalid };
+
+FrameResult read_frame(std::istream &input, std::string &message,
+                       std::string &error) {
+  auto invalid = [&](const char *reason) {
+    error = reason;
+    return FrameResult::invalid;
+  };
+  std::size_t header_bytes = 0;
+  std::size_t content_length = 0;
+  bool has_length = false;
+  while (true) {
+    std::string header;
+    char character;
+    while (true) {
+      if (!input.get(character)) {
+        if (input.eof() && header_bytes == 0)
+          return FrameResult::end;
+        return invalid("incomplete headers");
+      }
+      if (++header_bytes > max_header_bytes)
+        return invalid("headers exceed 8 KiB limit");
+      if (character == '\n')
+        break;
+      header.push_back(character);
+    }
+    if (!header.empty() && header.back() == '\r')
+      header.pop_back();
+    if (header.empty())
+      break;
+    const auto colon = header.find(':');
+    if (colon == std::string::npos || colon == 0)
+      return invalid("malformed header");
+    std::string name = header.substr(0, colon);
+    for (char &letter : name) {
+      if (letter >= 'A' && letter <= 'Z')
+        letter += 'a' - 'A';
+    }
+    if (name != "content-length")
+      continue;
+    if (has_length)
+      return invalid("duplicate Content-Length");
+    has_length = true;
+    std::string_view value{header};
+    value.remove_prefix(colon + 1);
+    while (!value.empty() && (value.front() == ' ' || value.front() == '\t'))
+      value.remove_prefix(1);
+    while (!value.empty() && (value.back() == ' ' || value.back() == '\t'))
+      value.remove_suffix(1);
+    if (value.empty())
+      return invalid("empty Content-Length");
+    const auto [end, status] =
+        std::from_chars(value.data(), value.data() + value.size(), content_length);
+    if (status != std::errc{} || end != value.data() + value.size())
+      return invalid("invalid Content-Length");
+    if (content_length == 0 || content_length > max_message_bytes)
+      return invalid("Content-Length outside 1..16777216 byte limit");
+  }
+  if (!has_length)
+    return invalid("missing Content-Length");
+  message.assign(content_length, '\0');
+  input.read(message.data(), static_cast<std::streamsize>(content_length));
+  if (input.gcount() != static_cast<std::streamsize>(content_length))
+    return invalid("truncated message body");
+  return FrameResult::message;
+}
 
 void respond(const std::string &body) {
   std::cout << "Content-Length: " << body.size() << "\r\n\r\n"
@@ -226,7 +299,9 @@ int main(int argc, char **argv) {
                             {stdlib_api_index_path(argv[0])}};
   std::mutex queue_mutex;
   std::condition_variable queue_changed;
+  std::condition_variable queue_space;
   std::deque<std::string> queue;
+  std::size_t queued_bytes = 0;
   bool input_complete = false;
   std::thread worker{[&] {
     while (true) {
@@ -238,35 +313,45 @@ int main(int argc, char **argv) {
         if (queue.empty())
           return;
         message = std::move(queue.front());
+        queued_bytes -= message.size();
         queue.pop_front();
       }
+      queue_space.notify_one();
       for (const std::string &reply : server.handle(message))
         respond(reply);
     }
   }};
-  while (std::cin) {
-    std::size_t content_length = 0;
-    std::string header;
-    while (std::getline(std::cin, header) && header != "\r" &&
-           !header.empty()) {
-      if (header.starts_with("Content-Length:"))
-        content_length =
-            std::stoul(header.substr(std::string{"Content-Length:"}.size()));
-    }
-    if (content_length == 0)
+  int exit_status = 0;
+  while (true) {
+    std::string message;
+    std::string error;
+    const FrameResult result = read_frame(std::cin, message, error);
+    if (result == FrameResult::end)
       break;
-    std::string message(content_length, '\0');
-    std::cin.read(message.data(), static_cast<std::streamsize>(message.size()));
+    if (result == FrameResult::invalid) {
+      std::cerr << "janus-lsp: invalid stdio frame: " << error << '\n';
+      exit_status = 1;
+      break;
+    }
+    const bool exiting =
+        message.find("\"method\":\"exit\"") != std::string::npos;
     if (message.find("\"$/cancelRequest\"") != std::string::npos) {
       static_cast<void>(server.handle(message));
     } else {
       {
-        std::lock_guard lock{queue_mutex};
-        queue.push_back(message);
+        std::unique_lock lock{queue_mutex};
+        // Stop reading stdin until the worker frees capacity. At most one
+        // additional bounded frame is held by the reader and one by the worker.
+        queue_space.wait(lock, [&] {
+          return queue.size() < max_queued_messages &&
+                 message.size() <= max_queued_bytes - queued_bytes;
+        });
+        queued_bytes += message.size();
+        queue.push_back(std::move(message));
       }
       queue_changed.notify_one();
     }
-    if (message.find("\"method\":\"exit\"") != std::string::npos)
+    if (exiting)
       break;
   }
   {
@@ -275,5 +360,5 @@ int main(int argc, char **argv) {
   }
   queue_changed.notify_one();
   worker.join();
-  return 0;
+  return exit_status;
 }
