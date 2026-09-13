@@ -296,6 +296,7 @@ add_library(janus_driver
     src/driver/native_test.cpp
     src/driver/project.cpp
     src/driver/dependency.cpp
+    src/driver/private_file.cpp
     src/driver/remote_registry.cpp
     src/driver/semver.cpp
     src/driver/registry.cpp
@@ -312,7 +313,7 @@ llvm_map_components_to_libnames(JANUS_DRIVER_LLVM_LIBS Support)
 target_link_libraries(janus_driver PRIVATE ${JANUS_DRIVER_LLVM_LIBS})
 target_include_directories(janus_driver SYSTEM PRIVATE ${JANUS_LLVM_INCLUDE_DIR})
 if(WIN32)
-    target_link_libraries(janus_driver PRIVATE shell32)
+    target_link_libraries(janus_driver PRIVATE shell32 advapi32)
 endif()
 target_include_directories(janus_driver
     PUBLIC
@@ -1247,6 +1248,18 @@ if(BUILD_TESTING)
     )
     add_test(NAME driver.native_test COMMAND native_test_test)
     find_package(Threads REQUIRED)
+    add_executable(private_file_test
+        tests/driver/private_file_test.cpp
+        src/driver/private_file.cpp
+        src/driver/temporary_directory.cpp
+    )
+    target_include_directories(private_file_test PRIVATE include src/driver)
+    target_compile_options(private_file_test PRIVATE -Wall -Wextra -Wpedantic)
+    if(WIN32)
+        target_link_libraries(private_file_test PRIVATE advapi32)
+    endif()
+    add_test(NAME driver.private_file COMMAND private_file_test)
+
     add_executable(temporary_directory_test
         tests/driver/temporary_directory_test.cpp
         src/driver/temporary_directory.cpp

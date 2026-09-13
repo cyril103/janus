@@ -236,6 +236,7 @@ def run(
         text=True,
         capture_output=True,
         timeout=40,
+        umask=0 if os.name == "posix" else -1,
     )
     output = result.stdout + result.stderr
     if (result.returncode == 0) != success:
@@ -315,12 +316,17 @@ def main() -> None:
             "JANUS_REGISTRY_TOKEN": SECRET,
         }
     )
+    scratch = args.work_dir / "scratch"
+    scratch.mkdir()
+    env.update({name: str(scratch) for name in ("TMPDIR", "TMP", "TEMP")})
     package = args.work_dir / "package"
     write_package(package, "acme/math", "1.2.3", 42)
     published = run(args.janus, package, env, "publish")
     assert "acme/math 1.2.3" in published.stdout
+    assert not list(scratch.rglob("*.curl-config")), "authentication file survived success"
     duplicate = run(args.janus, package, env, "publish", success=False)
     assert "already" in duplicate.stderr.lower() or "409" in duplicate.stderr
+    assert not list(scratch.rglob("*.curl-config")), "authentication file survived failure"
     searched = run(args.janus, args.work_dir, env, "search", "math")
     assert "acme/math" in searched.stdout and "1.2.3" in searched.stdout
 

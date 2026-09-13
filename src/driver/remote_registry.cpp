@@ -1,5 +1,7 @@
 #include "janus/driver/remote_registry.hpp"
 
+#include "private_file.hpp"
+
 #include "janus/driver/semver.hpp"
 #include "janus/driver/temporary_directory.hpp"
 
@@ -269,10 +271,9 @@ void curl_request(const std::string &url,
                   std::string_view upload_content_type = {}) {
   const std::filesystem::path config = destination.string() + ".curl-config";
   const std::filesystem::path status = destination.string() + ".http-status";
+  janus::driver::PrivateFile configuration{config};
   try {
-    std::ofstream output{config, std::ios::binary};
-    if (!output)
-      throw std::runtime_error{"cannot prepare registry request"};
+    std::ostringstream output;
     output << "silent\nshow-error\nfail-with-body\nmax-redirs = 0\n"
               "connect-timeout = 15\nmax-time = 60\n";
     output << (allow_test_http() ? "proto = \"=http,https\"\n"
@@ -285,16 +286,7 @@ void curl_request(const std::string &url,
       output << "header = \"If-None-Match: *\"\n";
       output << "header = \"Content-Type: " << upload_content_type << "\"\n";
     }
-    output.close();
-    std::error_code permissions_error;
-    std::filesystem::permissions(config,
-                                 std::filesystem::perms::owner_read |
-                                     std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::replace,
-                                 permissions_error);
-    if (permissions_error)
-      throw std::runtime_error{
-          "cannot restrict registry authentication file permissions"};
+    configuration.write(output.str());
     std::string command = "curl --config " + shell_quote(config) +
                           " --output " + shell_quote(destination) +
                           " --write-out " + shell_quote_string("%{http_code}") +
@@ -309,7 +301,6 @@ void curl_request(const std::string &url,
       std::ifstream input{status};
       input >> http_status;
     }
-    std::filesystem::remove(config);
     std::filesystem::remove(status);
     if (result != 0)
       throw std::runtime_error{"registry request failed" +
@@ -318,7 +309,6 @@ void curl_request(const std::string &url,
                                     : " (HTTP " + http_status + ")")};
   } catch (...) {
     std::error_code ignored;
-    std::filesystem::remove(config, ignored);
     std::filesystem::remove(status, ignored);
     throw;
   }

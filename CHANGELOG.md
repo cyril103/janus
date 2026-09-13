@@ -13,6 +13,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Registre de paquets
 
+- création exclusive du fichier d’authentification curl avec des permissions
+  privées dès l’ouverture, rejet des chemins existants et nettoyage automatique
+  après succès ou erreur, même avec un `umask` permissif (#307).
+
 - suppression de l'amplification SQLite par les refus anonymes : agrégats en
   mémoire de taille fixe, conservation des refus authentifiés dans l'audit
   signé et consignes de limitation, rétention et supervision (#305).
