@@ -16,7 +16,7 @@ def function(cap, pure, arguments, result):
 
 
 def generate():
-    base = TARGET.read_text().split(MARKER)[0].replace('\nimport std.option\n', '').replace('\nimport std.option.{OptionPair}\n', '')
+    base = TARGET.read_text(encoding='utf-8').split(MARKER)[0].replace('\nimport std.option\n', '').replace('\nimport std.option.{OptionPair}\n', '')
     base = base.replace('module std.functional\n', 'module std.functional\n\nimport std.option.{OptionPair}\n')
     base = re.sub(r'\n{3,}', '\n\n', base)
     text = base.rstrip() + '\n\n' + MARKER + '\n'
@@ -170,10 +170,10 @@ def main():
     args = parser.parse_args()
     expected = generate()
     if args.check:
-        if TARGET.read_text() != expected:
+        if TARGET.read_text(encoding='utf-8') != expected:
             parser.exit(1, 'functional factories are stale; run this generator\n')
     else:
-        TARGET.write_text(expected)
+        TARGET.write_text(expected, encoding='utf-8', newline='\n')
 
 
 if __name__ == '__main__':
