@@ -81,6 +81,40 @@ int main() {
   expect(invalid_import_localized,
          "an invalid selective import points to its importing module");
 
+  write_source(root / "overloads.janus",
+               "module overloads\n"
+               "def convert(value : int) : int { return value }\n"
+               "def convert(value : bool) : bool { return value }\n");
+  write_source(root / "main.janus",
+               "import overloads.{convert}\n"
+               "import overloads.{convert}\n"
+               "def main() : int { return convert(42) }\n");
+  try {
+    const auto program = loader.load(root / "main.janus");
+    expect(program.functions.size() == 3,
+           "overloads and repeated imports from the same origin are accepted");
+  } catch (const janus::CompileError &error) {
+    std::cerr << "FAILED: overload import was rejected: " << error.what()
+              << '\n';
+    ++failures;
+  }
+
+  write_source(root / "main.janus",
+               "import shared.{answer as selected}\n"
+               "import overloads.{convert as selected}\n"
+               "def main() : int { return 0 }\n");
+  bool conflict_origins_preserved = false;
+  try {
+    static_cast<void>(loader.load(root / "main.janus"));
+  } catch (const janus::CompileError &error) {
+    const std::string message = error.what();
+    conflict_origins_preserved =
+        message.find("shared.answer") != std::string::npos &&
+        message.find("overloads.convert") != std::string::npos;
+  }
+  expect(conflict_origins_preserved,
+         "conflicting imports report both intact origins");
+
   write_source(root / "cycle_a.janus", "module cycle_a\n"
                                        "import cycle_b\n");
   write_source(root / "cycle_b.janus", "module cycle_b\n"

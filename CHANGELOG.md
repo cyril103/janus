@@ -11,6 +11,8 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 - rétablissement de la compatibilité LLVM 18 des attributs d’allocation utilisés
   pour optimiser les environnements de closures.
+- correction du chargement des fonctions surchargées et des imports répétés,
+  qui pouvaient être rejetés comme ambigus selon la bibliothèque C++ utilisée.
 
 ### Conception du langage
 

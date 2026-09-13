@@ -116,7 +116,7 @@ void reserve_import_name(std::unordered_map<std::string, std::string> &names,
                          SourceLocation location,
                          const std::filesystem::path &source_path) {
   const auto [existing, inserted] =
-      names.emplace(std::move(local_name), std::move(origin));
+      names.try_emplace(std::move(local_name), std::move(origin));
   if (!inserted && existing->second != origin)
     throw CompileError{Diagnostic{
         DiagnosticSeverity::Error,
