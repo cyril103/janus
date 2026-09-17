@@ -404,6 +404,7 @@ add_executable(janus-lsp
     tools/janus-lsp/main.cpp
 )
 add_dependencies(janus-lsp janus_build_identity)
+target_include_directories(janus-lsp SYSTEM PRIVATE ${JANUS_LLVM_INCLUDE_DIR})
 add_library(janus_lsp
     src/lsp/server.cpp
 )

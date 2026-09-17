@@ -1885,8 +1885,10 @@ bool Server::consume_cancelled_request(std::string_view id) {
 
 std::vector<std::string> Server::handle(std::string_view message) {
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(message);
-  if (!parsed)
+  if (!parsed) {
+    llvm::consumeError(parsed.takeError());
     return {error_response(nullptr, -32700, "Parse error")};
+  }
   llvm::json::Object *request = parsed->getAsObject();
   if (request == nullptr)
     return {error_response(nullptr, -32600, "Invalid Request")};
@@ -1911,8 +1913,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
 
 std::vector<std::string> Server::handle_impl(std::string_view message) {
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(message);
-  if (!parsed)
+  if (!parsed) {
+    llvm::consumeError(parsed.takeError());
     return {error_response(nullptr, -32700, "Parse error")};
+  }
   llvm::json::Object *request = parsed->getAsObject();
   if (request == nullptr)
     return {error_response(nullptr, -32600, "Invalid Request")};

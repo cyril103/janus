@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Outillage
+
+- le transport LSP route `exit` et `$/cancelRequest` à partir du JSON décodé
+  (#367). L’arrêt fonctionne sans fermer stdin, quel que soit l’espacement ou
+  l’échappement JSON, et les valeurs des paramètres ne détournent plus les
+  requêtes ordinaires vers le traitement des annulations.
+
 ### Paquets
 
 - le registre de référence applique les budgets d’archive pendant la lecture
