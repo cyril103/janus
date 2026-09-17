@@ -1,6 +1,8 @@
 #include "janus/build_identity.hpp"
 #include "janus/lsp/server.hpp"
 
+#include <llvm/Support/JSON.h>
+
 #include <charconv>
 #include <cstdint>
 #include <condition_variable>
@@ -333,9 +335,24 @@ int main(int argc, char **argv) {
       exit_status = 1;
       break;
     }
-    const bool exiting =
-        message.find("\"method\":\"exit\"") != std::string::npos;
-    if (message.find("\"$/cancelRequest\"") != std::string::npos) {
+    bool exiting = false;
+    bool cancelling = false;
+    {
+      // Framing establishes byte boundaries; only decoded root fields route
+      // messages. Leave malformed JSON to the worker's protocol error path.
+      auto parsed = llvm::json::parse(message);
+      if (!parsed) {
+        llvm::consumeError(parsed.takeError());
+      } else if (const auto *request = parsed->getAsObject()) {
+        if (const auto method = request->getString("method")) {
+          const bool notification = request->get("id") == nullptr;
+          exiting = notification && *method == "exit";
+          cancelling = notification && *method == "$/cancelRequest";
+        }
+      }
+    }
+    if (cancelling) {
+      // Only the synchronized cancellation handler may bypass the worker.
       static_cast<void>(server.handle(message));
     } else {
       {
@@ -351,6 +368,7 @@ int main(int argc, char **argv) {
       }
       queue_changed.notify_one();
     }
+    // Queue exit after preceding messages, then drain without waiting for EOF.
     if (exiting)
       break;
   }

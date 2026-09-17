@@ -41,6 +41,92 @@ def responses(data):
 
 
 class StdioTest(unittest.TestCase):
+    def run_until_exit(self, data):
+        with tempfile.TemporaryDirectory(prefix="janus-lsp-stdio-") as directory:
+            with subprocess.Popen([BINARY], stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  cwd=directory) as process:
+                try:
+                    process.stdin.write(data)
+                    process.stdin.flush()
+                    # Keep stdin open: communicate(input=...) or EOF would hide
+                    # a reader that fails to recognize the exit notification.
+                    process.wait(timeout=5)
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait(timeout=5)
+                output = process.stdout.read()
+                errors = process.stderr.read()
+                self.assertEqual(process.returncode, 0, errors.decode())
+                self.assertEqual(errors, b"")
+                return responses(output)
+
+    def test_exit_decodes_json_with_stdin_open(self):
+        for options in ({"separators": (",", ":")}, {}, {"indent": 2}):
+            for escaped in (False, True):
+                with self.subTest(options=options, escaped=escaped):
+                    def encode(value):
+                        body = json.dumps(value, **options).encode()
+                        if escaped:
+                            body = body.replace(b'"method"', b'"metho\\u0064"')
+                            body = body.replace(b'"exit"', b'"ex\\u0069t"')
+                        return frame(body)
+
+                    result = self.run_until_exit(
+                        encode({"jsonrpc": "2.0", "id": "shutdown", "method": "shutdown"})
+                        + encode({"jsonrpc": "2.0", "method": "exit"}))
+                    self.assertEqual(result, [{"jsonrpc": "2.0", "id": "shutdown",
+                                               "result": None}])
+
+    def test_only_root_method_controls_routing(self):
+        data = frame(json.dumps({"jsonrpc": "2.0", "id": "initialize",
+                                 "method": "initialize", "params": {
+                                     "clientInfo": {"name": "$/cancelRequest"},
+                                     "method": "exit"}}, separators=(",", ":")).encode())
+        data += frame(request(2, "$/cancelRequest-in-a-method-name"))
+        data += frame(request("unknown", "unknown"))
+        data += frame(request(4))
+        data += frame(b'{"jsonrpc":"2.0","method":"exit"}')
+        result = self.run_until_exit(data)
+        self.assertEqual([reply["id"] for reply in result], ["initialize", 2, "unknown", 4])
+        self.assertIn("capabilities", result[0]["result"])
+        for reply in result[1:3]:
+            self.assertEqual(reply["error"]["code"], -32601)
+        self.assertIsNone(result[3]["result"])
+
+    def test_cancellation_decodes_json_and_preserves_id_types(self):
+        for identifier in (42, "42"):
+            with self.subTest(identifier=identifier):
+                # Cancellation precedes its target, avoiding a scheduling race.
+                cancel = json.dumps({"jsonrpc": "2.0", "method": "$/cancelRequest",
+                                     "params": {"id": identifier}}, indent=2).encode()
+                cancel = cancel.replace(b'"method"', b'"metho\\u0064"')
+                cancel = cancel.replace(b"$/cancelRequest", b"$/cancelReque\\u0073t")
+                other = "42" if identifier == 42 else 42
+                result = self.run_until_exit(
+                    frame(cancel) + frame(request(other, "unknown"))
+                    + frame(request(identifier, "unknown"))
+                    + frame(request("shutdown"))
+                    + frame(b'{"jsonrpc":"2.0","method":"exit"}'))
+                self.assertEqual([reply["id"] for reply in result],
+                                 [other, identifier, "shutdown"])
+                self.assertEqual(result[0]["error"]["code"], -32601)
+                self.assertEqual(result[1]["error"]["code"], -32800)
+                self.assertIsNone(result[2]["result"])
+
+    def test_invalid_json_does_not_route_control_messages(self):
+        for body in (b'{"method":"exit",', b'{"method":"$/cancelRequest",',
+                     b'[{"method":"exit"}]', b'{"method":42}'):
+            with self.subTest(body=body):
+                result = self.run_until_exit(
+                    frame(body) + frame(request(1))
+                    + frame(b'{"jsonrpc":"2.0","method":"exit"}'))
+                expected = -32700 if body.endswith(b",") else -32600
+                self.assertEqual(result[0]["error"]["code"], expected)
+                self.assertIsNone(result[0]["id"])
+                self.assertEqual(result[1], {"jsonrpc": "2.0", "id": 1, "result": None})
+
     def run_server(self, data, status=0):
         # No project discovery or workspace writes in the checkout.
         with tempfile.TemporaryDirectory(prefix="janus-lsp-stdio-") as directory:
