@@ -74,7 +74,10 @@ private:
   handle_impl(std::string_view message);
   [[nodiscard]] bool consume_cancelled_request(std::string_view id);
   [[nodiscard]] std::vector<Diagnostic>
-  analyze_document(std::string_view uri, std::string_view source) const;
+  analyze_document(
+      std::string_view uri, std::string_view source,
+      const std::unordered_map<std::string, std::string> *source_overrides =
+          nullptr) const;
   [[nodiscard]] std::string diagnostics(std::string_view uri,
                                         std::string_view source) const;
   void initialize_workspace(const std::vector<std::filesystem::path> &roots);

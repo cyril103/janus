@@ -993,6 +993,14 @@ if(BUILD_TESTING)
     )
     set_tests_properties(lsp.stdio PROPERTIES TIMEOUT 60)
     add_test(
+        NAME lsp.rename
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/lsp/rename_test.py"
+                "$<TARGET_FILE:janus-lsp>" "$<TARGET_FILE:janus>"
+    )
+    set_tests_properties(lsp.rename PROPERTIES TIMEOUT 180)
+
+    add_test(
         NAME lsp.performance_smoke
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/benchmark_lsp.py"
