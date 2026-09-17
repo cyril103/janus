@@ -374,6 +374,23 @@ actuellement en charge :
 - autocomplétion ;
 - formatage du document.
 
+Le renommage refuse les collisions de variables (y compris les déclarations
+englobantes et les paramètres), d’imports et d’alias explicites. La comparaison
+des noms tient compte de leur normalisation Unicode. Les références non
+renommées sont également contrôlées pour éviter leur capture par le nouveau
+nom. Un refus retourne une erreur LSP sans edits partiels.
+
+Avant de publier les edits, le serveur applique l’ensemble des remplacements
+sur une copie en mémoire et réutilise l’analyseur du compilateur, avec les
+imports et les documents ouverts. Un document initialement valide dans
+l’index doit rester valide, y compris lorsqu’il importe un fichier modifié.
+Cette vérification ne modifie ni les buffers ouverts, ni le cache d’index,
+ni les fichiers sur disque. Pour un document déjà invalide, les contrôles
+lexicaux restent actifs, mais la validation par le compilateur est ignorée :
+le renommage ne garantit donc pas de réparer ou de préserver ses diagnostics.
+La garantie porte sur les documents et références accessibles dans l’index
+du workspace ; les consommateurs externes ne sont pas vérifiés.
+
 La complétion après `.` résout le type du receveur et ne propose que ses
 méthodes et champs visibles. Elle couvre les types du workspace et ceux des
 index d'API, notamment les collections de la bibliothèque standard comme

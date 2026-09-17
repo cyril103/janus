@@ -1759,7 +1759,9 @@ std::string Server::diagnostics(std::string_view uri,
 }
 
 std::vector<Diagnostic>
-Server::analyze_document(std::string_view uri, std::string_view source) const {
+Server::analyze_document(std::string_view uri, std::string_view source,
+                         const std::unordered_map<std::string, std::string>
+                             *source_overrides) const {
   try {
     ast::Program program;
     std::optional<std::filesystem::path> document_path;
@@ -1772,7 +1774,8 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
           std::move(search_paths),
           semantic::AnalysisOptions{.require_entry_point = false,
                                     .target = {}}};
-      for (const auto &[open_uri, open_source] : documents_)
+      for (const auto &[open_uri, open_source] :
+           source_overrides ? *source_overrides : documents_)
         if (const auto open_path = file_uri_path(open_uri);
             open_path.has_value())
           session.set_source_override(*open_path, open_source);
@@ -1782,8 +1785,8 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
       if (!require_entry_point)
         return std::move(compilation.analysis.diagnostics);
       return semantic::CompilationSession{
-                 {}, semantic::AnalysisOptions{.require_entry_point = true,
-                                                .target = {}}}
+          {},
+          semantic::AnalysisOptions{.require_entry_point = true, .target = {}}}
           .analyze(compilation.program)
           .diagnostics;
     } else {
@@ -1796,9 +1799,9 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
             ? requires_entry_point(*document_path, is_module)
             : !is_module;
     return semantic::CompilationSession{
-               {}, semantic::AnalysisOptions{
-                       .require_entry_point = require_entry_point,
-                       .target = {}}}
+        {},
+        semantic::AnalysisOptions{.require_entry_point = require_entry_point,
+                                  .target = {}}}
         .analyze(program)
         .diagnostics;
   } catch (const CompileError &error) {
@@ -3729,12 +3732,95 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
         for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
           if (symbol.alias == identifier->name)
             explicit_local_alias = true;
+      // Validate the complete proposed snapshot with the compiler's own import
+      // and redeclaration rules. Never mutate open buffers or the index cache.
+      struct Replacement {
+        std::size_t offset;
+        std::size_t length;
+        std::string text;
+      };
+      std::unordered_map<std::string, std::vector<Replacement>> replacements;
+      const auto validation_error = [&]() -> std::optional<std::string> {
+        auto proposed = documents_;
+        for (const auto &indexed : semantic_index.documents)
+          proposed.insert_or_assign(indexed.uri, indexed.index->source);
+        for (auto &[edited_uri, edits] : replacements) {
+          std::sort(
+              edits.begin(), edits.end(),
+              [](const auto &a, const auto &b) { return a.offset > b.offset; });
+          for (const auto &edit : edits)
+            proposed.at(edited_uri)
+                .replace(edit.offset, edit.length, edit.text);
+        }
+        const auto has_errors = [](const auto &diagnostics) {
+          return std::any_of(diagnostics.begin(), diagnostics.end(),
+                             [](const auto &diagnostic) {
+                               return diagnostic.severity ==
+                                      DiagnosticSeverity::Error;
+                             });
+        };
+        for (const auto &indexed : semantic_index.documents) {
+          // Recovery-mode documents keep the lexical checks below; an existing
+          // error is not evidence that this rename introduced a new error.
+          if (has_errors(analyze_document(indexed.uri, indexed.index->source)))
+            continue;
+          for (const auto &diagnostic : analyze_document(
+                   indexed.uri, proposed.at(indexed.uri), &proposed))
+            if (diagnostic.severity == DiagnosticSeverity::Error)
+              return "Rename would invalidate a document: " +
+                     diagnostic.message;
+        }
+        return std::nullopt;
+      };
+      // Protect references that are not edited: a new name must not capture an
+      // existing binding, even when both resulting expressions type-check.
+      for (const auto &indexed : semantic_index.documents) {
+        if (explicit_local_alias && indexed.uri != active_document.uri)
+          continue;
+        const auto document_tokens = tokens(indexed.index->source);
+        for (std::size_t i = 0; i < document_tokens.size(); ++i) {
+          if (document_tokens[i].kind != frontend::TokenKind::Identifier ||
+              document_tokens[i].identifier() != canonical_new_name)
+            continue;
+          auto reference = located_identifier(document_tokens, i);
+          const auto would_capture = [&](LocatedIdentifier reference) {
+            const auto existing = bind_symbol(indexed, reference);
+            if (!existing || existing->second.id == target->second.id)
+              return false;
+            reference.name =
+                explicit_local_alias ? identifier->name : target->second.name;
+            const auto captured = bind_symbol(indexed, reference);
+            if (!captured || captured->second.id != target->second.id)
+              return false;
+            // A local binding still wins over a renamed top-level declaration.
+            // Its references are independent, even if the old global name was
+            // visible at the same position.
+            if (!existing->second.is_top_level && !existing->second.owner_type &&
+                captured->second.is_top_level)
+              return false;
+            return true;
+          };
+          const bool captures_field = would_capture(reference);
+          // A shorthand is both a field name and a lexical value reference.
+          reference.lexical_only = true;
+          if (captures_field || (reference.shorthand && would_capture(reference)))
+            return {error_response(request_id(*request), -32602,
+                                   "Rename would capture an existing reference")};
+        }
+      }
       if (explicit_local_alias) {
         const std::string new_name = requested_name->str();
         for (const DocumentSymbol &symbol : active_document.index->symbols)
           if (symbol.name == canonical_new_name)
             return {error_response(request_id(*request), -32602,
                                    "Rename would collide with a local symbol")};
+        for (const auto &import : active_document.imports)
+          for (const auto &symbol : import.symbols)
+            if (symbol.alias.value_or(symbol.name) == canonical_new_name &&
+                canonical_new_name != identifier->name)
+              return {
+                  error_response(request_id(*request), -32602,
+                                 "Rename would collide with an imported name")};
         llvm::json::Array alias_edits;
         const std::vector<frontend::Token> document_tokens =
             tokens(active_document.index->source);
@@ -3753,12 +3839,16 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
           if (!declaration &&
               (!bound.has_value() || bound->second.id != target->second.id))
             continue;
+          replacements[active_document.uri].push_back(
+              {token.location.offset, token.lexeme.size(), new_name});
           alias_edits.emplace_back(llvm::json::Object{
               {"range", range(active_document.index->source, token.location,
                               token.lexeme.size())},
               {"newText", new_name},
           });
         }
+        if (const auto error = validation_error())
+          return {error_response(request_id(*request), -32602, *error)};
         return {response(
             request_id(*request),
             llvm::json::Object{
@@ -3890,19 +3980,25 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                                "resolution")};
 
       std::unordered_map<std::string, llvm::json::Array> edits;
-      for (const RenameOccurrence &occurrence : occurrences)
+      for (const RenameOccurrence &occurrence : occurrences) {
+        const std::string replacement =
+            occurrence.identifier.shorthand
+                ? (occurrence.identifier.lexical_only
+                       ? std::string{occurrence.token.lexeme} + ": " + new_name
+                       : new_name + ": " + std::string{occurrence.token.lexeme})
+                : new_name;
+        replacements[occurrence.document->uri].push_back(
+            {occurrence.token.location.offset, occurrence.token.lexeme.size(),
+             replacement});
         edits[occurrence.document->uri].emplace_back(llvm::json::Object{
             {"range",
              range(occurrence.document->index->source,
                    occurrence.token.location, occurrence.token.lexeme.size())},
-            {"newText",
-             occurrence.identifier.shorthand
-                 ? (occurrence.identifier.lexical_only
-                        ? std::string{occurrence.token.lexeme} + ": " + new_name
-                        : new_name + ": " +
-                              std::string{occurrence.token.lexeme})
-                 : new_name},
+            {"newText", replacement},
         });
+      }
+      if (const auto error = validation_error())
+        return {error_response(request_id(*request), -32602, *error)};
       llvm::json::Array document_changes;
       std::vector<std::string> edited_uris;
       edited_uris.reserve(edits.size());

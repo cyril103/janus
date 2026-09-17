@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Outillage
 
+- le renommage LSP refuse les collisions avec les variables englobantes,
+  paramètres et noms importés, dont les alias explicites (#368). Les edits
+  proposés sont analysés en mémoire par le compilateur avant leur publication ;
+  les références existantes ne doivent pas être capturées par le nouveau nom.
+
 - le transport LSP route `exit` et `$/cancelRequest` à partir du JSON décodé
   (#367). L’arrêt fonctionne sans fermer stdin, quel que soit l’espacement ou
   l’échappement JSON, et les valeurs des paramètres ne détournent plus les
