@@ -3533,6 +3533,11 @@ if(BUILD_TESTING)
                 --output "${PROJECT_BINARY_DIR}/persistent_map_allocations"
         )
         add_test(
+            NAME benchmarks.persistent_map_harness
+            COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/benchmarks/test_persistent_map_harness.py"
+        )
+        add_test(
             NAME benchmarks.persistent_map_smoke
             COMMAND "${JANUS_PYTHON_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/benchmarks/run_persistent_map.py"

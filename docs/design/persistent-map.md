@@ -130,6 +130,11 @@ Le benchmark `python3 benchmarks/run_persistent_map.py --build-dir build --repea
 compare les copies d'Array de paires, HashMap et HashSet avec les deux collections
 persistantes : 1024 associations et 32 versions de 1025 associations. Son JSON
 publie temps, allocations, octets demandés, pic d'octets vivants et RSS (GNU time).
+Le champ `rss_kib` est exprimé en Kio et vaut `null` lorsque le collecteur est
+indisponible, avec `rss_status: "unavailable"` ; une mesure disponible porte le
+statut `"available"`. Le [guide des benchmarks](../../benchmarks/README.md)
+décrit la découverte du collecteur, sa configuration et le mode `--require-rss`
+utilisé par la CI Linux.
 Il vérifie checksum, nombre de versions et zéro octet vivant après destruction.
 Les temps incluent construction initiale, conservation des versions et destruction;
 il n'y a pas de seuil de performance imposé.
