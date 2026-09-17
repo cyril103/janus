@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Outillage
 
+- le benchmark PersistentMap découvre et vérifie GNU time (#369). Sans
+  collecteur, les assertions fonctionnelles restent actives et le RSS JSON
+  vaut `null` avec un statut explicite ; `--require-rss` exige le collecteur
+  avant compilation et est utilisé par la CI Linux.
+
 - le renommage LSP refuse les collisions avec les variables englobantes,
   paramètres et noms importés, dont les alias explicites (#368). Les edits
   proposés sont analysés en mémoire par le compilateur avant leur publication ;

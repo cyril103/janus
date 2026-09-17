@@ -106,3 +106,38 @@ associations et 32 versions conservées de 1025 entrées. Sous Linux, le rapport
 allocations, octets demandés, pic mémoire Janus et RSS GNU time. Les checksums,
 le nombre de versions et l'absence de mémoire Janus restante sont vérifiés.
 Voir [le contrat et les limites](../docs/design/persistent-map.md).
+
+Le collecteur supporté est GNU time : le script cherche `gtime`, puis `time`
+dans `PATH` et vérifie les options `-f %M -o` avec un processus témoin avant
+compilation. `--gnu-time '/chemin/avec espaces/time'` permet un chemin explicite
+(prioritaire sur la variable `JANUS_GNU_TIME`). Une configuration explicite est
+exclusive : si elle est invalide, aucun autre collecteur n'est choisi.
+
+Sans collecteur compatible, les cinq modes et toutes les répétitions restent
+vérifiés ; un diagnostic est écrit sur stderr. Chaque entrée JSON contient
+`rss_kib: null` et `rss_status: "unavailable"`. Avec collecteur, le statut est
+`"available"` et `rss_kib` est le maximum de mémoire résidente du processus de
+la **dernière répétition**, en Kio (1024 octets), fourni par `%M`. Chaque
+répétition mesure un processus distinct ; ce champ n'est ni une somme ni le
+pic cumulé des enfants. Les consommateurs doivent traiter `null` comme une
+mesure absente, jamais comme zéro. Aucun consommateur automatique de ce rapport
+n'est présent dans le dépôt.
+
+Les jobs exigeant RSS utilisent le mode strict, qui échoue avant compilation
+si le collecteur manque :
+
+```bash
+sudo apt-get install time  # Debian/Ubuntu
+python3 benchmarks/run_persistent_map.py --build-dir build --repeats 3 \
+  --gnu-time /usr/bin/time --require-rss
+```
+
+La CI Linux installe ce paquet et exécute cette mesure stricte. Un collecteur
+qui échoue pendant le benchmark, un RSS malformé, un code de sortie non nul,
+une sortie inattendue ou une fuite restent des erreurs bloquantes. Les temps
+incluent le lancement du collecteur lorsqu'il est utilisé. Le harness utilise
+toujours les options d'édition de liens GNU `--wrap` : cette découverte du
+collecteur ne garantit pas la portabilité macOS/Windows.
+
+Les tests isolés du harness se lancent sans compilateur ni GNU time système :
+`python3 tests/benchmarks/test_persistent_map_harness.py`.

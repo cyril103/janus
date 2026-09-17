@@ -196,7 +196,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build time
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
       - name: Install macOS dependencies
@@ -271,6 +271,13 @@ jobs:
           ctest --test-dir build --output-on-failure
           --stop-on-failure --timeout 60
           --exclude-regex '^project_euler\.smoke$'
+
+      - name: Measure PersistentMap RSS on Linux
+        if: runner.os == 'Linux'
+        run: >
+          python3 benchmarks/run_persistent_map.py --build-dir build
+          --clang /usr/lib/llvm-18/bin/clang --repeats 3
+          --gnu-time /usr/bin/time --require-rss
 
       - name: Test on macOS
         if: runner.os == 'macOS'
