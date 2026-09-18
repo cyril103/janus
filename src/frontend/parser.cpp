@@ -2054,17 +2054,55 @@ ast::Expression Parser::parse_primary() {
             std::move(parameters),
             std::make_shared<ast::LambdaBlock>(
                 ast::LambdaBlock{parse_block(), block_location}),
-            name.location};
+            name.location, std::nullopt};
       }
       return ast::LambdaExpression{
           std::move(parameters),
           std::make_unique<ast::Expression>(parse_expression()),
-          name.location};
+          name.location, std::nullopt};
     }
   }
 
   if (current_.kind == TokenKind::LeftBracket) {
     const Token opening = expect(TokenKind::LeftBracket);
+    const std::size_t capture_prefixes = capture_lambda_prefix_count();
+    const bool capture_prefix_follows = capture_prefixes != 0;
+    if (capture_prefixes > 1)
+      throw CompileError{DiagnosticCode::ParserLegacy, opening.location,
+                         "lambda already has an owning capture"};
+    if (current_.kind == TokenKind::Move && capture_prefix_follows) {
+      advance();
+      const Token owner = expect(TokenKind::Identifier);
+      if (current_.kind == TokenKind::Comma)
+        throw CompileError{DiagnosticCode::ParserLegacy, current_.location,
+                           "owning capture list supports exactly one 'move' "
+                           "identifier"};
+      static_cast<void>(expect(TokenKind::RightBracket));
+      ast::Expression captured = parse_primary();
+      auto *lambda = std::get_if<ast::LambdaExpression>(&captured.value);
+      if (lambda == nullptr)
+        throw CompileError{DiagnosticCode::ParserLegacy, opening.location,
+                           "owning capture prefix must be followed by a lambda"};
+      if (lambda->owning_capture.has_value())
+        throw CompileError{DiagnosticCode::ParserLegacy, opening.location,
+                           "lambda already has an owning capture"};
+      lambda->owning_capture = ast::LambdaExpression::OwningCapture{
+          std::string{owner.identifier()}, owner.location};
+      return captured;
+    }
+    if (capture_prefix_follows &&
+        (current_.kind == TokenKind::Borrow ||
+         current_.kind == TokenKind::Var ||
+         (current_.kind == TokenKind::Identifier &&
+          (current_.lexeme == "copy" || current_.lexeme == "mut"))))
+      throw CompileError{DiagnosticCode::ParserLegacy, current_.location,
+                         "owning capture list supports only 'move'"};
+    if (current_.kind == TokenKind::RightBracket) {
+      if (capture_prefix_follows)
+        throw CompileError{DiagnosticCode::ParserLegacy, opening.location,
+                           "owning capture list cannot be empty; expected "
+                           "'move' and one local owner identifier"};
+    }
     std::vector<std::unique_ptr<ast::Expression>> elements;
     bool is_map = current_.kind == TokenKind::Colon;
     if (is_map) {
@@ -2245,12 +2283,12 @@ ast::Expression Parser::parse_primary() {
             std::move(parameters),
             std::make_shared<ast::LambdaBlock>(
                 ast::LambdaBlock{parse_block(), block_location}),
-            left_parenthesis.location};
+            left_parenthesis.location, std::nullopt};
       }
       return ast::LambdaExpression{
           std::move(parameters),
           std::make_unique<ast::Expression>(parse_expression()),
-          left_parenthesis.location};
+          left_parenthesis.location, std::nullopt};
     }
     advance();
     ast::Expression expression = parse_expression();
@@ -2715,6 +2753,143 @@ bool Parser::starts_lambda() const {
     if (token.kind != TokenKind::Comma)
       return false;
     token = lookahead.next();
+  }
+}
+
+std::size_t Parser::capture_lambda_prefix_count() const {
+  // current_ is the first token inside the opening '[' already consumed by
+  // parse_primary.  Follow only capture-list-shaped brackets; inspecting an
+  // arbitrary bracketed expression here would both confuse postfix indexing
+  // with captures and repeatedly rescan nested array/map literals.
+  Lexer lookahead = lexer_;
+  Token token = current_;
+  const auto next = [&]() { token = lookahead.next(); };
+  std::size_t prefix_count = 0;
+
+  const auto skip_capture_prefix = [&]() {
+    if (token.kind == TokenKind::RightBracket) {
+      next();
+      ++prefix_count;
+      return true;
+    }
+
+    const bool unsupported =
+        token.kind == TokenKind::Borrow || token.kind == TokenKind::Var ||
+        (token.kind == TokenKind::Identifier &&
+         (token.lexeme == "copy" || token.lexeme == "mut"));
+    if (token.kind != TokenKind::Move && !unsupported)
+      return false;
+    const bool marker_only = token.kind == TokenKind::Identifier;
+    next();
+    if (marker_only) {
+      if (token.kind != TokenKind::RightBracket)
+        return false;
+      next();
+      ++prefix_count;
+      return true;
+    }
+    if (token.kind != TokenKind::Identifier)
+      return false;
+    next();
+    while (token.kind == TokenKind::Comma) {
+      next();
+      if (token.kind != TokenKind::Move)
+        return false;
+      next();
+      if (token.kind != TokenKind::Identifier)
+        return false;
+      next();
+    }
+    if (token.kind != TokenKind::RightBracket)
+      return false;
+    next();
+    ++prefix_count;
+    return true;
+  };
+
+  if (!skip_capture_prefix())
+    return false;
+
+  std::size_t grouping_depth = 0;
+  while (true) {
+    while (token.kind == TokenKind::LeftBracket) {
+      next();
+      if (!skip_capture_prefix())
+        return false;
+    }
+
+    if (token.kind == TokenKind::Identifier) {
+      next();
+      return token.kind == TokenKind::Arrow ? prefix_count : 0;
+    }
+    if (token.kind != TokenKind::LeftParen)
+      return false;
+
+    // First try the parenthesized-parameter lambda production.  This mirrors
+    // starts_lambda(), but operates on the single forward cursor used for the
+    // complete capture-prefix lookahead.
+    Lexer parameters_lookahead = lookahead;
+    Token parameter = parameters_lookahead.next();
+    if (parameter.kind == TokenKind::RightParen) {
+      if (parameters_lookahead.next().kind == TokenKind::Arrow)
+        return prefix_count;
+    } else {
+      bool parameters_match = true;
+      while (parameters_match) {
+        if (parameter.kind == TokenKind::Borrow ||
+            parameter.kind == TokenKind::Consume) {
+          parameter = parameters_lookahead.next();
+          if (parameter.kind == TokenKind::Var)
+            parameter = parameters_lookahead.next();
+        }
+        if (parameter.kind != TokenKind::Identifier) {
+          parameters_match = false;
+          break;
+        }
+        parameter = parameters_lookahead.next();
+        if (parameter.kind == TokenKind::Colon) {
+          std::size_t type_depth = 0;
+          do {
+            parameter = parameters_lookahead.next();
+            if (parameter.kind == TokenKind::End) {
+              parameters_match = false;
+              break;
+            }
+            if (parameter.kind == TokenKind::LeftBracket ||
+                parameter.kind == TokenKind::LeftParen) {
+              if (++type_depth > max_syntax_depth) {
+                parameters_match = false;
+                break;
+              }
+            } else if (type_depth > 0 &&
+                       (parameter.kind == TokenKind::RightBracket ||
+                        parameter.kind == TokenKind::RightParen)) {
+              --type_depth;
+            }
+          } while (type_depth > 0 ||
+                   (parameter.kind != TokenKind::Comma &&
+                    parameter.kind != TokenKind::RightParen &&
+                    parameter.kind != TokenKind::End));
+        }
+        if (!parameters_match)
+          break;
+        if (parameter.kind == TokenKind::RightParen) {
+          if (parameters_lookahead.next().kind == TokenKind::Arrow)
+            return prefix_count;
+          break;
+        }
+        if (parameter.kind != TokenKind::Comma)
+          break;
+        parameter = parameters_lookahead.next();
+      }
+    }
+
+    // Otherwise this '(' can group a prefixed or bare lambda.  Advancing one
+    // token per group keeps the scan linear and applies the parser's existing
+    // syntax-depth ceiling to adversarial nesting.
+    if (++grouping_depth > max_syntax_depth)
+      return false;
+    next();
   }
 }
 

@@ -8,6 +8,20 @@
 #include <vector>
 
 int main() {
+  const std::string owning_capture_source =
+      "def f():Unit{\nval callback=[move owner]()=>owner.close()\n"
+      "val legacy=owningCapture[Resource](other,()=>other.close())\n}\n";
+  const std::string owning_capture_formatted =
+      janus::driver::format_source(owning_capture_source);
+  if (janus::driver::format_source(owning_capture_formatted) !=
+          owning_capture_formatted ||
+      owning_capture_formatted.find("[move owner]") == std::string::npos ||
+      owning_capture_formatted.find("owningCapture[Resource]") ==
+          std::string::npos) {
+    std::cerr << "owning capture formatting must preserve both syntaxes "
+                 "idempotently\n";
+    return 1;
+  }
   for (const auto &[source, expected] :
        std::vector<std::pair<std::string, std::string>>{
            {"def f() : Point {\nreturn new Point{x:1,y,}\n}\n",

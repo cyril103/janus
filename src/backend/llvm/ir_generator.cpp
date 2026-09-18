@@ -4809,8 +4809,15 @@ private:
                                       local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::LambdaExpression>) {
-            return emit_lambda(node, expected_type, substitutions, locals,
-                               builder);
+            auto *closure = emit_lambda(node, expected_type, substitutions,
+                                        locals, builder);
+            if (node.owning_capture.has_value()) {
+              const janus::ast::Expression owner{
+                  janus::ast::IdentifierExpression{
+                      node.owning_capture->name, node.owning_capture->location}};
+              disarm_owner(owner, locals, builder);
+            }
+            return closure;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
             if (const Local *local = find_storage(node.callee, locals);

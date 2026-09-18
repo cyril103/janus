@@ -9,6 +9,23 @@
 
 namespace {
 int failures = 0;
+void check_parse(const std::string &source, bool valid,
+                 const std::string &message = {}) {
+  try {
+    static_cast<void>(janus::frontend::Parser{source}.parse_program());
+    if (!valid) {
+      std::cerr << "unexpected parse acceptance: " << source << '\n';
+      ++failures;
+    }
+  } catch (const janus::CompileError &error) {
+    if (valid || (!message.empty() && std::string{error.what()}.find(message) ==
+                                          std::string::npos)) {
+      std::cerr << "unexpected parse diagnostic: " << error.what() << "\n"
+                << source << '\n';
+      ++failures;
+    }
+  }
+}
 void check(const std::string &source, bool valid,
            const std::string &message = {}) {
   try {
@@ -36,6 +53,89 @@ void check(const std::string &source, bool valid,
 }
 } // namespace
 int main() {
+  check_parse("def main() : int { val copy = 1 val a = [copy] return 0 }",
+              true);
+  check_parse("def main() : int { val copy = 1 return [copy][0] }", true);
+  check_parse("def main() : int { val copy = 1 return ([copy])[0] }", true);
+  check_parse("def main() : int { val mut = 1 return [mut][0] }", true);
+  check_parse("def main() : int { val owner = 1 return [move owner][0] }",
+              true);
+  check_parse("def main() : int { val a = 1 val b = 2 "
+              "return [move a, move b][0] }",
+              true);
+  check_parse("def main() : int { val copy = 1 return [copy: 2][copy] }",
+              true);
+  check_parse("def main() : int { val copy = 1 return ([copy: 2])[copy] }",
+              true);
+  check_parse("def main() : int { val mut = 1 val a = [mut] return 0 }", true);
+  check_parse("def main() : int { val owner = 1 val a = [move owner] return 0 }",
+              true);
+  check_parse("def main() : int { val a = 1 val b = 2 "
+              "val xs = [move a, move b] return 0 }",
+              true);
+  check_parse("def main() : int { val copy = 1 val m = [copy: 2] return 0 }",
+              true);
+  check_parse("def main() : int { val copy = 1 val f = [copy] () => copy }",
+              false, "only 'move'");
+  check("class R(val n : int) {} def main() : int { "
+        "val r = new R(1) val f : Fn (int) => int = "
+        "[move r] x => x + r.n val out = f(1) delete f return out }",
+        true);
+  check_parse("class R(val n : int) {} def main() : int { "
+              "val r = new R(1) val f = [move r] ((x) => x + r.n) "
+              "return 0 }",
+              true);
+  check_parse("def main() : int { val mut = 1 val f = [mut] () => mut }",
+              false, "only 'move'");
+  check_parse("class R(val n : int) {} def main() : int { "
+              "val r = new R(1) val f = [move r] [move r] () => r.n }",
+              false, "already has an owning capture");
+  check_parse("class R(val n : int) {} def main() : int { "
+              "val r = new R(1) val f = [move r] ([move absent] () => r.n) }",
+              false, "already has an owning capture");
+  std::string deeply_stacked =
+      "class R(val n : int) {} def main() : int { val r = new R(1) val f = ";
+  for (int i = 0; i != 3000; ++i)
+    deeply_stacked += "[move r] ";
+  deeply_stacked += "() => r.n }";
+  check_parse(deeply_stacked, false, "already has an owning capture");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f : Fn () => int = [move r] () => r.n val a = f() "
+        "val b = f() delete f return a + b }", true);
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f : FnOnce () => R = [move r] () => move r val out = f() "
+        "delete out return 0 }", true);
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [move r] () => r.n return r.n }", false,
+        "initialization");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [move r, move r] () => r.n return 0 }", false,
+        "exactly one");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [borrow r] () => r.n return 0 }", false,
+        "only 'move'");
+  check("def main() : int { val f = [move absent] () => 1 return 0 }", false,
+        "local owner identifier");
+  check("def main() : int { val f = [] () => 1 return 0 }", false,
+        "cannot be empty");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f : FnOnce () => R = [move r] () => move r val out = f() "
+        "f() delete out return 0 }", false, "initialization");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "borrow val view = r val f = [move r] () => r.n delete f "
+        "return view.n }", false, "borrowed");
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [move r] () => [move r] () => r.n val g = f() "
+        "delete g return 0 }", true);
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = owningCapture[R](r, () => [move r] () => r.n) "
+        "val g = f() delete g return 0 }", true);
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [move r] () => owningCapture[R](r, () => r.n) "
+        "val g = f() delete g return 0 }", true);
+  check("class R(val n : int) {} def main() : int { val r = new R(1) "
+        "val f = [move r] () => [move r] () => r.n val g = f() "
+        "delete f delete g return 0 }", false, "initialization");
   const std::string names[]{"Fn", "FnMut", "FnOnce"};
   for (int source = 0; source != 3; ++source)
     for (int target = 0; target != 3; ++target)
