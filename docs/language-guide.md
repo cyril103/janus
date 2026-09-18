@@ -2256,6 +2256,34 @@ explicitement `owner`, y compris lorsqu'elles ne sont jamais appelées ; un
 un `delete callback` après un appel consommant. Un `defer delete callback`
 placé avant l'appel reste valide et est désarmé par le transfert.
 
+La forme additive `[move owner] (paramètres) => expression` exprime le même
+transfert sans répéter le type du propriétaire :
+
+```janus
+// Forme historique, toujours prise en charge.
+val oldReader : Fn () => int =
+    owningCapture[Resource](oldOwner, () => oldOwner.value)
+
+// Sucre équivalent ; une lecture ne rend pas la closure FnOnce.
+val reader : Fn () => int = [move owner] () => owner.value
+println(reader())
+println(reader())
+delete reader
+
+// Le corps consomme ici la capture : la capacité inférée est FnOnce.
+val take : FnOnce () => Resource = [move resource] () => move resource
+val result = take()
+delete result
+```
+
+Cette première tranche accepte exactement un identifiant local précédé de
+`move`. Les listes multiples et les captures `borrow`, mutables ou copiées
+sont reportées et diagnostiquées ; les autres captures ambiantes gardent leur
+comportement actuel. La liaison extérieure est invalide dès la construction.
+La syntaxe n'active aucun nettoyage implicite : `using val`, `delete` ou
+`defer delete` reste requis suivant les règles existantes. Voir la
+[RFC de tranche](design/owning-capture-syntax.md).
+
 Voir la [RFC des capacités d'appel](design/call-capabilities.md) pour la
 matrice complète et les bornes génériques `F <: FnOnce () => T`.
 

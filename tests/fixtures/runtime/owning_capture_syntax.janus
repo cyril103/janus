@@ -1,0 +1,42 @@
+class Resource(val value : int) {
+    destructor { println(value) }
+}
+
+def main() : int {
+    val newOwner = new Resource(10)
+    val newReader : Fn () => int = [move newOwner] () => newOwner.value
+    println(newReader())
+    println(newReader())
+    delete newReader
+
+    val oldOwner = new Resource(20)
+    val oldReader : Fn () => int = owningCapture[Resource](oldOwner, () => oldOwner.value)
+    println(oldReader())
+    println(oldReader())
+    delete oldReader
+
+    val onceOwner = new Resource(30)
+    val once : FnOnce () => Resource = [move onceOwner] () => move onceOwner
+    val result = once()
+    println(result.value)
+    delete result
+
+    val nestedOwner = new Resource(40)
+    val nested = [move nestedOwner] () => [move nestedOwner] () => nestedOwner.value
+    val nestedReader = nested()
+    println(nestedReader())
+    delete nestedReader
+
+    val mixedOwner = new Resource(50)
+    val mixed = [move mixedOwner] () => owningCapture[Resource](mixedOwner, () => mixedOwner.value)
+    val mixedReader = mixed()
+    println(mixedReader())
+    delete mixedReader
+
+    val reverseOwner = new Resource(60)
+    val reverse = owningCapture[Resource](reverseOwner, () => [move reverseOwner] () => reverseOwner.value)
+    val reverseReader = reverse()
+    println(reverseReader())
+    delete reverseReader
+    return 0
+}

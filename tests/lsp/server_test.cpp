@@ -605,6 +605,24 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(imported_definition.front().find("stdlib/std/array.janus") !=
                 std::string::npos);
 
+  const std::vector<std::string> owning_capture_document = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///owning-capture-import.janus","text":"import std.array\n\nclass Resource(val value : int) {}\ndef main() : int {\n    val owner = new Resource(42)\n    val callback = [move owner] () => owner.value\n    println(callback())\n    delete callback\n    return 0\n}\n"}}})");
+  JANUS_REQUIRE(owning_capture_document.size() == 1);
+  JANUS_REQUIRE(owning_capture_document.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const std::vector<std::string> owning_capture_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":1515,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///owning-capture-import.janus"},"position":{"line":5,"character":10}}})");
+  JANUS_REQUIRE(owning_capture_hover.size() == 1);
+  JANUS_REQUIRE(owning_capture_hover.front().find("Fn () =&gt; int") !=
+                    std::string::npos ||
+                owning_capture_hover.front().find("Fn () => int") !=
+                    std::string::npos);
+  const std::vector<std::string> owning_capture_owner_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":1516,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///owning-capture-import.janus"},"position":{"line":5,"character":27}}})");
+  JANUS_REQUIRE(owning_capture_owner_hover.size() == 1);
+  JANUS_REQUIRE(owning_capture_owner_hover.front().find("Resource") !=
+                std::string::npos);
+
   const std::vector<std::string> derivation_document = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///derivation.janus","text":"struct Point(val x : int, val y : int) derives Copy, Equality, Hashing, Debug {}\n\ndef main() : int { return 0 }"}}})");
   JANUS_REQUIRE(derivation_document.size() == 1);

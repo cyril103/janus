@@ -5,6 +5,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Langage
+
+- ajout du sucre de closure `[move owner] (...) => ...` pour une capture
+  propriétaire unique, sans déprécier `owningCapture` ni modifier l'ABI.
+
 ### Outillage
 
 - le benchmark PersistentMap découvre et vérifie GNU time (#369). Sans

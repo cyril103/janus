@@ -174,6 +174,11 @@ struct MapLiteralExpression {
 };
 
 struct LambdaExpression {
+  struct OwningCapture {
+    std::string name;
+    SourceLocation location;
+  };
+
   struct Parameter {
     std::string name;
     std::optional<TypeReference> type;
@@ -184,6 +189,7 @@ struct LambdaExpression {
   std::vector<Parameter> parameters;
   std::variant<std::unique_ptr<Expression>, std::shared_ptr<LambdaBlock>> body;
   SourceLocation location;
+  std::optional<OwningCapture> owning_capture;
 };
 
 struct CallExpression {

@@ -7001,6 +7001,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return ReceiverCapability::Immutable;
     };
 
+    const auto validate_owning_capture_owner =
+        [&](const ast::Expression &owner_expression,
+            std::string_view spelling) -> std::pair<std::string, SemanticType> {
+      const SourceLocation location = expression_location(owner_expression);
+      require_consumption_transfer_allowed(owner_expression, location);
+      const auto *identifier =
+          std::get_if<ast::IdentifierExpression>(&owner_expression.value);
+      if (identifier == nullptr || !active_symbols->contains(identifier->name))
+        throw CompileError{location, std::string{spelling} +
+                                         " requires a local owner identifier"};
+      if (borrowed_values.contains(identifier->name))
+        throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                           location,
+                           "borrowed value cannot be transferred to a closure"};
+      if (deferred_values.contains(identifier->name))
+        throw CompileError{location,
+                           "deferred value cannot be transferred to a closure"};
+      require_no_live_borrow(identifier->name, location,
+                             "transferred to a closure");
+      return {identifier->name, active_symbols->at(identifier->name).type};
+    };
+
     expression_type = [&](const ast::Expression &expression) -> SemanticType {
       SemanticType inferred = std::visit(
           [&](const auto &node) -> SemanticType {
@@ -7259,8 +7281,36 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 active_lambda_captures->insert(node.name);
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
-              const auto owned_capture = contextual_owned_capture;
+              auto owned_capture = contextual_owned_capture;
               contextual_owned_capture.reset();
+              std::optional<SemanticType> syntactic_owner_type;
+              if (node.owning_capture.has_value()) {
+                if (owned_capture.has_value())
+                  throw CompileError{
+                      node.owning_capture->location,
+                      "lambda already has an owning capture"};
+                const std::string &name = node.owning_capture->name;
+                const ast::Expression owner_expression{
+                    ast::IdentifierExpression{name,
+                                              node.owning_capture->location}};
+                auto [validated_name, owner_type] =
+                    validate_owning_capture_owner(owner_expression,
+                                                  "owning capture");
+                const bool previous_explicit_transfer =
+                    contextual_explicit_ownership_transfer;
+                contextual_explicit_ownership_transfer = true;
+                try {
+                  syntactic_owner_type = expression_type(owner_expression);
+                } catch (...) {
+                  contextual_explicit_ownership_transfer =
+                      previous_explicit_transfer;
+                  throw;
+                }
+                contextual_explicit_ownership_transfer =
+                    previous_explicit_transfer;
+                static_cast<void>(owner_type);
+                owned_capture = std::move(validated_name);
+              }
               SymbolTable lambda_symbols = *active_symbols;
               std::unordered_set<std::string> parameter_names;
               const auto previous_borrowed_values = borrowed_values;
@@ -7572,9 +7622,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     lambda_type.call_capability = ast::CallCapability::FnOnce;
                 }
                 result.lambda_types.insert_or_assign(&node, lambda_type);
-                if (owned_capture)
+                if (owned_capture) {
+                  if (captures.find(*owned_capture) == captures.end())
+                    throw CompileError{
+                        node.owning_capture.has_value()
+                            ? node.owning_capture->location
+                            : node.location,
+                        "owning capture closure must capture owner '" +
+                            *owned_capture + "'"};
                   result.owned_lambda_captures.insert_or_assign(&node,
                                                                 *owned_capture);
+                }
+                if (syntactic_owner_type.has_value()) {
+                  if (lambda_type.pure_function)
+                    validate_pure_type_cleanup(*syntactic_owner_type,
+                                               node.owning_capture->location);
+                  previous_symbols->at(*owned_capture).is_initialized = false;
+                  previous_symbols->at(*owned_capture).may_be_initialized =
+                      false;
+                }
                 restore_lambda_state();
                 return lambda_type;
               } catch (...) {
@@ -8062,26 +8128,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       node.location,
                       "owningCapture expects one owner type argument, an "
                       "owner, and a lambda"};
-                const auto *owner_identifier =
-                    std::get_if<ast::IdentifierExpression>(
-                        &node.arguments[0]->value);
-                require_consumption_transfer_allowed(
-                    *node.arguments[0],
-                    expression_location(*node.arguments[0]));
-                if (owner_identifier == nullptr ||
-                    !active_symbols->contains(owner_identifier->name))
-                  throw CompileError{
-                      expression_location(*node.arguments[0]),
-                      "owningCapture requires a local owner identifier"};
-                if (borrowed_values.contains(owner_identifier->name))
-                  throw CompileError{
-                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                      expression_location(*node.arguments[0]),
-                      "borrowed value cannot be transferred to a closure"};
-                if (deferred_values.contains(owner_identifier->name))
-                  throw CompileError{
-                      expression_location(*node.arguments[0]),
-                      "deferred value cannot be transferred to a closure"};
+                const auto [owner_name, inferred_owner_type] =
+                    validate_owning_capture_owner(*node.arguments[0],
+                                                  "owningCapture");
+                static_cast<void>(inferred_owner_type);
                 SemanticType owner_type =
                     resolve_type(node.type_arguments.front(),
                                  *active_type_parameters, &class_arities);
@@ -8095,10 +8145,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                     expression_location(*node.arguments[0]));
                 contextual_explicit_ownership_transfer =
                     previous_explicit_transfer;
-                require_no_live_borrow(owner_identifier->name, node.location,
-                                       "transferred to a closure");
                 const auto previous_owned_capture = contextual_owned_capture;
-                contextual_owned_capture = owner_identifier->name;
+                contextual_owned_capture = owner_name;
                 SemanticType closure_type;
                 try {
                   closure_type = expression_type(*node.arguments[1]);
@@ -8120,15 +8168,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         : lambda_captures.find(lambda->location.offset);
                 if (captures == lambda_captures.end() ||
                     std::find(captures->second.begin(), captures->second.end(),
-                              owner_identifier->name) == captures->second.end())
+                              owner_name) == captures->second.end())
                   throw CompileError{
                       expression_location(*node.arguments[1]),
                       "owningCapture closure must capture owner '" +
-                          owner_identifier->name + "'"};
-                active_symbols->at(owner_identifier->name).is_initialized =
-                    false;
-                active_symbols->at(owner_identifier->name).may_be_initialized =
-                    false;
+                          owner_name + "'"};
+                active_symbols->at(owner_name).is_initialized = false;
+                active_symbols->at(owner_name).may_be_initialized = false;
                 return closure_type;
               }
               if (node.callee == "free" || node.callee == "freeStorage") {
