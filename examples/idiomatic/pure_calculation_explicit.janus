@@ -1,0 +1,15 @@
+pure def square(value : int) : int {
+    return value * value
+}
+
+pure def score(base : int, bonus : int) : int {
+    val squared : int = square(base)
+    val result : int = squared + bonus
+    return result
+}
+
+def main() : int {
+    val result : int = score(6, 6)
+    println(result)
+    return 0
+}

@@ -1,0 +1,25 @@
+import std.array
+
+def main() : int {
+    val values : Array[int] = new Array(4)
+    defer delete values
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    values.push(4)
+
+    val doubled : Array[int] = values.map[int](
+        (borrow value : int) => value * 2
+    )
+    defer delete doubled
+    val selected : Array[int] = doubled.filter(
+        (borrow value : int) => value > 4
+    )
+    defer delete selected
+    val total : int = selected.fold[int](
+        0,
+        (sum : int, value : int) => sum + value
+    )
+    println(total)
+    return 0
+}

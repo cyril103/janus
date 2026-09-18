@@ -10,6 +10,10 @@
 Janus est fortement typé : chaque variable, paramètre et retour possède un
 type connu à la compilation. Les conversions entre types sont explicites.
 
+Pour choisir entre annotations pédagogiques et code courant, consulter le
+[guide de style idiomatique](idiomatic-janus.md) et son corpus avant/après
+compilé en CI.
+
 ## Profondeur syntaxique
 
 Le compilateur et le LSP appliquent un budget partagé de 128 niveaux pour

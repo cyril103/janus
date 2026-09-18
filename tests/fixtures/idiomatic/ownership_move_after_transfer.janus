@@ -1,0 +1,10 @@
+class Ticket(val id : int) {}
+
+def redeem(ticket : Ticket) : Unit { delete ticket }
+
+def main() : int {
+    val ticket = new Ticket(7)
+    redeem(move ticket)
+    println(ticket.id)
+    return 0
+}

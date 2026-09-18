@@ -514,6 +514,50 @@ if(BUILD_TESTING)
                 "${PROJECT_SOURCE_DIR}/scripts/audit_constructor_inference.py"
                 --self-test
     )
+    foreach(idiomatic_case
+            pure_calculation
+            safe_file
+            collections
+            stateful_callback
+            owning_api
+            cli)
+        add_test(
+            NAME docs.idiomatic.${idiomatic_case}
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}/examples/idiomatic"
+                "-DEXPECTED_DIR=${PROJECT_SOURCE_DIR}/examples/idiomatic/expected"
+                "-DOUTPUT_ROOT=${PROJECT_BINARY_DIR}/idiomatic-corpus"
+                "-DCASE=${idiomatic_case}"
+                -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_idiomatic_corpus.cmake"
+        )
+        set_tests_properties(docs.idiomatic.${idiomatic_case}
+                             PROPERTIES TIMEOUT 120)
+    endforeach()
+
+    foreach(ownership_case move_after_transfer delete_borrow)
+        if(ownership_case STREQUAL "move_after_transfer")
+            set(ownership_error "variable 'ticket' is used before initialization")
+        else()
+            set(ownership_error "borrowed value 'ticket' cannot be deleted")
+        endif()
+        add_test(
+            NAME docs.idiomatic.ownership.${ownership_case}
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/idiomatic/ownership_${ownership_case}.janus"
+                "-DEXPECTED_ERROR=${ownership_error}"
+                "-DOUTPUT_ROOT=${PROJECT_BINARY_DIR}/idiomatic-corpus"
+                "-DCASE=${ownership_case}"
+                -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_idiomatic_ownership_error.cmake"
+        )
+        set_tests_properties(docs.idiomatic.ownership.${ownership_case}
+                             PROPERTIES TIMEOUT 45)
+    endforeach()
     add_test(
         NAME tests.no_standard_assert.guard_self_test
         COMMAND "${Python3_EXECUTABLE}"

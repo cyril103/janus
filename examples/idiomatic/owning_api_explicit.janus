@@ -1,0 +1,29 @@
+var cleanups : int = 0
+
+class Ticket(val id : int) {
+    destructor {
+        cleanups += 1
+        print("nettoyage=")
+        println(id)
+    }
+}
+
+def inspect(borrow ticket : Ticket) : int {
+    return ticket.id
+}
+
+def redeem(ticket : Ticket) : int {
+    val id : int = inspect(ticket)
+    delete ticket
+    return id
+}
+
+def main() : int {
+    val ticket : Ticket = new Ticket(7)
+    val id : int = redeem(move ticket)
+    print("id=")
+    println(id)
+    print("nettoyages=")
+    println(cleanups)
+    return 0
+}

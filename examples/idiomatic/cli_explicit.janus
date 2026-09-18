@@ -1,0 +1,20 @@
+import std.process
+
+def userArgument(index : usize) : string {
+    return match programArgument(index) {
+        Some(value) => value,
+        None => ""
+    }
+}
+
+def main() : int {
+    val command : string = userArgument(1)
+    val subject : string = userArgument(2)
+    if command == "greet" && subject != "" {
+        print("bonjour ")
+        println(subject)
+        return 0
+    }
+    println("usage: outil greet NOM")
+    return 2
+}
