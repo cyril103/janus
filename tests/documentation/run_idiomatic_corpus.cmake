@@ -12,7 +12,12 @@ file(MAKE_DIRECTORY "${work_dir}")
 
 if(CASE STREQUAL "safe_file")
     set(input_file "${work_dir}/entrée sûre.txt")
-    file(WRITE "${input_file}" "alpha\nbeta\n")
+    # Keep byte-count semantics identical on Windows (native writes use CRLF).
+    file(CONFIGURE OUTPUT "${input_file}" CONTENT "alpha\nbeta\n" NEWLINE_STYLE LF)
+    file(READ "${input_file}" input_hex HEX)
+    if(NOT input_hex STREQUAL "616c7068610a626574610a")
+        message(FATAL_ERROR "safe_file fixture must contain exact LF bytes: ${input_hex}")
+    endif()
     set(program_arguments "${input_file}")
 elseif(CASE STREQUAL "cli")
     set(program_arguments "greet" "Ada Lovelace")
