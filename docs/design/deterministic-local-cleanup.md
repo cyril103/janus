@@ -143,8 +143,8 @@ Aujourd'hui deux liaisons de même type peuvent différer uniquement par le mot
 `using` :
 
 ```janus
-using val values = new Array[int](4) // langage actuel : cleanup attaché
-val other = new Array[int](4)        // langage actuel : cleanup non attaché
+using val values : Array[int] = new Array(4) // langage actuel : cleanup attaché
+val other : Array[int] = new Array(4)        // langage actuel : cleanup non attaché
 ```
 
 L'étude demande si un contexte explicitement activé peut traiter la seconde
