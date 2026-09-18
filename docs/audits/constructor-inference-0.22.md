@@ -39,6 +39,7 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `examples/casts.janus` | 13:34 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (casts) |
 | `examples/generic_classes.janus` | 17:31 | constructeur | `new Box[int](` | pédagogique explicite | pédagogique explicite |
 | `examples/generic_classes.janus` | 22:30 | constructeur | `new Box[string](` | pédagogique explicite | pédagogique explicite |
+| `examples/idiomatic/collections_idiomatic.janus` | 4:24 | constructeur | `new Array[int](` | test de couverture | nécessaire (T absent des arguments) |
 | `examples/pointers.janus` | 2:38 | cast littéral | `usize(2)` | pédagogique explicite | pédagogique (API pointeur) |
 | `examples/pointers.janus` | 3:16 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (API pointeur) |
 | `examples/pointers.janus` | 4:16 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (API pointeur) |
@@ -76,4 +77,4 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `website/docs/tutorials/collections.md` | 80:18 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (signature take) |
 | `website/docs/tutorials/propriete-move-consume.md` | 94:39 | cast littéral | `usize(16)` | pédagogique explicite | pédagogique (API pointeur) |
 
-Total : **60** occurrences restantes, dont **0** simplifiable.
+Total : **61** occurrences restantes, dont **0** simplifiable.

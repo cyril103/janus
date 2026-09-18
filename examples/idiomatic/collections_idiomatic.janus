@@ -1,0 +1,15 @@
+import std.array
+
+def main() : int {
+    using val values = new Array[int](4)
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    values.push(4)
+
+    using val doubled = values.map[int](value => value * 2)
+    using val selected = doubled.filter(value => value > 4)
+    val total = selected.fold(0, (sum, value) => sum + value)
+    println(total)
+    return 0
+}

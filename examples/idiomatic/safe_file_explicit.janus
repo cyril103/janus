@@ -1,0 +1,32 @@
+import std.fs
+import std.process
+
+def reportFile(file : FileData) : int {
+    defer delete file
+    val text : Result[string, TextDecodeError] = file.asText()
+    val content : string = match text {
+        Ok(value) => value,
+        Error(error) => "UTF-8 invalide"
+    }
+    print("contenu=")
+    print(content)
+    print("octets=")
+    println(file.size())
+    return 0
+}
+
+def report(result : Result[FileData, SystemError]) : int {
+    return match move result {
+        Ok(file) => reportFile(move file),
+        Error(error) => 4
+    }
+}
+
+def main() : int {
+    val path : string = match programArgument(1) {
+        Some(value) => value,
+        None => ""
+    }
+    val loaded : Result[FileData, SystemError] = readFile(path)
+    return report(move loaded)
+}

@@ -1,0 +1,19 @@
+def callThreeTimes(scoped action : FnMut (int) => int) : int {
+    defer delete action
+    val first : int = action(2)
+    val second : int = action(3)
+    val third : int = action(4)
+    return first + second + third
+}
+
+def main() : int {
+    var running : int = 0
+    val accumulate : FnMut (int) => int = (value : int) => {
+        running = running + value
+        return running
+    }
+    val result : int = callThreeTimes(move accumulate)
+    println(result)
+    println(running)
+    return 0
+}

@@ -204,7 +204,8 @@ Les principales fonctionnalités sont :
 - pointeurs typés, allocation brute, casts explicites et `extern def`.
 
 Le [guide du langage](docs/language-guide.md) présente chaque fonctionnalité
-avec des exemples.
+avec des exemples. Le [guide de style idiomatique](docs/idiomatic-janus.md)
+montre aussi six programmes avant/après, tous compilés et exécutés en CI.
 
 ## Sortie de programme
 

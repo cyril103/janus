@@ -1,0 +1,12 @@
+class Ticket(val id : int) {}
+
+def destroyBorrow(borrow ticket : Ticket) : Unit {
+    delete ticket
+}
+
+def main() : int {
+    val ticket = new Ticket(7)
+    defer delete ticket
+    destroyBorrow(ticket)
+    return 0
+}

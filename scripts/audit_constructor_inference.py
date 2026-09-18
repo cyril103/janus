@@ -34,6 +34,7 @@ CONSTRUCTOR_EXCEPTIONS = {
     ("website/docs/book/07-generiques-closures.md", "new Pair[string, int](", 37, 5): "pédagogique explicite",
     ("examples/generic_classes.janus", "new Box[int](", 17, 31): "pédagogique explicite",
     ("examples/generic_classes.janus", "new Box[string](", 22, 30): "pédagogique explicite",
+    ("examples/idiomatic/collections_idiomatic.janus", "new Array[int](", 4, 24): "nécessaire (T absent des arguments)",
     ("stdlib/std/process.janus", "new Array[string](", 8, 16): "pédagogique (inférence impossible)",
 
 }
