@@ -1419,11 +1419,17 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
     } while (true);
   }
   static_cast<void>(expect(TokenKind::RightParen));
-  static_cast<void>(expect(TokenKind::Colon));
+  const bool has_explicit_return_type = current_.kind == TokenKind::Colon;
+  if (has_explicit_return_type)
+    advance();
+  else if (!is_external && current_.kind != TokenKind::Arrow)
+    static_cast<void>(expect(TokenKind::Colon));
   ast::ReturnOwnership return_ownership = ast::ReturnOwnership::Unspecified;
   const bool has_owned_return =
-      current_.kind == TokenKind::Identifier && current_.lexeme == "owned";
-  if (current_.kind == TokenKind::Borrow || has_owned_return) {
+      has_explicit_return_type && current_.kind == TokenKind::Identifier &&
+      current_.lexeme == "owned";
+  if (has_explicit_return_type &&
+      (current_.kind == TokenKind::Borrow || has_owned_return)) {
     if (!is_external && has_owned_return)
       throw CompileError{
           current_.location,
@@ -1442,7 +1448,10 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
       advance();
     }
   }
-  ast::TypeReference return_type = parse_type();
+  ast::TypeReference return_type =
+      has_explicit_return_type
+          ? parse_type()
+          : ast::TypeReference{"", current_.location};
   if (current_.kind == TokenKind::Identifier && current_.lexeme == "where") {
     advance();
     do {
@@ -1513,6 +1522,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
   declaration.expression_body_arrow = expression_body_arrow;
   declaration.expression_body_start = expression_body_start;
   declaration.expression_body_end = expression_body_end;
+  declaration.has_explicit_return_type = has_explicit_return_type;
   return declaration;
 }
 

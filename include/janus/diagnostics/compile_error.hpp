@@ -83,6 +83,7 @@ enum class DiagnosticCode {
   AnalyzerExclusiveCallback,
   AnalyzerAffineCallbackLoop,
   AnalyzerFunctionResolution,
+  AnalyzerReturnInference,
   AnalyzerInvalidUsingType,
   AnalyzerDisarmedUsingValue,
   ModuleNotFound,
@@ -215,6 +216,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0049";
   case DiagnosticCode::AnalyzerFunctionResolution:
     return "JANA0041";
+  case DiagnosticCode::AnalyzerReturnInference:
+    return "JANA0050";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::ConstantLegacy:

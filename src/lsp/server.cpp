@@ -139,6 +139,7 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
 }
 
 std::string function_signature(const janus::ast::FunctionDeclaration &function);
+std::string type_reference(const janus::ast::TypeReference &type);
 std::optional<std::filesystem::path> file_uri_path(std::string_view uri);
 std::optional<std::string>
 inferred_literal_type(const std::vector<janus::frontend::Token> &items,
@@ -186,6 +187,43 @@ struct AnalyzedTypes {
   std::unordered_map<std::size_t, std::string> locals;
   std::unordered_map<std::size_t, std::string> lambda_parameters;
 };
+
+struct AnalyzedProgram {
+  janus::ast::Program program;
+};
+
+AnalyzedProgram analyze_document_program(
+    std::string_view uri, std::string_view source,
+    const std::vector<std::filesystem::path> &module_search_paths = {},
+    const std::vector<std::filesystem::path> &workspace_search_paths = {},
+    const std::unordered_map<std::string, std::string> *open_documents =
+        nullptr) {
+  janus::frontend::Parser syntax_parser{source};
+  janus::ast::Program syntax = syntax_parser.parse_program();
+
+  janus::ast::Program program;
+  if (const auto path = file_uri_path(uri); path.has_value()) {
+    std::vector<std::filesystem::path> search_paths = module_search_paths;
+    search_paths.insert(search_paths.end(), workspace_search_paths.begin(),
+                        workspace_search_paths.end());
+    search_paths.push_back(path->parent_path());
+    janus::frontend::ModuleLoader loader{std::move(search_paths)};
+    if (open_documents != nullptr)
+      for (const auto &[open_uri, open_source] : *open_documents)
+        if (const auto open_path = file_uri_path(open_uri);
+            open_path.has_value())
+          loader.set_source_override(*open_path, open_source);
+    program = loader.load(*path, source);
+  } else {
+    program = std::move(syntax);
+  }
+
+  janus::semantic::Analyzer analyzer;
+  static_cast<void>(analyzer.analyze(
+      program, janus::semantic::AnalysisOptions{.require_entry_point = false,
+                                                .target = {}}));
+  return {std::move(program)};
+}
 
 AnalyzedTypes analyze_local_types(
     std::string_view uri, std::string_view source,
@@ -264,23 +302,20 @@ std::vector<DocumentSymbol> symbols(
   std::unordered_map<std::size_t, std::string> analyzed_lambda_parameters;
   try {
     janus::frontend::Parser parser{source};
-    const janus::ast::Program program = parser.parse_program();
+    janus::ast::Program program = parser.parse_program();
     module_name = program.module_name;
-    for (const janus::ast::FunctionDeclaration &function : program.functions)
-      function_details.emplace(function.name,
-                               "def " + function_signature(function));
-    for (const janus::ast::ExtensionDeclaration &extension : program.extensions)
-      for (const janus::ast::FunctionDeclaration &method : extension.methods)
-        function_details.emplace(method.name,
-                                 "def " + function_signature(method));
     try {
+      AnalyzedProgram analyzed = analyze_document_program(
+          uri, source, module_search_paths, workspace_search_paths,
+          open_documents);
+      program = std::move(analyzed.program);
       janus::semantic::Analyzer analyzer;
-      const janus::semantic::AnalysisResult analysis =
-          analyzer.analyze(program, janus::semantic::AnalysisOptions{
-                                        .require_entry_point = false,
-                                        .target = {}});
+      const janus::semantic::AnalysisResult analysis = analyzer.analyze(
+          program, janus::semantic::AnalysisOptions{.require_entry_point = false,
+                                                     .target = {}});
       for (const janus::ast::GlobalDeclaration &global : program.globals) {
-      if (!global.declaration.is_constant)
+      if (global.module_name != module_name ||
+          !global.declaration.is_constant)
         continue;
       const std::string key = global.module_name.has_value()
                                   ? *global.module_name + "." +
@@ -312,6 +347,17 @@ std::vector<DocumentSymbol> symbols(
       }
     } catch (const std::exception &) {
     }
+    for (const janus::ast::FunctionDeclaration &function : program.functions)
+      if (function.module_name == module_name &&
+          !type_reference(function.return_type).empty())
+        function_details.emplace(function.name,
+                                 "def " + function_signature(function));
+    for (const janus::ast::ExtensionDeclaration &extension : program.extensions)
+      if (extension.module_name == module_name)
+        for (const janus::ast::FunctionDeclaration &method : extension.methods)
+          if (!type_reference(method.return_type).empty())
+            function_details.emplace(method.name,
+                                     "def " + function_signature(method));
     AnalyzedTypes analyzed_types = analyze_local_types(
         uri, source, module_search_paths, workspace_search_paths,
         open_documents);
@@ -3435,10 +3481,26 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
               continue;
             try {
               frontend::Parser parser{indexed.index->source};
-              const ast::Program program = parser.parse_program();
+              ast::Program program = parser.parse_program();
+              const std::optional<std::string> entry_module =
+                  program.module_name;
+              try {
+                AnalyzedProgram analyzed = analyze_document_program(
+                    indexed.uri, indexed.index->source, module_search_paths_,
+                    workspace_search_paths_, &documents_);
+                program = std::move(analyzed.program);
+              } catch (const std::exception &) {
+                // Keep explicitly written signatures available while a
+                // neighboring declaration or import is incomplete. Inferred
+                // returns are only exposed after a successful normal analysis.
+              }
               for (const ast::FunctionDeclaration &function :
                    program.functions) {
+                if (function.module_name != entry_module)
+                  continue;
                 if (function.name != call->callee.name)
+                  continue;
+                if (type_reference(function.return_type).empty())
                   continue;
                 llvm::json::Array parameters;
                 for (const ast::FunctionDeclaration::Parameter &parameter :
@@ -3460,6 +3522,8 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
               }
               for (const ast::ExtensionDeclaration &extension :
                    program.extensions) {
+                if (extension.module_name != entry_module)
+                  continue;
                 if (!extension_is_visible(
                         extension, indexed,
                         semantic_index.documents.front()))
@@ -3467,6 +3531,8 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                 for (const ast::FunctionDeclaration &function :
                      extension.methods) {
                   if (function.name != call->callee.name)
+                    continue;
+                  if (type_reference(function.return_type).empty())
                     continue;
                   llvm::json::Array parameters;
                   for (const ast::FunctionDeclaration::Parameter &parameter :

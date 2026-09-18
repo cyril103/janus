@@ -540,7 +540,10 @@ struct FunctionDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
   std::vector<Parameter> parameters;
-  TypeReference return_type;
+  // Mutable because semantic return inference completes this declaration
+  // before the ordinary, read-only body analysis. The owned TypeReference
+  // avoids storing pointers into analyzer-local type tables.
+  mutable TypeReference return_type;
   std::vector<Statement> body;
   SourceLocation location;
   bool is_private{};
@@ -560,6 +563,7 @@ struct FunctionDeclaration {
   std::optional<SourceLocation> expression_body_start;
   std::size_t expression_body_end{};
   bool is_pure{};
+  bool has_explicit_return_type{true};
 };
 
 struct DestructorDeclaration {

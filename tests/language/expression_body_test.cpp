@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace {
 
@@ -29,6 +30,9 @@ void expect_error(std::string_view source, std::string_view message,
     static_cast<void>(analyzer.analyze(parser.parse_program()));
     expect(false, "invalid expression body must fail");
   } catch (const janus::CompileError &error) {
+    if (std::string_view{error.what()}.find(message) == std::string_view::npos)
+      std::cerr << "unexpected diagnostic: " << error.what()
+                << " (expected fragment: " << message << ")\n";
     expect(std::string_view{error.what()}.find(message) != std::string_view::npos,
            "diagnostic explains the expression-body error");
     expect(error.location().line == line,
@@ -171,7 +175,93 @@ def main() : int => value
 )"};
   static_cast<void>(analyzer.analyze(const_parser.parse_program()));
 
-  expect_error("def wrong() => 1\ndef main() : int => 0", "expected ':'", 1);
+  janus::frontend::Parser inferred_parser{R"(
+private def square(value : int) => value * value
+def main() : int => square(6)
+)"};
+  const janus::ast::Program inferred_program = inferred_parser.parse_program();
+  static_cast<void>(analyzer.analyze(inferred_program));
+  expect(inferred_program.functions.front().return_type.name == "int" &&
+             !inferred_program.functions.front().has_explicit_return_type,
+         "private expression-body return inference is recorded in the AST");
+
+  janus::frontend::Parser inference_graph_parser{R"(
+private def unitResult() => unit
+private def first(value : int) => middle(value)
+private def middle(value : int) => later(value)
+private def later(value : int) => value + 1
+private def truth(value : bool) => !value
+private def floating(value : double) => value / 2.0
+private pure def pureValue(value : int) => value + 1
+private tailrec def recursiveBoundary(value : int) : int => recursiveBoundary(value)
+private def throughBoundary(value : int) => recursiveBoundary(value)
+def main() : int => first(40)
+)"};
+  const janus::ast::Program inference_graph_program =
+      inference_graph_parser.parse_program();
+  static_cast<void>(analyzer.analyze(inference_graph_program));
+  expect(inference_graph_program.functions[0].return_type.name == "Unit" &&
+             inference_graph_program.functions[1].return_type.name == "int" &&
+             inference_graph_program.functions[4].return_type.name == "bool" &&
+             inference_graph_program.functions[5].return_type.name == "double",
+         "Unit, scalar chains, and forward references infer independently of "
+         "source order");
+
+  janus::frontend::Parser shift_inference_parser{R"(
+private def shiftInt(value : int, count : usize) => value << count
+private def shiftLong(value : long) => value >> 1
+private def shiftByte(value : byte, count : usize) => value << count
+def main() : int => shiftInt(4, 1)
+)"};
+  const janus::ast::Program shift_inference_program =
+      shift_inference_parser.parse_program();
+  static_cast<void>(analyzer.analyze(shift_inference_program));
+  expect(shift_inference_program.functions[0].return_type.name == "int" &&
+             shift_inference_program.functions[1].return_type.name == "long" &&
+             shift_inference_program.functions[2].return_type.name == "byte",
+         "shift inference preserves the left integer operand type");
+  expect_error(
+      "private def badShift(value : int, count : bool) => value << count\n"
+      "def main() : int => 0",
+      "shift count must have type usize", 1);
+
+  janus::frontend::Parser module_a_parser{
+      "module alpha\nprivate def first(value : int) => later(value)\n"
+      "private def later(value : int) => value + 1\n"};
+  janus::frontend::Parser module_b_parser{
+      "module beta\nprivate def flag(value : bool) => !value\n"};
+  janus::ast::Program multi_module_program = module_a_parser.parse_program();
+  janus::ast::Program module_b = module_b_parser.parse_program();
+  for (auto &function : module_b.functions)
+    multi_module_program.functions.push_back(std::move(function));
+  static_cast<void>(analyzer.analyze(
+      multi_module_program,
+      janus::semantic::AnalysisOptions{.require_entry_point = false,
+                                       .target = {}}));
+  expect(multi_module_program.functions[0].return_type.name == "int" &&
+             multi_module_program.functions[2].return_type.name == "bool",
+         "private return graphs are resolved independently across loaded "
+         "modules");
+
+  expect_error("def wrong() => 1\ndef main() : int => 0", "annotation", 1);
+  expect_error("private def cycle() => cycle()\ndef main() : int => 0",
+               "cyclic return type inference", 1);
+  expect_error("private def left() => right()\nprivate def right() => left()\ndef main() : int => 0",
+               "cyclic return type inference", 1);
+  expect_error("private def generic[T](value : T) => value\ndef main() : int => 0",
+               "generic function", 1);
+  expect_error("private extern def native()\ndef main() : int => 0",
+               "external function", 1);
+  expect_error("class Box() { private def value() => 1 } def main() : int => 0",
+               "only available for free private functions", 1);
+  expect_error("class Box() {} private def box() => new Box() def main() : int => 0",
+               "outside the scalar/Unit inference tranche", 1);
+  expect_error("private def text() => \"owned\" def main() : int => 0",
+               "not a Copy scalar or Unit", 1);
+  expect_error("private def mismatch(flag : bool) => if flag { 1 } else { false } def main() : int => 0",
+               "different types", 1);
+  expect_error("private def choose(value : int) : int => value private def choose(value : uint) : uint => value private def ambiguous(value : byte) => choose(value) def main() : int => 0",
+               "ambiguous overload", 1);
   expect_error("def wrong() : int => true\ndef main() : int => 0", "int", 1);
   expect_error("def wrong() : Unit => 1\ndef main() : int => 0", "Unit", 1);
   expect_error("class Box() {} def wrong(borrow box : Box) : borrow Box => new Box() def main() : int => 0",
