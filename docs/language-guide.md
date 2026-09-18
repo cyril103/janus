@@ -2285,3 +2285,27 @@ consommer la source. `iterator()` parcourt les handles sans copie intermédiaire
 des valeurs; `intoIterator()` consomme une version. Pour un exemple complet,
 voir [l'historique de document](../examples/persistent-editor/README.md) et la
 [représentation du vecteur](design/persistent-vector.md).
+
+## Retour inféré des fonctions privées
+
+Une fonction libre explicitement `private`, non générique, avec paramètres
+typés et corps expression peut omettre son annotation lorsque son résultat est
+un scalaire intégré `Copy` ou `Unit` et que l'expression est composée de
+littéraux, paramètres, opérateurs scalaires, conditions homogènes et appels
+non génériques à des fonctions libres du même module également déterminables :
+
+```janus
+private def square(x : int) => x * x
+```
+
+Les fonctions publiques, externes, les méthodes et les résultats `string`,
+agrégats, propriétaires ou empruntés gardent une annotation obligatoire. Les
+chaînes privées et appels vers une déclaration ultérieure sont acceptés ; un
+cycle d'inférence demande une annotation explicite. Voir la
+[RFC normative](design/private-return-inference.md).
+
+Les résultats pourtant scalaires obtenus depuis un champ, un global, un
+`match`, un cast intégré, un builtin appelé directement (par exemple
+`println`) ou un appel importé ne sont pas encore couverts : ajoutez une
+annotation de retour explicite. Cette restriction n'ajoute aucune promotion
+numérique.

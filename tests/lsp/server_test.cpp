@@ -1584,7 +1584,7 @@ int main(int argc, char **argv) {
 
   janus::lsp::Server expression_body_server;
   static_cast<void>(expression_body_server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-body.janus","text":"def square(value : int) : int => value * value\ndef use() : int => square(6)\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-body.janus","text":"private def square(value : int) => value * value\ndef use() : int => square(6)\n"}}})"));
   const std::vector<std::string> expression_symbols =
       expression_body_server.handle(
           R"({"jsonrpc":"2.0","id":201,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})");
@@ -1648,6 +1648,86 @@ int main(int argc, char **argv) {
           R"({"jsonrpc":"2.0","id":203,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///expression-body.janus"},"position":{"line":1,"character":26}}})");
   JANUS_REQUIRE(expression_signature.front().find(
                     "square(value : int) : int") != std::string::npos);
+
+  const std::filesystem::path inferred_helper_path =
+      temporary_workspace.path() / "src/inferred_helper.janus";
+  const std::filesystem::path inferred_consumer_path =
+      temporary_workspace.path() / "src/inferred-consumer.janus";
+  TemporaryWorkspace::write(
+      inferred_helper_path,
+      "module inferred_helper\ndef value() : int => 42\n");
+  janus::lsp::Server imported_inference_server{
+      {temporary_workspace.path() / "src"}};
+  const std::string inferred_consumer_uri = file_uri(inferred_consumer_path);
+  static_cast<void>(imported_inference_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      inferred_consumer_uri + "\",\"text\":\"import inferred_helper\\nprivate def square(x : int) => x * x\\ndef main() : int => square(inferred_helper.value())\\n\"}}}"));
+  const std::vector<std::string> imported_inference_signature =
+      imported_inference_server.handle(
+          "{\"jsonrpc\":\"2.0\",\"id\":220,\"method\":\"textDocument/signatureHelp\",\"params\":{\"textDocument\":{\"uri\":\"" +
+          inferred_consumer_uri +
+          "\"},\"position\":{\"line\":2,\"character\":27}}}");
+  JANUS_REQUIRE(imported_inference_signature.front().find(
+                    "square(x : int) : int") != std::string::npos);
+  const std::vector<std::string> imported_inference_hover =
+      imported_inference_server.handle(
+          "{\"jsonrpc\":\"2.0\",\"id\":221,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
+          inferred_consumer_uri +
+          "\"},\"position\":{\"line\":2,\"character\":21}}}");
+  JANUS_REQUIRE(imported_inference_hover.front().find(
+                    "square(x : int) : int") != std::string::npos);
+
+  janus::lsp::Server partial_inference_server;
+  static_cast<void>(partial_inference_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///partial-inference.janus","text":"private def pending(value : int) => missing(value)\nprivate def square(value : int) : int => value * value\ndef main() : int => pending(6)\ndef fallback() : int => square(6)\n"}}})"));
+  const std::vector<std::string> unresolved_inference_signature =
+      partial_inference_server.handle(
+          R"({"jsonrpc":"2.0","id":2211,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///partial-inference.janus"},"position":{"line":2,"character":30}}})");
+  JANUS_REQUIRE(unresolved_inference_signature.front().find(
+                    "pending(value : int)") == std::string::npos);
+  const std::vector<std::string> partial_inference_symbols =
+      partial_inference_server.handle(
+          R"({"jsonrpc":"2.0","id":2212,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///partial-inference.janus"}}})");
+  JANUS_REQUIRE(partial_inference_symbols.front().find(
+                    "pending(value : int)") == std::string::npos);
+  const std::vector<std::string> partial_inference_signature =
+      partial_inference_server.handle(
+          R"({"jsonrpc":"2.0","id":222,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///partial-inference.janus"},"position":{"line":3,"character":31}}})");
+  JANUS_REQUIRE(partial_inference_signature.front().find(
+                    "square(value : int) : int") != std::string::npos);
+  janus::lsp::Server incomplete_inference_server;
+  const std::vector<std::string> incomplete_inference =
+      incomplete_inference_server.handle(
+          R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///incomplete-inference.janus","text":"private def pending(value : int) =>\n"}}})");
+  JANUS_REQUIRE(incomplete_inference.size() == 1);
+  JANUS_REQUIRE(incomplete_inference.front().find("diagnostics") !=
+                std::string::npos);
+
+  const std::filesystem::path collision_module_path =
+      temporary_workspace.path() / "src/collision_a.janus";
+  const std::filesystem::path collision_consumer_path =
+      temporary_workspace.path() / "src/collision-consumer.janus";
+  TemporaryWorkspace::write(
+      collision_module_path,
+      "module collision_a\nconst foreign : int = 11\n");
+  TemporaryWorkspace::write(
+      collision_consumer_path,
+      "import collision_a\nconst local : int = 22\n");
+  janus::lsp::Server constant_collision_server{
+      {temporary_workspace.path() / "src"}};
+  const std::string collision_consumer_uri = file_uri(collision_consumer_path);
+  static_cast<void>(constant_collision_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      collision_consumer_uri +
+      "\",\"text\":\"import collision_a\\nconst local : int = 22\\n\"}}}"));
+  const std::vector<std::string> collision_symbols =
+      constant_collision_server.handle(
+          "{\"jsonrpc\":\"2.0\",\"id\":223,\"method\":\"textDocument/documentSymbol\",\"params\":{\"textDocument\":{\"uri\":\"" +
+          collision_consumer_uri + "\"}}}");
+  JANUS_REQUIRE(collision_symbols.front().find("const local : int = 22") !=
+                std::string::npos);
+  JANUS_REQUIRE(collision_symbols.front().find("collision_a.foreign") ==
+                std::string::npos);
   const std::vector<std::string> expression_folding = expression_body_server.handle(
       R"({"jsonrpc":"2.0","id":204,"method":"textDocument/foldingRange","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})");
   JANUS_REQUIRE(expression_folding.size() == 1);
@@ -1663,7 +1743,7 @@ int main(int argc, char **argv) {
       expression_body_server.handle(
           R"({"jsonrpc":"2.0","id":206,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})"),
       LspResultShape::SemanticTokens);
-  JANUS_REQUIRE(semantic_token_type_at(expression_tokens, 0, 30) == 13);
+  JANUS_REQUIRE(semantic_token_type_at(expression_tokens, 0, 32) == 13);
 
   janus::lsp::Server expression_range_server;
   static_cast<void>(expression_range_server.handle(

@@ -152,3 +152,4 @@ reproduire.
 | `JANA0047` | missing struct field |
 | `JANA0048` | inaccessible struct field |
 | `JANA0049` | named construction of a class |
+| `JANA0050` | l'inférence restreinte du retour exige une annotation explicite |

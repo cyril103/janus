@@ -1194,6 +1194,244 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       class_arities.insert_or_assign(declaration.name, ambiguous_arity_marker);
     }
 
+  // Complete the deliberately narrow, declaration-level inference graph
+  // before signatures are consumed by visibility, overload, effect, and body
+  // analysis. This pass only classifies expression types; it never evaluates a
+  // body and therefore cannot mark moves or borrows a second time.
+  const auto reject_inferred_method = [](const ast::FunctionDeclaration
+                                             &method) {
+    if (!method.has_explicit_return_type)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          method.expression_body_arrow.value_or(method.location),
+          "return type inference is only available for free private functions; "
+          "add an explicit return type annotation to method '" + method.name +
+              "'"};
+  };
+  for (const ast::TraitDeclaration &declaration : program.traits)
+    for (const ast::FunctionDeclaration &method : declaration.methods)
+      reject_inferred_method(method);
+  for (const ast::ClassDeclaration &declaration : program.classes)
+    for (const ast::FunctionDeclaration &method : declaration.methods)
+      reject_inferred_method(method);
+  for (const ast::ExtensionDeclaration &declaration : program.extensions)
+    for (const ast::FunctionDeclaration &method : declaration.methods)
+      reject_inferred_method(method);
+
+  enum class InferenceState { Unvisited, Active, Complete };
+  std::unordered_map<const ast::FunctionDeclaration *, InferenceState>
+      inference_states;
+  std::function<ast::TypeReference(const ast::FunctionDeclaration &)>
+      infer_return;
+  infer_return = [&](const ast::FunctionDeclaration &function) {
+    const SourceLocation location =
+        function.expression_body_arrow.value_or(function.location);
+    if (function.has_explicit_return_type)
+      return function.return_type;
+    if (!function.is_private)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "exported function '" + function.name +
+                        "' requires an explicit return type annotation"};
+    if (function.is_external)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "external function '" + function.name +
+                        "' requires an explicit return type annotation"};
+    if (!function.type_parameters.empty() ||
+        !function.type_constraints.empty())
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "generic function '" + function.name +
+                        "' requires an explicit return type annotation"};
+    if (!function.expression_body_arrow || function.body.size() != 1)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "return type inference requires an expression body; add "
+                    "an explicit return type annotation"};
+    if (function.return_ownership != ast::ReturnOwnership::Unspecified)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "borrowed or owned results require an explicit return "
+                    "type annotation"};
+
+    InferenceState &state = inference_states[&function];
+    if (state == InferenceState::Active)
+      throw CompileError{
+          DiagnosticCode::AnalyzerReturnInference,
+          location, "cyclic return type inference for function '" +
+                        function.name +
+                        "'; add an explicit return type annotation to break "
+                        "the cycle"};
+    if (state == InferenceState::Complete)
+      return function.return_type;
+    state = InferenceState::Active;
+
+    std::unordered_map<std::string, ast::TypeReference> locals;
+    for (const ast::FunctionDeclaration::Parameter &parameter :
+         function.parameters)
+      locals.emplace(parameter.name, parameter.type);
+    const auto fail = [&](SourceLocation at, std::string detail)
+        -> ast::TypeReference {
+      throw CompileError{DiagnosticCode::AnalyzerReturnInference, at,
+                         std::move(detail) +
+                                 "; add an explicit return type annotation"};
+    };
+    std::function<ast::TypeReference(const ast::Expression &)> infer_expression;
+    infer_expression = [&](const ast::Expression &expression)
+        -> ast::TypeReference {
+      return std::visit(
+          [&](const auto &node) -> ast::TypeReference {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node,
+                                         ast::IntegerLiteralExpression>)
+              return {"int", node.location};
+            else if constexpr (std::is_same_v<
+                                   Node, ast::DoubleLiteralExpression>)
+              return {node.is_float ? "float" : "double", node.location};
+            else if constexpr (std::is_same_v<
+                                   Node, ast::CharacterLiteralExpression>)
+              return {"char", node.location};
+            else if constexpr (std::is_same_v<
+                                   Node, ast::BooleanLiteralExpression>)
+              return {"bool", node.location};
+            else if constexpr (std::is_same_v<Node,
+                                                ast::StringLiteralExpression>)
+              return {"string", node.location};
+            else if constexpr (std::is_same_v<Node,
+                                                ast::IdentifierExpression>) {
+              if (node.name == "unit")
+                return {"Unit", node.location};
+              if (const auto found = locals.find(node.name);
+                  found != locals.end())
+                return found->second;
+              return fail(node.location, "cannot infer the type of identifier '" +
+                                             node.name + "'");
+            } else if constexpr (std::is_same_v<Node,
+                                                   ast::UnaryExpression>) {
+              ast::TypeReference operand = infer_expression(*node.operand);
+              if (node.operation == ast::UnaryOperator::LogicalNot)
+                return {"bool", node.location};
+              return operand;
+            } else if constexpr (std::is_same_v<Node,
+                                                   ast::BinaryExpression>) {
+              ast::TypeReference left = infer_expression(*node.left);
+              ast::TypeReference right = infer_expression(*node.right);
+              switch (node.operation) {
+              case ast::BinaryOperator::Less:
+              case ast::BinaryOperator::LessEqual:
+              case ast::BinaryOperator::Greater:
+              case ast::BinaryOperator::GreaterEqual:
+              case ast::BinaryOperator::Equal:
+              case ast::BinaryOperator::NotEqual:
+              case ast::BinaryOperator::LogicalAnd:
+              case ast::BinaryOperator::LogicalOr:
+                return {"bool", node.location};
+              case ast::BinaryOperator::ShiftLeft:
+              case ast::BinaryOperator::ShiftRight:
+                return left;
+              default:
+                if (ast::type_reference_name(left) !=
+                    ast::type_reference_name(right))
+                  return fail(node.location,
+                              "expression operands have different types");
+                return left;
+              }
+            } else if constexpr (std::is_same_v<Node,
+                                                   ast::IfExpression>) {
+              const ast::TypeReference then_type =
+                  infer_expression(*node.then_expression);
+              const ast::TypeReference else_type =
+                  infer_expression(*node.else_expression);
+              if (ast::type_reference_name(then_type) !=
+                  ast::type_reference_name(else_type))
+                return fail(node.location,
+                            "conditional branches have different types");
+              return then_type;
+            } else if constexpr (std::is_same_v<Node,
+                                                   ast::CallExpression>) {
+              std::vector<ast::TypeReference> argument_types;
+              for (const auto &argument : node.arguments)
+                argument_types.push_back(infer_expression(*argument));
+              std::vector<const ast::FunctionDeclaration *> matches;
+              std::vector<const ast::FunctionDeclaration *> same_arity;
+              const auto consider =
+                  [&](const ast::FunctionDeclaration &candidate) {
+                if (candidate.name != node.callee ||
+                    candidate.module_name != function.module_name ||
+                    candidate.parameters.size() != argument_types.size() ||
+                    !node.type_arguments.empty())
+                  return;
+                same_arity.push_back(&candidate);
+                for (std::size_t index = 0; index < argument_types.size();
+                     ++index)
+                  if (ast::type_reference_name(
+                          candidate.parameters[index].type) !=
+                      ast::type_reference_name(argument_types[index]))
+                    return;
+                matches.push_back(&candidate);
+              };
+              for (const ast::FunctionDeclaration &candidate :
+                   program.functions)
+                consider(candidate);
+              if (matches.empty() && same_arity.size() > 1)
+                return fail(node.location,
+                            "ambiguous overload call to '" + node.callee +
+                                "' (return types do not select overloads)");
+              if (matches.empty() && same_arity.size() == 1)
+                matches = same_arity;
+              if (matches.empty())
+                return fail(node.location,
+                            "cannot determine callee '" + node.callee + "'");
+              if (matches.size() != 1)
+                return fail(node.location,
+                            "ambiguous overload call to '" + node.callee +
+                                "' (return types do not select overloads)");
+              if (!matches.front()->type_parameters.empty())
+                return fail(node.location,
+                            "calls to generic functions are outside this "
+                            "inference tranche");
+              if (matches.front()->return_ownership !=
+                  ast::ReturnOwnership::Unspecified)
+                return fail(node.location,
+                            "borrowed or owned call results are outside this "
+                            "inference tranche");
+              return infer_return(*matches.front());
+            } else {
+              return fail(expression_location(expression),
+                          "this expression result is outside the scalar/Unit "
+                          "inference tranche");
+            }
+          },
+          expression.value);
+    };
+    const auto *returned =
+        std::get_if<ast::ReturnStatement>(&function.body.front());
+    if (returned == nullptr || !returned->expression)
+      return fail(location, "expression body has no result");
+    ast::TypeReference inferred = infer_expression(*returned->expression);
+    const Type *type = builtin_type(inferred.name);
+    const bool scalar_or_unit =
+        type != nullptr && type->kind() != TypeKind::String &&
+        type->kind() != TypeKind::Enum &&
+        type->kind() != TypeKind::Function &&
+        type->kind() != TypeKind::Pointer &&
+        type->kind() != TypeKind::Class &&
+        type->kind() != TypeKind::Struct;
+    if (!scalar_or_unit)
+      return fail(expression_location(*returned->expression),
+                  "inferred result type '" +
+                      ast::type_reference_name(inferred) +
+                      "' is not a Copy scalar or Unit");
+    inferred.location = location;
+    function.return_type = std::move(inferred);
+    state = InferenceState::Complete;
+    return function.return_type;
+  };
+  for (const ast::FunctionDeclaration &function : program.functions)
+    if (!function.has_explicit_return_type)
+      static_cast<void>(infer_return(function));
+
   struct TypeVisibility {
     bool is_private;
     std::optional<std::string> module;
