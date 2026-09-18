@@ -1104,6 +1104,11 @@ seconde panique depuis un destructeur n'interrompt pas les nettoyages locaux
 restants. Le contrat ABI et les limites FFI/globales sont détaillés dans
 [le design du déroulement des paniques](design/panic-unwinding.md).
 
+L'éventuelle extension de ce comportement à des `val` locales sous opt-in est
+une étude non acceptée et non implémentée. Voir la
+[RFC sur le nettoyage déterministe des propriétaires locaux](design/deterministic-local-cleanup.md),
+qui sépare le contrat `using val` vérifié des recommandations à approuver.
+
 Cet ordre LIFO fait partie de l'analyse des emprunts. Une action différée qui
 lit un emprunt doit être enregistrée après le nettoyage de sa source, afin de
 s'exécuter avant lui :
