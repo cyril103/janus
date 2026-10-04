@@ -9,7 +9,7 @@ RUN python3 website/scripts/sync_reference_docs.py \
  && mkdocs build --strict -f website/mkdocs.yml -d /site
 
 # nginx 1.28 on Alpine (multi-platform digest).
-FROM nginx:1.31-alpine@sha256:72ba65eb42c10344912a84ff42408db7d34f2feb642204570ab8fc5ffd29f1d3
+FROM nginx:1.31-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 COPY website/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /site /usr/share/nginx/html
 EXPOSE 80
